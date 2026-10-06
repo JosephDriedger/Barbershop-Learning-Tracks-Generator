@@ -1,0 +1,30 @@
+{
+ "source": "MuseScore 4.7.4 MIDI export",
+ "ppq": 480,
+ "tracks": [
+  [
+   {
+    "tick": 0,
+    "midi_note": 60
+   },
+   {
+    "tick": 480,
+    "midi_note": 62
+   },
+   {
+    "tick": 960,
+    "midi_note": 64
+   },
+   {
+    "tick": 1440,
+    "midi_note": 65
+   }
+  ]
+ ],
+ "tempos": [
+  {
+   "tick": 0,
+   "microseconds_per_quarter": 500000
+  }
+ ]
+}
