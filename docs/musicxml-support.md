@@ -138,6 +138,37 @@ records the meter in effect at every measure; parts are compared by what is in e
 that declares nothing inherits), and any difference is ERROR `TIME_SIGNATURE_CONFLICT`. Repeated
 declarations of the same meter, in one part or several, add no event.
 
+### Lyrics (literal parsing, M3c1)
+
+The parser stores each `<lyric>` exactly as written on the note where it occurs. It does not
+infer melismas, join syllables, choose a verse, fill gaps or produce OpenUtau text; interpretation
+is the separate lyric analysis (M3c2).
+
+| Source | Stored as |
+|---|---|
+| `<text>` | Verbatim (never stripped). Single `<text>` containing a space, undertie or underscore is one literal text. |
+| `<syllabic>` | `Syllabic`; **absent is `UNSPECIFIED`**, never `single` (MuseScore re-exports `single`). |
+| `number` | As written; **absent is `None`**, not `"1"`. `Lyric.logical_verse` groups an absent number with the default verse `"1"` without changing the source. |
+| `name`, `time-only` | `Lyric.name` and `Lyric.time_only`, verbatim. `time-only` is also ERROR `LYRIC_TIME_ONLY_UNSUPPORTED` (it depends on the repeat pass). |
+| `<extend>` | `Melisma`: none / **untyped** / start / continue / stop. Untyped is not translated to start in the source model. An extender with no text is an `EXTENSION` lyric. |
+| `<humming/>`, `<laughing/>` | Preserved as `LyricKind.HUMMING` / `LAUGHING` (MusicXML 4.0: "a humming voice", "a laughing voice", replacing text). Not an error; later stages decide whether a backend can sing them. MuseScore drops them. |
+| `<elision>` | `LyricSegment` with `joiner` (its text) and `joiner_smufl` (its `smufl` name). |
+| MuseScore elision | Recognized only as `text, U+E551, text [, U+E551, text ...]` (SMuFL `lyricsElisionNarrow`, the only glyph MuseScore wrote for every elision form). Other private-use characters, including U+E550 and U+E552, are **not** elisions. |
+| Any other multi-`<text>` shape, a second `<syllabic>` without an elision, a bad `<syllabic>` value, mixed humming/text, two `<extend>` | ERROR `LYRIC_TEXT_STRUCTURE_UNSUPPORTED`; nothing is concatenated on a guess. |
+| Invalid `<extend type>` / empty `number` | ERROR `LYRIC_EXTEND_TYPE_INVALID` / `LYRIC_NUMBER_INVALID`. |
+| No usable content (empty `<text>`, only `<syllabic>`) | WARNING `LYRIC_EMPTY`; the lyric is skipped. |
+| `<end-line/>`, `<end-paragraph/>` | Ignored (formatting). |
+
+Problems and placements:
+- Two lyrics in the same **logical** verse on one note are ERROR `LYRIC_DUPLICATE_VERSE`. Both are
+  kept; none is chosen. (MuseScore creates these itself when it moves a grace or chord lyric.)
+- A lyric on a rest, cue, grace or unpitched note is the ERROR `LYRIC_ON_REST`,
+  `LYRIC_ON_CUE_NOTE`, `LYRIC_ON_GRACE_NOTE` or `LYRIC_ON_UNPITCHED_NOTE`. Its literal text is in
+  the message and it is **never attached to another note** (MuseScore moves a grace lyric to the
+  next note and a later chord member's lyric to the first member; we do not).
+- Lyrics on tied notes, including a tie continuation, stay on their own source notes.
+- Slurs are not read and are not melisma evidence; a slurred lyric-less note stays lyric-less.
+
 ### Evidence from a real TTBB export
 
 One real barbershop score supplied by the project owner (a 71-measure arrangement exported

@@ -22,6 +22,7 @@ from fractions import Fraction
 
 from barbershop_tracks.core.musicxml.duration_type import notated_quarters
 from barbershop_tracks.core.musicxml.issues import IssueCollector
+from barbershop_tracks.core.musicxml.lyrics import describe_lyrics, has_lyrics, read_lyrics
 from barbershop_tracks.core.musicxml.meter import MeterKey
 from barbershop_tracks.core.musicxml.repeats import (
     REPEAT_NOT_SUPPORTED_YET,
@@ -40,6 +41,7 @@ from barbershop_tracks.core.musicxml.values import child_text, parse_decimal, pa
 from barbershop_tracks.models import (
     IDENTITY_TRANSFORM,
     ClefChange,
+    Lyric,
     Note,
     Pitch,
     PitchTransform,
@@ -399,6 +401,7 @@ class _PartReader:
                 line=self._best_line(element),
                 local=self._cursor,
             )
+            self._unplaceable_lyrics(element, "LYRIC_ON_GRACE_NOTE", "a grace note", self._cursor)
             return
         duration = self._quarters(
             element, "NOTE_DURATION_MISSING", "NOTE_DURATION_INVALID", "a note"
@@ -447,6 +450,7 @@ class _PartReader:
                 line=self._best_line(element),
                 local=local,
             )
+            self._unplaceable_lyrics(element, "LYRIC_ON_CUE_NOTE", "a cue note", local)
             return
         if element.find("unpitched") is not None:
             self._error(
@@ -455,6 +459,7 @@ class _PartReader:
                 line=self._best_line(element),
                 local=local,
             )
+            self._unplaceable_lyrics(element, "LYRIC_ON_UNPITCHED_NOTE", "an unpitched note", local)
             return
         voice = child_text(element, "voice")
         raw_staff = child_text(element, "staff")
@@ -475,6 +480,7 @@ class _PartReader:
     ) -> Note | None:
         start, beat = self._measure_start + local, _ONE + local
         if element.find("rest") is not None:
+            self._unplaceable_lyrics(element, "LYRIC_ON_REST", "a rest", local, line)
             return Note.rest(start=start, duration=duration, measure=self._number, beat=beat)
         try:
             pitch = _read_pitch(element)
@@ -496,6 +502,7 @@ class _PartReader:
             return None
         ties = read_tie_info(element)
         self._tie_diagnostics(ties, pitch, line, local)
+        lyrics = self._lyrics(element, line, local)
         return Note(
             start=start,
             duration=duration,
@@ -505,6 +512,37 @@ class _PartReader:
             transform=transform,
             tied_to_next=ties.starts,
             tied_from_previous=ties.stops,
+            lyrics=lyrics,
+        )
+
+    # --- lyrics (literal; interpretation belongs to the lyric analysis) ---------------------
+
+    def _lyrics(self, element: ET.Element, line: SourceLine, local: Fraction) -> tuple[Lyric, ...]:
+        """The note's lyrics exactly as written; problems are reported, never repaired."""
+        result = read_lyrics(element)
+        for problem in result.problems:
+            report = self._warn if problem.is_warning else self._error
+            report(problem.code, problem.message, line=line, local=local)
+        return result.lyrics
+
+    def _unplaceable_lyrics(
+        self,
+        element: ET.Element,
+        code: str,
+        what: str,
+        local: Fraction,
+        line: SourceLine | None = None,
+    ) -> None:
+        """A lyric on a note that cannot hold one. It is reported with its literal text and
+        is never attached to a different note (MuseScore would move it; we do not)."""
+        if not has_lyrics(element):
+            return
+        self._error(
+            code,
+            f"{what} carries a lyric ({describe_lyrics(element)}); it is not attached to "
+            "any other note",
+            line=line or self._best_line(element),
+            local=local,
         )
 
     def _tie_diagnostics(

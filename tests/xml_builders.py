@@ -21,16 +21,44 @@ def note(
     tie: str = "",
     type_xml: str = "",
     notations: str = "",
+    lyrics: str = "",
 ) -> str:
-    """A pitched note. ``tie`` is placed after ``<duration>``; ``notations`` at the end."""
+    """A pitched note. ``tie`` follows ``<duration>``; ``notations`` and ``lyrics`` come last."""
     alter_xml = f"<alter>{alter}</alter>" if alter is not None else ""
     voice_xml = f"<voice>{voice}</voice>" if voice is not None else ""
     staff_xml = f"<staff>{staff}</staff>" if staff is not None else ""
     notations_xml = f"<notations>{notations}</notations>" if notations else ""
     return (
         f"<note>{extra}<pitch><step>{step}</step>{alter_xml}<octave>{octave}</octave></pitch>"
-        f"<duration>{duration}</duration>{tie}{voice_xml}{type_xml}{staff_xml}{notations_xml}</note>"
+        f"<duration>{duration}</duration>{tie}{voice_xml}{type_xml}{staff_xml}{notations_xml}"
+        f"{lyrics}</note>"
     )
+
+
+def lyric_xml(
+    *content: str, number: str | None = "1", name: str | None = None, time_only: str | None = None
+) -> str:
+    """A ``<lyric>``. ``content`` is raw child XML such as ``text("la")`` and ``extend()``."""
+    attrs = ""
+    if number is not None:
+        attrs += f' number="{number}"'
+    if name is not None:
+        attrs += f' name="{name}"'
+    if time_only is not None:
+        attrs += f' time-only="{time_only}"'
+    return f"<lyric{attrs}>{''.join(content)}</lyric>"
+
+
+def syl(value: str) -> str:
+    return f"<syllabic>{value}</syllabic>"
+
+
+def text(value: str) -> str:
+    return f"<text>{value}</text>"
+
+
+def extend(kind: str | None = None) -> str:
+    return "<extend/>" if kind is None else f'<extend type="{kind}"/>'
 
 
 def tie_xml(*types: str) -> str:
@@ -43,10 +71,12 @@ def tied_xml(*types: str) -> str:
     return "".join(f'<tied type="{kind}"/>' for kind in types)
 
 
-def rest(duration: int | str, *, voice: str | None = "1", staff: int | None = None) -> str:
+def rest(
+    duration: int | str, *, voice: str | None = "1", staff: int | None = None, lyrics: str = ""
+) -> str:
     voice_xml = f"<voice>{voice}</voice>" if voice is not None else ""
     staff_xml = f"<staff>{staff}</staff>" if staff is not None else ""
-    return f"<note><rest/><duration>{duration}</duration>{voice_xml}{staff_xml}</note>"
+    return f"<note><rest/><duration>{duration}</duration>{voice_xml}{staff_xml}{lyrics}</note>"
 
 
 def backup(duration: int) -> str:

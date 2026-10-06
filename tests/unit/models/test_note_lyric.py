@@ -2,7 +2,16 @@ from fractions import Fraction
 
 import pytest
 
-from barbershop_tracks.models import Lyric, LyricSegment, Melisma, Note, Pitch, Step, Syllabic
+from barbershop_tracks.models import (
+    Lyric,
+    LyricKind,
+    LyricSegment,
+    Melisma,
+    Note,
+    Pitch,
+    Step,
+    Syllabic,
+)
 
 C4 = Pitch(Step.C, 4)
 
@@ -116,7 +125,7 @@ def test_lyric_text_and_syllabic_are_preserved_exactly() -> None:
     lyric = Lyric(text="Beau", syllabic=Syllabic.BEGIN)
     assert lyric.text == "Beau"
     assert lyric.syllabic is Syllabic.BEGIN
-    assert lyric.verse == "1"
+    assert lyric.verse is None  # an absent number is never silently "1"
     assert lyric.melisma is Melisma.NONE
 
 
@@ -126,7 +135,7 @@ def test_lyric_text_is_never_normalized() -> None:
 
 
 def test_all_syllabic_states_are_representable() -> None:
-    assert {s.name for s in Syllabic} == {"SINGLE", "BEGIN", "MIDDLE", "END"}
+    assert {s.name for s in Syllabic} == {"SINGLE", "BEGIN", "MIDDLE", "END", "UNSPECIFIED"}
 
 
 def test_source_lyrics_keep_openutau_markers_as_plain_text() -> None:
@@ -146,22 +155,23 @@ def test_melisma_is_represented_with_extension_lyrics() -> None:
     stop = Lyric.extension(Melisma.STOP)
     assert start.melisma is Melisma.START
     assert not cont.has_text
-    assert cont.syllabic is None
+    assert cont.syllabic is Syllabic.UNSPECIFIED
     assert stop.melisma is Melisma.STOP
 
 
-def test_extension_lyric_must_be_continue_or_stop() -> None:
-    with pytest.raises(ValueError, match="continuation"):
-        Lyric.extension(Melisma.START)
-    with pytest.raises(ValueError, match="continuation"):
+def test_an_extension_lyric_needs_some_extend_form() -> None:
+    with pytest.raises(ValueError, match="needs an <extend>"):
         Lyric.extension(Melisma.NONE)
+    # Every source form is storable; interpreting them is the analysis' job.
+    for form in (Melisma.UNTYPED, Melisma.START, Melisma.CONTINUE, Melisma.STOP):
+        assert Lyric.extension(form).melisma is form
 
 
-def test_text_requires_syllabic_and_empty_text_forbids_it() -> None:
-    with pytest.raises(ValueError, match="syllabic"):
-        Lyric(text="la", syllabic=None)
-    with pytest.raises(ValueError, match="syllabic"):
-        Lyric(text="", syllabic=Syllabic.SINGLE, melisma=Melisma.STOP)
+def test_text_lyrics_need_text_and_other_kinds_must_have_none() -> None:
+    with pytest.raises(ValueError, match="needs text"):
+        Lyric(text="")
+    with pytest.raises(ValueError, match="no text"):
+        Lyric(kind=LyricKind.EXTENSION, text="x", melisma=Melisma.STOP)
 
 
 def test_empty_verse_is_rejected() -> None:

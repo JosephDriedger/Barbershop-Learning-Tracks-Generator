@@ -389,9 +389,10 @@ def test_note_issues_carry_the_line_id_and_position(tmp_path: Path) -> None:
     assert issue.beat == 2
 
 
-def test_lyrics_are_not_read_in_this_step(tmp_path: Path) -> None:
+def test_a_lyric_is_attached_to_its_note_literally(tmp_path: Path) -> None:
     lyric = "<lyric><syllabic>single</syllabic><text>la</text></lyric>"
     body = note("C", 4, 8, extra="").replace("</note>", lyric + "</note>")
     result = parse_text(tmp_path, score(measure(1, body, attrs=attributes())))
-    assert _line(result, "P1/s1/v1").events[0].lyrics == ()
+    (attached,) = _line(result, "P1/s1/v1").events[0].lyrics
+    assert (attached.text, attached.verse) == ("la", None)  # no number in the source
     assert not result.issues
