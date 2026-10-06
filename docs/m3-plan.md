@@ -96,6 +96,9 @@ Warnings: `CUE_NOTE_SKIPPED`, `MEASURE_NUMBER_NONNUMERIC`, `MEASURE_NUMBER_REPEA
 `TIED_WITHOUT_TIE`, `LYRIC_MULTIPLE_TEXT`, `LYRIC_MULTIPLE_VERSES`,
 `DURATION_TYPE_MISMATCH`, `METRONOME_WITHOUT_SOUND`.
 
+M3b1 also defines `TIME_SIGNATURE_CHANGE_MID_MEASURE` and `TRANSPOSE_DOUBLE_UNSUPPORTED` (both
+ERRORs; see musicxml-support.md), and has no `TRANSPOSE_DOUBLE_IGNORED` code.
+
 `TEMPO_MISSING` (ERROR, generation-blocking, user-resolvable) is emitted by M4 validation,
 not by the parser. Likewise simultaneous pitched notes in one voice line
 (`LINE_NOT_MONOPHONIC`) are reported by validation; the parser keeps every note.

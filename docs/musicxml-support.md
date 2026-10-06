@@ -34,7 +34,7 @@ Limits of this research (read before relying on it):
 |---|---|---|---|
 | What does `<pitch>` mean? | Defined as step + alter + octave. The page does **not** say written or sounding. | Without `<transpose>`, `<pitch>` is the **sounding** pitch. With `<transpose>`, `<pitch>` is the **written** pitch. | `written_pitch = <pitch>` exactly as in the file. |
 | `<clef-octave-change>` | "used for transposing clefs. A treble clef for tenors would have a value of -1." Silent on whether `<pitch>` is affected. | **No effect on `<pitch>` or sounding pitch.** A G-clef with octave change -1 and `<pitch>` C4 sounds MIDI 60. The same notes written as C5 sound MIDI 72. | Never creates a `PitchTransform`. |
-| `<transpose>` | "what must be added to a written pitch to get a correct sounding pitch". Children: `diatonic?`, `chromatic`, `octave-change?`, `double?`. | `diatonic=-1, chromatic=-2` with written C5 sounds MIDI 70 (B-flat 4). | Maps 1:1 to `PitchTransform(diatonic, chromatic, octave_change)`. |
+| `<transpose>` | "what must be added to a written pitch to get a correct sounding pitch". Children: `diatonic?`, `chromatic`, `octave-change?`, `double?`. | `diatonic=-1, chromatic=-2` with written C5 sounds MIDI 70 (B-flat 4). | Maps 1:1 to `PitchTransform(diatonic, chromatic, octave_change)`. **`<double>` is rejected** (see below). |
 | Both together | Not addressed. | Clef -1 plus `<transpose>` octave-change -1, written C4, sounds MIDI **48** (C3). Only `<transpose>` is applied. | **Applying both would double-transpose.** The clef is informational only. |
 | Round trip | | MuseScore re-exports the same `<pitch>`, clef and `<transpose>` values it read, so its exporter writes sounding pitch for octave-clef staves with no `<transpose>`. | Consistent with the rule above. |
 
@@ -52,6 +52,14 @@ Consequences:
 4. To satisfy "display the original notation", the plan proposes recording the clef per
    part as **informational only** (never used in pitch math). See open question 2.
 
+**`<transpose><double>`.** The MusicXML 4.0 reference says `<double>` "indicates that the music
+is doubled one octave from what is currently written" (below by default, above with
+`above="yes"`; used for mixed flute/piccolo or cello/bass parts). That is a second sounding
+note, which a `PitchTransform` (one written pitch to one sounding pitch) cannot express. It is
+therefore **not ignored**: a `<transpose>` containing `<double>` is the ERROR
+`TRANSPOSE_DOUBLE_UNSUPPORTED`, and notes under it are left out. A clef octave change is a
+different thing and is never combined with it.
+
 ### Timeline
 
 | Topic | MusicXML 4.0 reference | MuseScore observation | Decision |
@@ -59,6 +67,8 @@ Consequences:
 | `<divisions>` | Divisions per quarter note; duration / divisions = quarter notes. May change in later `<attributes>`. Should not exceed 16383 for MIDI compatibility. | Writes `divisions` per its own choice (1, 2, 3, 6 seen); it changes the value on re-export. | Exact `Fraction(duration, divisions)`. Track divisions per part. Reject missing or zero. Accept a decimal string if present. |
 | `<backup>` / `<forward>` | Backup moves the timeline cursor back by `duration`; used to move between voices and staves; may not cross a measure boundary. Forward moves ahead. | Voice 2 starting on beat 3 was exported as a single `<backup>`, with no `<forward>` and no leading rest. | Implement a per-measure cursor handling both. Gaps and omitted rests are legal and simply produce no events. Backup before the measure start is an ERROR. |
 | `<chord/>` | A note with `<chord/>` shares the previous note's start. | Used for simultaneous notes in one voice. | Parsed as simultaneous notes (the model allows this). A chord inside a voice line is a validation ERROR in v1. |
+| Time signature | `<time>` in `<attributes>`. | Written at the start of a measure. | A `<time>` at local position 0 (including after a `<backup>` that returns exactly to 0) is supported. **A `<time>` at a nonzero position in the measure is the generation-blocking ERROR `TIME_SIGNATURE_CHANGE_MID_MEASURE`.** The new meter is not applied, the measure keeps the meter it started with, and nothing is split or reinterpreted. Only simple meters (4/4, 6/8, ...) are supported; senza misura, additive and composite meters are `TIME_SIGNATURE_UNSUPPORTED`. |
+| Short measures | | | A non-implicit measure shorter than the meter is the WARNING `MEASURE_INCOMPLETE`; its position on the timeline keeps the nominal meter length and no voice needs explicit rests. An overfull measure is the ERROR `MEASURE_DURATION_MISMATCH`. An implicit measure (pickup) may be short. |
 | Tuplets | `<time-modification>` plus `<tuplet>` are notation. | An eighth triplet was exported with `divisions=3`, giving durations 1/3 quarter exactly. Sounding onsets 0, 160, 320 ticks at 480 PPQ. | Use `<duration>/<divisions>` as the authority. Never derive time from `<type>` and `<time-modification>`. Cross-check them as a WARNING on mismatch. |
 | Pickup measure | `implicit="yes"`; "Pickup measures conventionally use `0` with implicit set to yes". Measure numbers need not be numeric or unique. | Pickup exported as `number="0" implicit="yes"`. MIDI starts the pickup at tick 0. | The timeline starts at the first note of the pickup. **No count-in convention is encoded.** Each note keeps the source measure number (0 for the pickup), its exact local offset from the start of that source measure, and its exact global position. `Note.beat` is `1 + local offset`, so the first note of a one-beat pickup is at beat 1 of measure 0; presenting it as "beat 4" is a later UI or analysis decision. Non-numeric or repeated measure numbers: warn and keep the source string in the message. |
 | Ties | `<tie>` (sound) and `<tied>` (notation). | Both written. MIDI merges tied notes into one sounding note (one note-on). | `<tie>` is authoritative. Tied notes stay separate in the `Song` (flags set); a pure function merges them for synthesis. Unmatched or pitch-mismatched ties are ERRORs. |

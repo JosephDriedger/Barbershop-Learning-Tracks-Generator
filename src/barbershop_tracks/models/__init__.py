@@ -7,6 +7,7 @@ MusicXML parser code. Musical time is ``fractions.Fraction`` in quarter-note uni
 from barbershop_tracks.models.jobs import JobRequest, JobResult, JobStatus
 from barbershop_tracks.models.lyric import Lyric, LyricSegment, Melisma, Syllabic
 from barbershop_tracks.models.mix import MixProfile, StemMix, TrackKind, TrackPlan
+from barbershop_tracks.models.notation import ClefChange, SourceLine
 from barbershop_tracks.models.note import Note
 from barbershop_tracks.models.part import Part
 from barbershop_tracks.models.pitch import Pitch, Step
@@ -18,6 +19,7 @@ from barbershop_tracks.models.voice import VoiceRole
 
 __all__ = [
     "IDENTITY_TRANSFORM",
+    "ClefChange",
     "JobRequest",
     "JobResult",
     "JobStatus",
@@ -31,6 +33,7 @@ __all__ = [
     "PitchTransform",
     "Severity",
     "Song",
+    "SourceLine",
     "SourceMetadata",
     "StemMix",
     "Step",

@@ -62,6 +62,7 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "C4", "PT", "PTH", "RUF"]
 python_version = "3.12"
 strict = true
 files = ["src", "tests", "scripts"]
+mypy_path = "tests"
 warn_unreachable = true
 
 [[tool.mypy.overrides]]

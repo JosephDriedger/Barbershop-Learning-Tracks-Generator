@@ -5,6 +5,7 @@ from fractions import Fraction
 from itertools import pairwise
 from pathlib import Path
 
+from barbershop_tracks.models.notation import ClefChange
 from barbershop_tracks.models.part import Part
 from barbershop_tracks.models.timing import TempoChange, TimeSignature
 from barbershop_tracks.models.voice import VoiceRole
@@ -36,9 +37,11 @@ class Song:
     tempo_map: tuple[TempoChange, ...] = ()
     time_signatures: tuple[TimeSignature, ...] = ()
     source: SourceMetadata = SourceMetadata()
+    clef_changes: tuple[ClefChange, ...] = ()
 
     def __post_init__(self) -> None:
         parts = tuple(self.parts)
+        object.__setattr__(self, "clef_changes", tuple(self.clef_changes))
         tempo_map = tuple(self.tempo_map)
         time_signatures = tuple(self.time_signatures)
         part_ids = [part.part_id for part in parts]
