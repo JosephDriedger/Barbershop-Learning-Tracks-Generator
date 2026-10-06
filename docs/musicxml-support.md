@@ -169,6 +169,27 @@ Problems and placements:
 - Lyrics on tied notes, including a tie continuation, stay on their own source notes.
 - Slurs are not read and are not melisma evidence; a slurred lyric-less note stays lyric-less.
 
+### Performed lyric analysis (M3c2)
+
+`core.lyrics.analyze_line` / `analyze_song_lyrics` interpret the literal source for one logical
+verse, per performed attack, without changing it (and without any OpenUtau syntax). Policies that
+MusicXML does not define are labelled as ours in the issue messages.
+
+- **Verse:** logical `"1"` (explicit or unnumbered) if present, else the first logical verse; a
+  requested verse overrides; mixed `1`/unnumbered is analyzed as one stream with one warning.
+- **Melisma:** an *untyped* `<extend/>` (MuseScore) is inferred: lyric-less attacks after it are
+  continuations until a new lyric, a **rest** (our conservative boundary), humming or laughing, or
+  the end of the line. A *typed* extension (`start`/`continue`/`stop`) is explicit state: a rest
+  does not end it; it ends at `stop`, a conflicting event, or the end of the line (then
+  `LYRIC_MELISMA_UNCLOSED`). There is no maximum length (a 23-note run is a permanent test).
+- **Words:** `BEGIN`..`END` reconstruct a word (independent of melismas; a rest does not end a
+  word). `LYRIC_WORD_UNOPENED`, `LYRIC_WORD_UNCLOSED`, `LYRIC_WORD_AMBIGUOUS` (an `UNSPECIFIED`
+  syllable inside an open word).
+- **Ties (ours):** the first source note supplies the attack's lyric; an identical repeat on a
+  continuation is `LYRIC_TIE_REPEATED` (WARNING); anything else is `LYRIC_TIE_CONFLICT` (ERROR).
+- **Coverage:** at most one issue per line (`LYRIC_LINE_EMPTY` or `LYRIC_MISSING_SUMMARY`); the
+  exact runs are in the structured result.
+
 ### Evidence from a real TTBB export
 
 One real barbershop score supplied by the project owner (a 71-measure arrangement exported

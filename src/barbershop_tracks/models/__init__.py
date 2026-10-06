@@ -13,6 +13,18 @@ from barbershop_tracks.models.lyric import (
     Melisma,
     Syllabic,
 )
+from barbershop_tracks.models.lyric_analysis import (
+    AttackLyric,
+    AttackRole,
+    LineLyricAnalysis,
+    LyricCoverage,
+    LyricWord,
+    MelismaBasis,
+    MissingRun,
+    SongLyricAnalysis,
+    VerseChoice,
+    WordSyllable,
+)
 from barbershop_tracks.models.mix import MixProfile, StemMix, TrackKind, TrackPlan
 from barbershop_tracks.models.notation import ClefChange, SourceLine
 from barbershop_tracks.models.note import Note
@@ -28,14 +40,21 @@ from barbershop_tracks.models.voice import VoiceRole
 __all__ = [
     "DEFAULT_VERSE",
     "IDENTITY_TRANSFORM",
+    "AttackLyric",
+    "AttackRole",
     "ClefChange",
     "JobRequest",
     "JobResult",
     "JobStatus",
+    "LineLyricAnalysis",
     "Lyric",
+    "LyricCoverage",
     "LyricKind",
     "LyricSegment",
+    "LyricWord",
     "Melisma",
+    "MelismaBasis",
+    "MissingRun",
     "MixProfile",
     "Note",
     "Part",
@@ -44,6 +63,7 @@ __all__ = [
     "PitchTransform",
     "Severity",
     "Song",
+    "SongLyricAnalysis",
     "SourceLine",
     "SourceMetadata",
     "StemMix",
@@ -55,5 +75,7 @@ __all__ = [
     "TrackPlan",
     "ValidationIssue",
     "ValidationResult",
+    "VerseChoice",
     "VoiceRole",
+    "WordSyllable",
 ]
