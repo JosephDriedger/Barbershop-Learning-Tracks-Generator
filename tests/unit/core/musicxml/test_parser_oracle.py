@@ -2,7 +2,7 @@
 
 The MusicXML specification defines the format; these tests only show that, on the research
 fixtures, our exact timeline and sounding pitches agree with what MuseScore 4.7.4 plays.
-Repeat fixtures are expected to be rejected until repeat expansion exists (M3d).
+Plain repeats are compared in performed order; endings are rejected until M3e.
 """
 
 import json
@@ -32,7 +32,8 @@ PLAIN = [
     "e5_pickup",
     "e7_triplet",
 ]
-REPEATS = ["e8_simple_repeat", "e8b_repeat_times3", "e9_volta", "e12_volta_1_2_3"]
+PLAIN_REPEATS = ["e8_simple_repeat", "e8b_repeat_times3"]
+ENDINGS = ["e9_volta", "e12_volta_1_2_3"]
 VARIANTS = ["inputs", "musescore_roundtrip"]
 
 
@@ -145,10 +146,21 @@ def test_transposed_fixtures_keep_the_written_pitch() -> None:
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
-@pytest.mark.parametrize("name", REPEATS)
-def test_repeat_fixtures_are_rejected_until_expansion_exists(variant: str, name: str) -> None:
+@pytest.mark.parametrize("name", PLAIN_REPEATS)
+def test_plain_repeat_fixtures_perform_like_the_musescore_midi(variant: str, name: str) -> None:
     result = _parse(variant, name)
-    assert "REPEAT_NOT_SUPPORTED_YET" in [i.code for i in result.issues]
+    assert not result.issues.has_errors, [str(i) for i in result.issues]
+    assert result.performed is not None
+    notes = [e for line in result.performed.lines for e in line.part.sounding_notes]
+    onsets = sorted((int(e.start * PPQ), e.midi_note) for e in notes if e.midi_note is not None)
+    assert onsets == sorted(onset for track in _oracle(name) for onset in track)
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+@pytest.mark.parametrize("name", ENDINGS)
+def test_ending_fixtures_are_rejected_until_m3e(variant: str, name: str) -> None:
+    result = _parse(variant, name)
+    assert "ENDING_NOT_SUPPORTED_YET" in [i.code for i in result.issues]
     assert result.issues.has_errors
 
 

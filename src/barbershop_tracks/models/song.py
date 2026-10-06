@@ -7,6 +7,7 @@ from pathlib import Path
 
 from barbershop_tracks.models.notation import ClefChange
 from barbershop_tracks.models.part import Part
+from barbershop_tracks.models.structure import MeasureSpan, RepeatMark
 from barbershop_tracks.models.timing import TempoChange, TimeSignature
 from barbershop_tracks.models.voice import VoiceRole
 
@@ -38,10 +39,14 @@ class Song:
     time_signatures: tuple[TimeSignature, ...] = ()
     source: SourceMetadata = SourceMetadata()
     clef_changes: tuple[ClefChange, ...] = ()
+    measures: tuple[MeasureSpan, ...] = ()
+    repeat_marks: tuple[RepeatMark, ...] = ()
 
     def __post_init__(self) -> None:
         parts = tuple(self.parts)
         object.__setattr__(self, "clef_changes", tuple(self.clef_changes))
+        measures = tuple(self.measures)
+        repeat_marks = tuple(self.repeat_marks)
         tempo_map = tuple(self.tempo_map)
         time_signatures = tuple(self.time_signatures)
         part_ids = [part.part_id for part in parts]
@@ -49,6 +54,9 @@ class Song:
             raise ValueError("part ids must be unique")
         _require_strictly_increasing([t.position for t in tempo_map], "tempo_map")
         _require_strictly_increasing([s.position for s in time_signatures], "time_signatures")
+        _check_structure(measures, repeat_marks)
+        object.__setattr__(self, "measures", measures)
+        object.__setattr__(self, "repeat_marks", repeat_marks)
         object.__setattr__(self, "parts", parts)
         object.__setattr__(self, "tempo_map", tempo_map)
         object.__setattr__(self, "time_signatures", time_signatures)
@@ -69,3 +77,18 @@ class Song:
 def _require_strictly_increasing(positions: list[Fraction], name: str) -> None:
     if any(later <= earlier for earlier, later in pairwise(positions)):
         raise ValueError(f"{name} positions must be strictly increasing")
+
+
+def _check_structure(measures: tuple[MeasureSpan, ...], marks: tuple[RepeatMark, ...]) -> None:
+    for position, span in enumerate(measures):
+        if not isinstance(span, MeasureSpan):
+            raise TypeError("measures must contain only MeasureSpan objects")
+        if span.index != position:
+            raise ValueError("measure indices must be 0, 1, 2, ... in order")
+        if position and span.start != measures[position - 1].end:
+            raise ValueError("measures must be contiguous")
+    for mark in marks:
+        if not isinstance(mark, RepeatMark):
+            raise TypeError("repeat_marks must contain only RepeatMark objects")
+        if mark.measure_index >= len(measures):
+            raise ValueError("a repeat mark refers to a measure that does not exist")

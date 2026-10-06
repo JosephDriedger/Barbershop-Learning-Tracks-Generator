@@ -11,19 +11,24 @@ be loaded at all raises (``ScoreLoadError`` from the loader).
 import os
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
+from fractions import Fraction
 
 from barbershop_tracks.core.musicxml.issues import IssueCollector
 from barbershop_tracks.core.musicxml.limits import DEFAULT_LIMITS, LoaderLimits
 from barbershop_tracks.core.musicxml.meter import build_meter_map
 from barbershop_tracks.core.musicxml.part_reader import PartTimeline, read_part
+from barbershop_tracks.core.musicxml.repeat_marks import reconcile_marks
 from barbershop_tracks.core.musicxml.source import MusicXmlSource, load_musicxml_source
 from barbershop_tracks.core.musicxml.tempo import reconcile_tempos
 from barbershop_tracks.core.musicxml.values import child_text
-from barbershop_tracks.core.timeline import merge_tied_notes
+from barbershop_tracks.core.timeline import merge_tied_notes, perform_song
 from barbershop_tracks.models import (
     ClefChange,
+    MeasureSpan,
     Note,
     Part,
+    PerformedSong,
+    RepeatMark,
     Song,
     SourceLine,
     SourceMetadata,
@@ -41,6 +46,7 @@ class ParseResult:
 
     song: Song | None
     issues: ValidationResult
+    performed: PerformedSong | None = None  # the song in performance order (repeats expanded)
 
 
 def parse_musicxml(
@@ -72,6 +78,8 @@ def parse_score(source: MusicXmlSource) -> ParseResult:
         measure_lengths=timelines[0].measure_lengths,
         issues=issues,
     )
+    measures = _measure_table(timelines[0])
+    marks = _repeat_marks(timelines, measures, issues)
     song = Song(
         title=_title(root),
         composer=_creator(root, "composer"),
@@ -86,8 +94,44 @@ def parse_score(source: MusicXmlSource) -> ParseResult:
             software=_software(root),
         ),
         clef_changes=tuple(clefs),
+        measures=measures,
+        repeat_marks=marks,
     )
-    return ParseResult(song=song, issues=issues.result())
+    performed = perform_song(song)
+    issues.extend(performed.issues)
+    return ParseResult(song=song, issues=issues.result(), performed=performed)
+
+
+def _measure_table(timeline: PartTimeline) -> tuple[MeasureSpan, ...]:
+    """The source measure table, from the reference part (alignment is checked separately)."""
+    spans: list[MeasureSpan] = []
+    start = Fraction(0)
+    for index, length in enumerate(timeline.measure_lengths):
+        spans.append(
+            MeasureSpan(
+                index=index,
+                number=timeline.measure_numbers[index],
+                start=start,
+                length=length,
+                raw_number=timeline.raw_numbers[index],
+                implicit=timeline.implicit[index],
+            )
+        )
+        start += length
+    return tuple(spans)
+
+
+def _repeat_marks(
+    timelines: list[PartTimeline], measures: tuple[MeasureSpan, ...], issues: IssueCollector
+) -> tuple[RepeatMark, ...]:
+    """The repeat structure every part agrees on (none if they differ or are misaligned)."""
+    if any(len(t.measure_lengths) != len(measures) for t in timelines):
+        return ()  # PART_MEASURE_COUNT_MISMATCH already blocks; indices would not line up
+    if not all(t.repeats_usable for t in timelines):
+        return ()  # an unreadable sign was reported; a partly read structure is never expanded
+    return reconcile_marks(
+        [(t.part_id, t.repeats) for t in timelines], [m.number for m in measures], issues
+    )
 
 
 # --- parts ----------------------------------------------------------------------------

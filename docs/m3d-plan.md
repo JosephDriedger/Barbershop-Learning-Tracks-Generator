@@ -249,3 +249,9 @@ reports), `core/lyrics/analysis.py` and `melisma.py`/`words.py` (jump reset),
 All seven decisions were settled in review; the provenance model in section 3 replaces the
 `visit` fields originally proposed. The comparison table in section 1 is the research record; where
 it conflicts with sections 3-9, sections 3-9 win.
+
+## 13. M3d1 status notes
+
+* `times` is a non-negative integer in MusicXML with no default; **absent means 2 total passes is our own performance policy**, not something the specification states.
+* Temporary: until M3d2, tie diagnostics still run in source order, so a score containing repeat jumps has not yet received final performed-order tie validation. M3d2 replaces them; the two must never be active together.
+* An identity plan caused by a failed repeat structure is distinguishable from a repeat-free score only through the issues (`ParseResult.issues` carries the ERROR); there is deliberately no separate validity flag.

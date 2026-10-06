@@ -1,23 +1,22 @@
-"""Repeat handling.
+"""Unsupported structure detection: endings (voltas) and jump markers.
 
-TEMPORARY (M3b): repeat expansion does not exist yet. Any repeat or ending structure is
-*detected* so it can be reported as a generation-blocking error instead of being silently
-parsed as a single pass. M3d replaces this module with real, deterministic expansion and
-removes ``REPEAT_NOT_SUPPORTED_YET``.
+Plain repeat signs are read by ``repeat_marks`` and expanded by ``core.timeline``. Endings and
+jumps are *detected* so they are reported as generation-blocking errors instead of being silently
+parsed as a single pass. ``ENDING_NOT_SUPPORTED_YET`` is temporary: M3e interprets endings.
 """
 
 import xml.etree.ElementTree as ET
 
-REPEAT_NOT_SUPPORTED_YET = "REPEAT_NOT_SUPPORTED_YET"
+ENDING_NOT_SUPPORTED_YET = "ENDING_NOT_SUPPORTED_YET"
 UNSUPPORTED_JUMP = "UNSUPPORTED_JUMP"
 
 # <sound> attributes that make playback jump or stop early. Never expanded in v1.
 JUMP_ATTRIBUTES = ("dacapo", "dalsegno", "segno", "coda", "tocoda", "fine")
 
 
-def barline_has_repeat_structure(barline: ET.Element) -> bool:
-    """True if a ``<barline>`` carries a repeat sign or a volta ending."""
-    return barline.find("repeat") is not None or barline.find("ending") is not None
+def barline_has_ending(barline: ET.Element) -> bool:
+    """True if a ``<barline>`` carries a volta ending."""
+    return barline.find("ending") is not None
 
 
 def jump_attributes_of(measure_child: ET.Element) -> list[str]:

@@ -136,3 +136,5 @@ the specification the M3d plan says so and a permanent test pins the divergence.
 | `q08_mid_measure_back` | A repeat barline in the middle of a measure is moved to the end of the measure. |
 
 All `repeats/` fixtures are original synthetic scores (one whole note per measure, no lyrics, no real music). Only the extracted JSON is committed; the `.mid` files MuseScore wrote are not, so the audio/binary guard needs no MIDI exemption.
+
+The `r05*` pickup fixtures end with a three-beat measure written in 4/4 without `implicit`, so our existing `MEASURE_INCOMPLETE` policy (the timeline assumes the full measure) and MuseScore (which shortens it) give different timings. The oracle tests assert the performed **order** only for them; the exact pickup/repeat arithmetic is tested separately with `implicit="yes"` measures.

@@ -254,21 +254,18 @@ def _barline(inner: str, location: str = "right") -> str:
 @pytest.mark.parametrize(
     "inner",
     [
-        '<repeat direction="forward"/>',
-        '<repeat direction="backward"/>',
-        '<repeat direction="backward" times="3"/>',
         '<ending number="1" type="start"/>',
         '<ending number="1, 2" type="stop"/><repeat direction="backward"/>',
     ],
 )
-def test_repeat_structures_block_generation(tmp_path: Path, inner: str) -> None:
+def test_endings_block_generation(tmp_path: Path, inner: str) -> None:
     m1 = measure(1, FOUR + _barline(inner), attrs=attributes())
     result = parse_text(tmp_path, score(m1 + measure(2, FOUR)))
-    issue = next(i for i in result.issues if i.code == "REPEAT_NOT_SUPPORTED_YET")
+    issue = next(i for i in result.issues if i.code == "ENDING_NOT_SUPPORTED_YET")
     assert issue.severity is Severity.ERROR
     assert issue.measure == 1
     assert issue.part_id == "P1"
-    assert result.issues.has_errors  # generation is blocked
+    assert "REPEAT_NOT_SUPPORTED_YET" not in _codes(result)  # the temporary code is retired
 
 
 def test_barline_without_repeat_is_fine(tmp_path: Path) -> None:

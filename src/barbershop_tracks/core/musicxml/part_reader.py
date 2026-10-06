@@ -24,10 +24,11 @@ from barbershop_tracks.core.musicxml.duration_type import notated_quarters
 from barbershop_tracks.core.musicxml.issues import IssueCollector
 from barbershop_tracks.core.musicxml.lyrics import describe_lyrics, has_lyrics, read_lyrics
 from barbershop_tracks.core.musicxml.meter import MeterKey
+from barbershop_tracks.core.musicxml.repeat_marks import RawRepeat, read_repeat
 from barbershop_tracks.core.musicxml.repeats import (
-    REPEAT_NOT_SUPPORTED_YET,
+    ENDING_NOT_SUPPORTED_YET,
     UNSUPPORTED_JUMP,
-    barline_has_repeat_structure,
+    barline_has_ending,
     jump_attributes_of,
 )
 from barbershop_tracks.core.musicxml.tempo import (
@@ -53,6 +54,7 @@ from barbershop_tracks.models import (
 _ONE = Fraction(1)
 _ZERO = Fraction(0)
 LineKey = tuple[int, str]  # (staff, voice)
+_CONTENT_TAGS = frozenset({"note", "backup", "forward"})
 
 
 @dataclass(slots=True)
@@ -66,6 +68,10 @@ class PartTimeline:
     measure_lengths: list[Fraction]  # quarter notes, per measure, in score order
     meters: list[MeterKey | None]  # effective meter at each measure (None if unknown)
     tempos: list[TempoEvent]  # explicit, valid tempo events found in this part
+    raw_numbers: list[str | None]  # the measure number text as written
+    implicit: list[bool]  # ``implicit="yes"`` measures (pickups and the like)
+    repeats: list[RawRepeat]  # interpretable repeat signs, with source measure indices
+    repeats_usable: bool  # False if any repeat sign or ending could not be read
 
 
 class _PitchError(Exception):
@@ -86,6 +92,10 @@ def read_part(part: ET.Element, part_id: str, issues: IssueCollector) -> PartTim
         measure_lengths=reader.measure_lengths,
         meters=reader.meters,
         tempos=reader.tempos,
+        raw_numbers=reader.raw_numbers,
+        implicit=reader.implicit,
+        repeats=reader.repeats,
+        repeats_usable=reader.repeats_usable,
     )
 
 
@@ -100,6 +110,10 @@ class _PartReader:
         self.measure_lengths: list[Fraction] = []
         self.meters: list[MeterKey | None] = []
         self.tempos: list[TempoEvent] = []
+        self.raw_numbers: list[str | None] = []
+        self.implicit: list[bool] = []
+        self.repeats: list[RawRepeat] = []
+        self.repeats_usable = True
         # state that persists across measures
         self._divisions: Fraction | None = None
         self._nominal: Fraction | None = None
@@ -115,6 +129,9 @@ class _PartReader:
         self._cursor = _ZERO
         self._extent = _ZERO
         self._last_local: Fraction | None = None
+        self._content_seen = False
+        self._right_repeat_seen = False
+        self._reported_mid_repeat = False
         self._handlers: dict[str, Callable[[ET.Element], None]] = {
             "attributes": self._attributes,
             "note": self._note,
@@ -132,12 +149,16 @@ class _PartReader:
         for ordinal, measure in enumerate(self._part.findall("measure"), start=1):
             self._begin_measure(measure, ordinal, start)
             for child in measure:
+                if child.tag in _CONTENT_TAGS:
+                    self._content(child)
                 handler = self._handlers.get(child.tag)
                 if handler is not None:
                     handler(child)
             length = self._measure_length(measure)
             self._flush_tempos(length)
             self.measure_numbers.append(self._number)
+            self.raw_numbers.append(measure.get("number"))
+            self.implicit.append(measure.get("implicit") == "yes")
             self.measure_lengths.append(length)
             self.meters.append(self._meter)
             start += length
@@ -160,6 +181,9 @@ class _PartReader:
         self._cursor = _ZERO
         self._extent = _ZERO
         self._last_local = None
+        self._content_seen = False
+        self._right_repeat_seen = False
+        self._reported_mid_repeat = False
 
     def _measure_length(self, measure: ET.Element) -> Fraction:
         """Length of the measure on the timeline, in quarter notes."""
@@ -625,13 +649,39 @@ class _PartReader:
 
     # --- structures that are detected but not interpreted yet -------------------------
 
-    def _barline(self, element: ET.Element) -> None:
-        if barline_has_repeat_structure(element):
+    def _content(self, element: ET.Element) -> None:
+        """Note content (a note, backup or forward) is about to be read."""
+        self._content_seen = True
+        if self._right_repeat_seen and not self._reported_mid_repeat:
+            self._reported_mid_repeat = True
+            self.repeats_usable = False
             self._error(
-                REPEAT_NOT_SUPPORTED_YET,
-                "repeat and ending structures are not supported yet; "
-                "this score would otherwise be read as a single pass",
+                "REPEAT_MID_MEASURE",
+                "a repeat sign at the right barline is followed by more notes in the measure",
             )
+
+    def _barline(self, element: ET.Element) -> None:
+        if barline_has_ending(element):
+            self.repeats_usable = False
+            self._error(
+                ENDING_NOT_SUPPORTED_YET,
+                "endings (voltas) are not supported yet; this score would otherwise be read "
+                "as a single pass",
+            )
+            return  # no partial interpretation: the repeat sign on this barline is not read
+        raw = read_repeat(
+            element,
+            measure_index=len(self.measure_lengths),
+            content_before=self._content_seen,
+            error=lambda code, message: self._error(code, message),
+            warn=lambda code, message: self._warn(code, message),
+        )
+        if raw is None and element.find("repeat") is not None:
+            self.repeats_usable = False  # never expand a partly understood structure
+        if raw is not None:
+            self.repeats.append(raw)
+            if element.get("location", "right") == "right":
+                self._right_repeat_seen = True
 
     def _direction(self, element: ET.Element) -> None:
         """Handle a ``<direction>`` or a ``<sound>`` directly in the measure."""

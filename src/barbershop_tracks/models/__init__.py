@@ -30,9 +30,18 @@ from barbershop_tracks.models.notation import ClefChange, SourceLine
 from barbershop_tracks.models.note import Note
 from barbershop_tracks.models.part import Part
 from barbershop_tracks.models.performance import PerformanceNote
+from barbershop_tracks.models.performed import (
+    NoteOccurrence,
+    PerformancePlan,
+    PerformedLine,
+    PerformedSong,
+    PlayedMeasure,
+    TransitionKind,
+)
 from barbershop_tracks.models.pitch import Pitch, Step
 from barbershop_tracks.models.pitch_transform import IDENTITY_TRANSFORM, PitchTransform
 from barbershop_tracks.models.song import Song, SourceMetadata
+from barbershop_tracks.models.structure import MeasureSpan, RepeatKind, RepeatMark
 from barbershop_tracks.models.timing import TempoChange, TimeSignature
 from barbershop_tracks.models.validation import Severity, ValidationIssue, ValidationResult
 from barbershop_tracks.models.voice import VoiceRole
@@ -52,15 +61,23 @@ __all__ = [
     "LyricKind",
     "LyricSegment",
     "LyricWord",
+    "MeasureSpan",
     "Melisma",
     "MelismaBasis",
     "MissingRun",
     "MixProfile",
     "Note",
+    "NoteOccurrence",
     "Part",
     "PerformanceNote",
+    "PerformancePlan",
+    "PerformedLine",
+    "PerformedSong",
     "Pitch",
     "PitchTransform",
+    "PlayedMeasure",
+    "RepeatKind",
+    "RepeatMark",
     "Severity",
     "Song",
     "SongLyricAnalysis",
@@ -73,6 +90,7 @@ __all__ = [
     "TimeSignature",
     "TrackKind",
     "TrackPlan",
+    "TransitionKind",
     "ValidationIssue",
     "ValidationResult",
     "VerseChoice",
