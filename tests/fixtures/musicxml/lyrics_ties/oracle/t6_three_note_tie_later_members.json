@@ -1,0 +1,16 @@
+{
+ "source": "MuseScore 4.7.4 MIDI export",
+ "ppq": 480,
+ "tracks": [
+  [
+   {
+    "tick": 0,
+    "midi_note": 60
+   },
+   {
+    "tick": 1440,
+    "midi_note": 65
+   }
+  ]
+ ]
+}

@@ -69,6 +69,27 @@ handling (`+`, `-`, `[la]`, `la~`). No real lyrics.
 The 38 lyric inputs contain only the syllables `la`, `ni`, `na`, `ma`, `ba` and the symbol strings
 named above; no other words appear in any of them.
 
+## `lyrics_ties/`
+
+Research for M3c2 (see `docs/m3c2-plan.md`): lyrics on tied notes, with `inputs/`, MuseScore
+4.7.4 `musescore_roundtrip/` and `oracle/` JSON (the MIDI note-ons, i.e. the performed attacks).
+Original nonsense syllables only (`la`, `ni`, `na`). MuseScore keeps every lyric exactly as
+given and plays one attack per tie group whatever the lyrics are.
+
+| File | Case |
+|---|---|
+| `t1_lyric_on_start_only` | Lyric on the tie start only (the normal case). |
+| `t2_same_lyric_repeated` | The same lyric repeated on the continuation. |
+| `t3_different_lyric_on_continuation` | A different lyric on the continuation. |
+| `t4_continuation_lyric_only` | A lyric on the continuation and none on the start. |
+| `t5_three_note_tie_first_only` | Three tied notes, lyric on the first only. |
+| `t6_three_note_tie_later_members` | Three tied notes with a lyric on every member. |
+| `t7a_extend_on_tie_start` | An extender on the tie start. |
+| `t7b_extend_on_continuation` | A lyric with an extender on the continuation. |
+| `t7c_extend_only_on_continuation` | An extension-only lyric on the continuation (MuseScore drops it). |
+| `t8_tie_then_next_note_lyric_less_after_melisma` | A melisma whose second attack is a tie group. |
+| `t9_verse2_only_on_continuation` | Verse 2 lyric on the continuation, verse 1 on the start. |
+
 ## `ttbb/`
 
 Original, synthetic fixtures that mirror the *structure* of a common MuseScore barbershop export
