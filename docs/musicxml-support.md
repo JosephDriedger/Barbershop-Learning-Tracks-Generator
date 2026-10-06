@@ -162,6 +162,17 @@ Decision: no jump is ever expanded in v1. Any of those `<sound>` attributes is a
   rootfiles, a rootfile that is absent from the archive, an absolute or `..` path, an
   unreasonable decompressed size, and an unreasonable compression ratio. Never extract to
   disk; read named members in memory only.
+- **Rootfile selection (v1).** A `<rootfile>` is a candidate when its `media-type` is absent
+  or is `application/vnd.recordare.musicxml+xml` or `application/vnd.recordare.musicxml`
+  (compared case-insensitively). Exactly one candidate is used, none is an error, and several
+  are an error because choosing between them would be a guess. Rootfiles with any other
+  media type (PDF, MIDI, ...) are not candidates.
+- **Encryption.** Only the members that must be read matter: `META-INF/container.xml` and the
+  selected rootfile are rejected if encrypted. Other members, encrypted or not, are never
+  opened and do not make the score fail, but every entry still counts toward
+  `max_archive_entries`.
+- **Limits** (`LoaderLimits`, binary units): 50 MiB per score (also for plain XML), 50 MiB total
+  relevant content, 1 MiB for `container.xml`, 100:1 compression ratio, 1000 entries.
 
 ### XML safety
 
