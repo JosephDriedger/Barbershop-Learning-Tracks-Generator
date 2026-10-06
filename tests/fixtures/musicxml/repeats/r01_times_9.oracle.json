@@ -1,0 +1,179 @@
+{
+ "source": "MuseScore 4.7.4 MIDI export",
+ "ppq": 480,
+ "tracks": [
+  [
+   {
+    "tick": 0,
+    "measure_label": "A",
+    "midi_note": 60
+   },
+   {
+    "tick": 1920,
+    "measure_label": "B",
+    "midi_note": 62
+   },
+   {
+    "tick": 3840,
+    "measure_label": "A",
+    "midi_note": 60
+   },
+   {
+    "tick": 5760,
+    "measure_label": "B",
+    "midi_note": 62
+   },
+   {
+    "tick": 7680,
+    "measure_label": "A",
+    "midi_note": 60
+   },
+   {
+    "tick": 9600,
+    "measure_label": "B",
+    "midi_note": 62
+   },
+   {
+    "tick": 11520,
+    "measure_label": "A",
+    "midi_note": 60
+   },
+   {
+    "tick": 13440,
+    "measure_label": "B",
+    "midi_note": 62
+   },
+   {
+    "tick": 15360,
+    "measure_label": "A",
+    "midi_note": 60
+   },
+   {
+    "tick": 17280,
+    "measure_label": "B",
+    "midi_note": 62
+   },
+   {
+    "tick": 19200,
+    "measure_label": "A",
+    "midi_note": 60
+   },
+   {
+    "tick": 21120,
+    "measure_label": "B",
+    "midi_note": 62
+   },
+   {
+    "tick": 23040,
+    "measure_label": "A",
+    "midi_note": 60
+   },
+   {
+    "tick": 24960,
+    "measure_label": "B",
+    "midi_note": 62
+   },
+   {
+    "tick": 26880,
+    "measure_label": "A",
+    "midi_note": 60
+   },
+   {
+    "tick": 28800,
+    "measure_label": "B",
+    "midi_note": 62
+   },
+   {
+    "tick": 30720,
+    "measure_label": "A",
+    "midi_note": 60
+   },
+   {
+    "tick": 32640,
+    "measure_label": "B",
+    "midi_note": 62
+   },
+   {
+    "tick": 34560,
+    "measure_label": "C",
+    "midi_note": 64
+   }
+  ]
+ ],
+ "tempos": [
+  {
+   "tick": 0,
+   "bpm": 120.0
+  },
+  {
+   "tick": 3840,
+   "bpm": 120.0
+  },
+  {
+   "tick": 7680,
+   "bpm": 120.0
+  },
+  {
+   "tick": 11520,
+   "bpm": 120.0
+  },
+  {
+   "tick": 15360,
+   "bpm": 120.0
+  },
+  {
+   "tick": 19200,
+   "bpm": 120.0
+  },
+  {
+   "tick": 23040,
+   "bpm": 120.0
+  },
+  {
+   "tick": 26880,
+   "bpm": 120.0
+  },
+  {
+   "tick": 30720,
+   "bpm": 120.0
+  }
+ ],
+ "time_signatures": [
+  {
+   "tick": 0,
+   "signature": "4/4"
+  },
+  {
+   "tick": 3840,
+   "signature": "4/4"
+  },
+  {
+   "tick": 7680,
+   "signature": "4/4"
+  },
+  {
+   "tick": 11520,
+   "signature": "4/4"
+  },
+  {
+   "tick": 15360,
+   "signature": "4/4"
+  },
+  {
+   "tick": 19200,
+   "signature": "4/4"
+  },
+  {
+   "tick": 23040,
+   "signature": "4/4"
+  },
+  {
+   "tick": 26880,
+   "signature": "4/4"
+  },
+  {
+   "tick": 30720,
+   "signature": "4/4"
+  }
+ ]
+}

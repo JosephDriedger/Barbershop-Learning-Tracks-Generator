@@ -1,0 +1,80 @@
+{
+ "source": "MuseScore 4.7.4 MIDI export",
+ "ppq": 480,
+ "tracks": [
+  [
+   {
+    "tick": 0,
+    "measure_label": "A",
+    "midi_note": 60
+   },
+   {
+    "tick": 1920,
+    "measure_label": "B",
+    "midi_note": 62
+   },
+   {
+    "tick": 3840,
+    "measure_label": "A",
+    "midi_note": 60
+   },
+   {
+    "tick": 5760,
+    "measure_label": "B",
+    "midi_note": 62
+   },
+   {
+    "tick": 7680,
+    "measure_label": "C",
+    "midi_note": 64
+   }
+  ],
+  [
+   {
+    "tick": 0,
+    "measure_label": "E",
+    "midi_note": 67
+   },
+   {
+    "tick": 1920,
+    "measure_label": "F",
+    "midi_note": 69
+   },
+   {
+    "tick": 3840,
+    "measure_label": "E",
+    "midi_note": 67
+   },
+   {
+    "tick": 5760,
+    "measure_label": "F",
+    "midi_note": 69
+   },
+   {
+    "tick": 7680,
+    "measure_label": "G",
+    "midi_note": 71
+   }
+  ]
+ ],
+ "tempos": [
+  {
+   "tick": 0,
+   "bpm": 120.0
+  },
+  {
+   "tick": 3840,
+   "bpm": 120.0
+  }
+ ],
+ "time_signatures": [
+  {
+   "tick": 0,
+   "signature": "4/4"
+  },
+  {
+   "tick": 3840,
+   "signature": "4/4"
+  }
+ ]
+}

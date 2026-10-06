@@ -110,3 +110,29 @@ Each has a MuseScore re-export and an oracle JSON (notes and exact tempo events)
 
 Provenance: generated on 2026-10-06 with MuseScore Studio 4.7.4 on Windows. These are
 research inputs for the M3 parser, not final test fixtures; M3 will add its own focused ones.
+
+## `repeats/`
+
+M3d research. Every fixture is one **whole note per measure**, and the pitch names the measure
+(C4 = A = measure 1, D4 = B = measure 2, E4 = C, F4 = D, G4 = E, A4 = F, B4 = G), so a playback
+order is readable straight off the oracle. Each `*.oracle.json` holds MuseScore Studio 4.7.4's MIDI
+export of the fixture (480 PPQ): note onsets with their measure label, tempo events and time
+signatures. MuseScore is a behavioural oracle only; where it is silent, wrong or inconsistent with
+the specification the M3d plan says so and a permanent test pins the divergence.
+
+| Fixtures | What they show |
+|---|---|
+| `r01_simple`, `r01_times_*` | `times` absent = 2 passes; `times` is the **total** number of passes (3 = three passes, 9 = nine). `times` 0, 1 and non-numeric: MuseScore plays one pass. |
+| `r02_*`, `s05`, `s06` | Backward repeat with no forward: MuseScore repeats from the **start of the score**, including for a second such repeat (`r02c`), but after a forward-marked repeat a later bare backward returns to that **earlier forward** (`s06`). The two readings disagree, so M3d only accepts the first. |
+| `r03_*`, `s07` | Nested repeats: MuseScore does **not** nest. The inner forward replaces the outer one, so `\|: A \|: B C :\| D :\| E` plays A B C B C D B C D E (true nesting would restart at A). A second forward before any backward also replaces the first. |
+| `r04_*`, `s08` | Consecutive repeats, including one-measure repeats and per-barline `times`. Fine. |
+| `r05_*` | Pickup measures: replayed verbatim, as a short measure; no special case. |
+| `r06_*`, `s09`, `s10` | Repeats in more than one part. MuseScore silently keeps **one part's** structure (the last part's) and applies it to all parts, even when the parts disagree. |
+| `r07_*` | Ties and repeats. MuseScore ties only across **score-adjacent** measures: a tie out of the end of a repeat is held on the last pass and broken on the others; a tie never crosses a jump (`r07b`); a tied-to note at a repeat start produces **no attack** on later passes (`r07c`, a MuseScore artefact). |
+| `r08_*`, `s01`-`s03` | Tempo and repeats: a tempo is a property of the **source position**. Every pass re-emits the tempo in force at the landing measure (`s01`: 120 again, not the 60 carried from the previous pass). |
+| `r09_*`, `s04` | Meter: likewise; each pass replays each measure with that measure's own meter. |
+| `r12_after_jump` | `after-jump="yes"` is ignored by MuseScore. |
+| `r13`, `q01`-`q07` | Repeat barline placement: MuseScore attaches a repeat to the **measure that contains the barline element**, whatever its `location`. A forward at `right` of measure 2 starts at measure 2; a backward at `left` of measure 3 ends at measure 3; a missing `location` (default `right`) on a forward starts at its own measure. The specification's reading of those is one measure later (forward) or earlier (backward). |
+| `q08_mid_measure_back` | A repeat barline in the middle of a measure is moved to the end of the measure. |
+
+All `repeats/` fixtures are original synthetic scores (one whole note per measure, no lyrics, no real music). Only the extracted JSON is committed; the `.mid` files MuseScore wrote are not, so the audio/binary guard needs no MIDI exemption.
