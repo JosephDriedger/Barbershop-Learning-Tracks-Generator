@@ -19,6 +19,31 @@ def test_enharmonic_spellings_are_distinct_but_sound_alike() -> None:
     assert c_sharp.sounds_like(d_flat)
 
 
+def test_absolute_semitones_is_an_exact_height() -> None:
+    assert Pitch(Step.C, 4).absolute_semitones == 60
+    assert Pitch(Step.A, 4).absolute_semitones == 69
+    assert Pitch(Step.C, -1).absolute_semitones == 0
+    assert isinstance(Pitch(Step.C, 4).absolute_semitones, Fraction)
+
+
+def test_absolute_semitones_equates_enharmonics_but_equality_does_not() -> None:
+    c_sharp = Pitch(Step.C, 4, Fraction(1))
+    d_flat = Pitch(Step.D, 4, Fraction(-1))
+    assert c_sharp.absolute_semitones == d_flat.absolute_semitones == 61
+    assert c_sharp != d_flat  # == is still spelled-pitch equality
+    assert Pitch(Step.B, 3, Fraction(1)).absolute_semitones == 60  # B#3 sounds as C4
+    assert Pitch(Step.B, 3, Fraction(1)) != Pitch(Step.C, 4)
+
+
+def test_absolute_semitones_is_exact_for_microtones() -> None:
+    quarter_flat = Pitch(Step.E, 4, Fraction(-1, 2))
+    assert quarter_flat.absolute_semitones == Fraction(127, 2)  # 63.5
+    assert quarter_flat.absolute_semitones != Pitch(Step.E, 4, Fraction(-1, 4)).absolute_semitones
+    assert quarter_flat.absolute_semitones != Pitch(Step.E, 4, Fraction(-1)).absolute_semitones
+    with pytest.raises(ValueError, match="microtonal"):
+        _ = quarter_flat.midi_note  # still no integer MIDI number
+
+
 def test_spelling_is_preserved() -> None:
     pitch = Pitch(Step.D, 4, Fraction(-1))
     assert pitch.step is Step.D

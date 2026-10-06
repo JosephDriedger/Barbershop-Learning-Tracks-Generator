@@ -10,6 +10,7 @@ from barbershop_tracks.models.mix import MixProfile, StemMix, TrackKind, TrackPl
 from barbershop_tracks.models.notation import ClefChange, SourceLine
 from barbershop_tracks.models.note import Note
 from barbershop_tracks.models.part import Part
+from barbershop_tracks.models.performance import PerformanceNote
 from barbershop_tracks.models.pitch import Pitch, Step
 from barbershop_tracks.models.pitch_transform import IDENTITY_TRANSFORM, PitchTransform
 from barbershop_tracks.models.song import Song, SourceMetadata
@@ -29,6 +30,7 @@ __all__ = [
     "MixProfile",
     "Note",
     "Part",
+    "PerformanceNote",
     "Pitch",
     "PitchTransform",
     "Severity",

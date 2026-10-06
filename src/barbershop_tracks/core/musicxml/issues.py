@@ -33,6 +33,9 @@ class IssueCollector:
     ) -> None:
         self._add(Severity.WARNING, code, message, part_id, measure, beat)
 
+    def extend(self, result: ValidationResult) -> None:
+        self._issues.extend(result.issues)
+
     def result(self) -> ValidationResult:
         return ValidationResult.of(self._issues)
 

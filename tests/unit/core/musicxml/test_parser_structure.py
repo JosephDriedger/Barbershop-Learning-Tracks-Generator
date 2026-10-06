@@ -5,7 +5,7 @@ import pytest
 
 from barbershop_tracks.core.errors import ScoreFileError, UnsupportedScoreFormatError
 from barbershop_tracks.core.musicxml import ParseResult, parse_musicxml
-from barbershop_tracks.models import Note, Part, Severity, SourceLine
+from barbershop_tracks.models import Part, Severity, SourceLine
 from xml_builders import (
     BASS,
     attributes,
@@ -306,27 +306,6 @@ def test_tempo_sound_without_jump_is_not_flagged_in_m3b1(tmp_path: Path) -> None
 
 
 # --- special note kinds are deferred, not misread -------------------------------------
-
-
-def test_grace_notes_are_not_supported_yet_and_take_no_time(tmp_path: Path) -> None:
-    grace = "<note><grace/><pitch><step>B</step><octave>3</octave></pitch><voice>1</voice></note>"
-    body = grace + quarters(("C", 4), ("D", 4), ("E", 4), ("F", 4))
-    result = parse_text(tmp_path, score(measure(1, body, attrs=attributes())))
-    assert _codes(result) == ["NOTE_KIND_NOT_SUPPORTED_YET"]
-    assert [e.start for e in _line(result, "P1/s1/v1").events] == [0, 1, 2, 3]
-
-
-def test_cue_and_unpitched_notes_are_not_supported_yet_but_keep_time(tmp_path: Path) -> None:
-    cue = note("G", 4, 2, extra="<cue/>")
-    unpitched = (
-        "<note><unpitched><display-step>E</display-step><display-octave>4</display-octave></unpitched>"
-        "<duration>2</duration><voice>1</voice></note>"
-    )
-    body = cue + unpitched + quarters(("C", 4), ("D", 4))
-    result = parse_text(tmp_path, score(measure(1, body, attrs=attributes())))
-    assert _codes(result).count("NOTE_KIND_NOT_SUPPORTED_YET") == 2
-    assert [e.start for e in _line(result, "P1/s1/v1").events] == [2, 3]  # time still advanced
-    assert all(isinstance(e, Note) for e in _line(result, "P1/s1/v1").events)
 
 
 # --- measure numbers ------------------------------------------------------------------

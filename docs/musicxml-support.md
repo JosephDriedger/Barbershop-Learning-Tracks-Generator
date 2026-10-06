@@ -74,7 +74,42 @@ different thing and is never combined with it.
 | Ties | `<tie>` (sound) and `<tied>` (notation). | Both written. MIDI merges tied notes into one sounding note (one note-on). | `<tie>` is authoritative. Tied notes stay separate in the `Song` (flags set); a pure function merges them for synthesis. Unmatched or pitch-mismatched ties are ERRORs. |
 | Tempo | `<sound tempo>` in a `<direction>`. | A score with no tempo marking exports **no** tempo at all (the real TTBB export below has none). | The parser preserves that no tempo was supplied (`Song.tempo_map` is empty) and never assumes 120 bpm. Missing tempo is **not** a parse error. Validation reports `TEMPO_MISSING`, a generation-blocking condition that the user resolves by supplying a tempo. |
 | Cue notes | "a cue note is a silent note with no playback". | None observed in test files. | The spec says `duration` moves the musical position in `<note>` elements without `<chord/>`, and does not exempt cue notes. A cue note therefore **advances the cursor** by its duration but emits no event, and produces a `CUE_NOTE_SKIPPED` WARNING naming the line, source measure and beat. A cue note with `<chord/>` does not advance. |
-| Grace notes | No `duration`; do not advance the cursor. | | ERROR `UNSUPPORTED_GRACE_NOTE` with line, measure and beat. Support may come later. |
+| Grace notes | No `duration`; do not advance the cursor. | | ERROR `UNSUPPORTED_GRACE_NOTE` with line, measure and beat. Support may come later. A grace note that is also marked cue is treated as a grace note. |
+| Unpitched notes | Have a `duration` and move the cursor. | | ERROR `UNSUPPORTED_UNPITCHED_NOTE`; the note advances time and is omitted. |
+| `<type>` versus `<duration>` | `<type>` is the graphic note type. `<duration>` moves the musical position. | | `<duration>` is always the timing. `<type>` with `<dot>` and `<time-modification>` is only a cross-check: WARNING `DURATION_TYPE_MISMATCH`, never a timing change. Skipped when `<type>` is absent (allowed), for whole-measure rests, for an unknown type, and when `<time-modification>` is incomplete or uses `<normal-type>`/`<normal-dot>`. |
+
+### Ties (implemented in M3b2a)
+
+`<tie>` is "the tie sound" and is authoritative; `<tied>` is "the notated tie". The parser sets
+`Note.tied_to_next` / `tied_from_previous` from `<tie>` alone and compares it with `<tied>`
+(`continue` and `let-ring` are notation-only and ignored):
+
+| `<tie>` | `<tied>` | Result |
+|---|---|---|
+| matches | matches | none |
+| present | absent | WARNING `TIE_WITHOUT_TIED` (the sound tie is used) |
+| absent | present | **ERROR `TIED_WITHOUT_TIE`**. The note is *not* tied; the diagnostic names the line, measure, beat, pitch and notated type so a future explicit UI repair ("treat it as a sound tie?") has what it needs. Nothing is repaired while parsing. MuseScore ties these notes; the specification gives no sound tie, so this is a documented divergence. |
+| present | different types or counts | ERROR `TIE_TIED_MISMATCH` |
+| any invalid `<tie type>` | | ERROR `TIE_TYPE_INVALID` |
+
+Source notes are never merged in the `Song`. `core.timeline.merge_tied_notes(events, part_id=...)`
+returns derived `PerformanceNote`s and tie diagnostics:
+
+- Matching uses **exact sounding pitch** (`Pitch.absolute_semitones`, a `Fraction`): a tie may join
+  C#4 and Db4, microtones need exact equality, and `Pitch.__eq__` is still spelled-pitch equality.
+  The performed note keeps the first source note's spelling and lyrics and references every source
+  note.
+- A tie only continues into a note that starts **exactly** where the previous one ends, so ties
+  across barlines and `divisions` changes work and a tie across a rest or gap is unmatched.
+- Chord members pair by pitch, never by position in the chord.
+- Diagnostic precedence for a tie stop at a given start: `TIE_AMBIGUOUS` (two or more open ties
+  of that pitch end here; nothing is guessed) > paired > `TIE_PITCH_MISMATCH` (no open tie of that
+  pitch, but one ends here) > `TIE_UNMATCHED_STOP` (no open tie ends here at all). A tie start
+  never continued is `TIE_UNMATCHED_START`; a start already named by an ambiguity or mismatch
+  diagnostic is not reported again.
+- MuseScore comparison: chains, enharmonic ties, `<tie>`+`<tied>` and `<tie>`-only agree with its
+  MIDI after merging (`e6_ties` is now an exact match). Invalid ties give the same attacks as
+  MuseScore but are ERRORs for us.
 
 ### Evidence from a real TTBB export
 

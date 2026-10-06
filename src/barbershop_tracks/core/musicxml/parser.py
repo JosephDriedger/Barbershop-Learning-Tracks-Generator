@@ -17,6 +17,7 @@ from barbershop_tracks.core.musicxml.limits import DEFAULT_LIMITS, LoaderLimits
 from barbershop_tracks.core.musicxml.part_reader import PartTimeline, read_part
 from barbershop_tracks.core.musicxml.source import MusicXmlSource, load_musicxml_source
 from barbershop_tracks.core.musicxml.values import child_text
+from barbershop_tracks.core.timeline import merge_tied_notes
 from barbershop_tracks.models import (
     ClefChange,
     Note,
@@ -58,6 +59,8 @@ def parse_score(source: MusicXmlSource) -> ParseResult:
         return ParseResult(song=None, issues=issues.result())
     _check_alignment(timelines, issues)
     parts = _build_parts(timelines, names)
+    for part in parts:  # tie problems are reported at parse time; the Song keeps source notes
+        issues.extend(merge_tied_notes(part.events, part_id=part.part_id).issues)
     clefs: list[ClefChange] = [clef for timeline in timelines for clef in timeline.clefs]
     song = Song(
         title=_title(root),

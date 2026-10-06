@@ -82,6 +82,16 @@ class Pitch:
             raise ValueError(f"{self} is microtonal and has no MIDI note number")
         return 12 * (self.octave + 1) + self.step.semitone + int(self.alter)
 
+    @property
+    def absolute_semitones(self) -> Fraction:
+        """Exact height in semitones above C-1 (C4 = 60), as a ``Fraction``.
+
+        This is the *sounding-height* comparison key. C#4 and Db4 have the same value, a
+        microtonal pitch such as ``E4`` with alter -1/2 has an exact fractional value, and no
+        float is involved. It does not change ``==``, which remains spelled-pitch equality.
+        """
+        return Fraction(12 * (self.octave + 1) + self.step.semitone) + self.alter
+
     def sounds_like(self, other: "Pitch") -> bool:
         """True if both pitches have the same equal-tempered sounding pitch."""
         return self.midi_note == other.midi_note

@@ -18,14 +18,29 @@ def note(
     staff: int | None = None,
     alter: str | None = None,
     extra: str = "",
+    tie: str = "",
+    type_xml: str = "",
+    notations: str = "",
 ) -> str:
+    """A pitched note. ``tie`` is placed after ``<duration>``; ``notations`` at the end."""
     alter_xml = f"<alter>{alter}</alter>" if alter is not None else ""
     voice_xml = f"<voice>{voice}</voice>" if voice is not None else ""
     staff_xml = f"<staff>{staff}</staff>" if staff is not None else ""
+    notations_xml = f"<notations>{notations}</notations>" if notations else ""
     return (
         f"<note>{extra}<pitch><step>{step}</step>{alter_xml}<octave>{octave}</octave></pitch>"
-        f"<duration>{duration}</duration>{voice_xml}{staff_xml}</note>"
+        f"<duration>{duration}</duration>{tie}{voice_xml}{type_xml}{staff_xml}{notations_xml}</note>"
     )
+
+
+def tie_xml(*types: str) -> str:
+    """``<tie>`` (sound) elements, e.g. ``tie_xml("stop", "start")`` for a chain member."""
+    return "".join(f'<tie type="{kind}"/>' for kind in types)
+
+
+def tied_xml(*types: str) -> str:
+    """``<tied>`` (notation) elements for use inside ``notations``."""
+    return "".join(f'<tied type="{kind}"/>' for kind in types)
 
 
 def rest(duration: int | str, *, voice: str | None = "1", staff: int | None = None) -> str:

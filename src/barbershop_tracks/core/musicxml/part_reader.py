@@ -20,6 +20,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from fractions import Fraction
 
+from barbershop_tracks.core.musicxml.duration_type import notated_quarters
 from barbershop_tracks.core.musicxml.issues import IssueCollector
 from barbershop_tracks.core.musicxml.repeats import (
     REPEAT_NOT_SUPPORTED_YET,
@@ -27,6 +28,7 @@ from barbershop_tracks.core.musicxml.repeats import (
     barline_has_repeat_structure,
     jump_attributes_of,
 )
+from barbershop_tracks.core.musicxml.tie_notation import TieInfo, read_tie_info
 from barbershop_tracks.core.musicxml.values import child_text, parse_decimal, parse_int
 from barbershop_tracks.models import (
     IDENTITY_TRANSFORM,
@@ -189,6 +191,31 @@ class _PartReader:
             beat=None if local is None else _ONE + local,
         )
 
+    def _warn(
+        self,
+        code: str,
+        message: str,
+        *,
+        line: SourceLine | None = None,
+        local: Fraction | None = None,
+    ) -> None:
+        self._issues.warning(
+            code,
+            message,
+            part_id=str(line) if line is not None else self._part_id,
+            measure=self._number,
+            beat=None if local is None else _ONE + local,
+        )
+
+    def _best_line(self, element: ET.Element) -> SourceLine | None:
+        """The source line of a note if its staff and voice are readable, else ``None``."""
+        voice = child_text(element, "voice")
+        raw_staff = child_text(element, "staff")
+        staff = 1 if raw_staff is None else parse_int(raw_staff)
+        if voice is None or staff is None or staff < 1:
+            return None
+        return SourceLine(part_id=self._part_id, staff=staff, voice=voice)
+
     def _quarters(
         self, element: ET.Element, missing_code: str, invalid_code: str, what: str
     ) -> Fraction | None:
@@ -345,9 +372,11 @@ class _PartReader:
     def _note(self, element: ET.Element) -> None:
         chord = element.find("chord") is not None
         if element.find("grace") is not None:
+            # A grace note has no <duration> and does not advance the cursor.
             self._error(
-                "NOTE_KIND_NOT_SUPPORTED_YET",
-                "grace notes are not supported yet",
+                "UNSUPPORTED_GRACE_NOTE",
+                "grace notes are not supported",
+                line=self._best_line(element),
                 local=self._cursor,
             )
             return
@@ -370,14 +399,40 @@ class _PartReader:
             self._cursor = local + duration
             self._last_local = local
         self._extent = max(self._extent, local + duration)
+        self._check_duration_type(element, duration, local)
         self._emit(element, local, duration)
+
+    def _check_duration_type(
+        self, element: ET.Element, duration: Fraction, local: Fraction
+    ) -> None:
+        """Warn if ``<type>`` disagrees with ``<duration>``. Never changes the timing."""
+        notated = notated_quarters(element)
+        if notated is not None and notated != duration:
+            self._warn(
+                "DURATION_TYPE_MISMATCH",
+                f"<duration> is {duration} quarter notes but <type>, dots and tuplet ratio "
+                f"say {notated}; the <duration> is used",
+                line=self._best_line(element),
+                local=local,
+            )
 
     def _emit(self, element: ET.Element, local: Fraction, duration: Fraction) -> None:
         """Turn a placed ``<note>`` into a ``Note`` on its voice line, or report why not."""
-        if element.find("cue") is not None or element.find("unpitched") is not None:
+        if element.find("cue") is not None:
+            # A cue note is silent but, like any other <note> without <chord/>, it has
+            # already moved the cursor. It is not a singer event.
+            self._warn(
+                "CUE_NOTE_SKIPPED",
+                "a cue note was skipped (it does not sound)",
+                line=self._best_line(element),
+                local=local,
+            )
+            return
+        if element.find("unpitched") is not None:
             self._error(
-                "NOTE_KIND_NOT_SUPPORTED_YET",
-                "cue and unpitched notes are not supported yet",
+                "UNSUPPORTED_UNPITCHED_NOTE",
+                "unpitched notes are not supported",
+                line=self._best_line(element),
                 local=local,
             )
             return
@@ -419,6 +474,8 @@ class _PartReader:
                 local=local,
             )
             return None
+        ties = read_tie_info(element)
+        self._tie_diagnostics(ties, pitch, line, local)
         return Note(
             start=start,
             duration=duration,
@@ -426,7 +483,53 @@ class _PartReader:
             beat=beat,
             written_pitch=pitch,
             transform=transform,
+            tied_to_next=ties.starts,
+            tied_from_previous=ties.stops,
         )
+
+    def _tie_diagnostics(
+        self, ties: TieInfo, pitch: Pitch, line: SourceLine, local: Fraction
+    ) -> None:
+        """Compare the sound tie (``<tie>``) with the notated tie (``<tied>``).
+
+        ``<tie>`` alone decides whether the note is tied. Disagreement is reported and never
+        silently resolved, because tied or not changes what is sung. A future UI may offer an
+        explicit repair; the parser never makes one.
+        """
+        for bad in ties.invalid_tie_types:
+            self._error(
+                "TIE_TYPE_INVALID",
+                f"<tie> on {pitch} has type {bad!r}; only 'start' and 'stop' are valid",
+                line=line,
+                local=local,
+            )
+        sound, notated = sorted(ties.tie_types), sorted(ties.tied_types)
+        if sound == notated:
+            return
+        if sound and not notated:
+            self._warn(
+                "TIE_WITHOUT_TIED",
+                f"{pitch} has a sound <tie> ({', '.join(sound)}) but no notated <tied>; "
+                "the sound tie is used",
+                line=line,
+                local=local,
+            )
+        elif notated and not sound:
+            self._error(
+                "TIED_WITHOUT_TIE",
+                f"{pitch} has a notated <tied> ({', '.join(notated)}) but no sound <tie>, so it "
+                "is NOT treated as tied; the notation and the playback tie disagree",
+                line=line,
+                local=local,
+            )
+        else:
+            self._error(
+                "TIE_TIED_MISMATCH",
+                f"{pitch} has <tie> ({', '.join(sound)}) and <tied> ({', '.join(notated)}) "
+                "that disagree",
+                line=line,
+                local=local,
+            )
 
     # --- <backup> / <forward> ---------------------------------------------------------
 

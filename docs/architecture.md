@@ -66,6 +66,18 @@ clefs) alters the values in `<pitch>` is not stated by the MusicXML 4.0 referenc
 determine it from the specification and real MuseScore exports, then populate
 `PitchTransform` accordingly or report ambiguity. The model supports either outcome.
 
+`Pitch.absolute_semitones` is the exact sounding height as a `Fraction` (C4 = 60; C#4 and Db4
+are both 61; a quarter-flat E4 is 63.5). It is the key for comparing what sounds, and it does not
+change `==`, which stays spelled-pitch equality.
+
+### PerformanceNote (`performance.py`)
+
+A derived, immutable performed event. Its only stored field is `source`, a tuple of the original
+`Note`s (one note, or several tied notes). `start`, `duration`, `pitch` (the first source note's
+sounding pitch and spelling), `lyrics` (the first note's) and `measure`/`beat` are derived, so it
+cannot contradict its sources. `core.timeline.merge_tied_notes` builds these without touching the
+`Song`. It has no MIDI, OpenUtau, FFmpeg or Qt dependency.
+
 ### Lyrics (`lyric.py`)
 
 `Lyric` keeps the **source** lyric: exact `text`, `syllabic` (single/begin/middle/end),
