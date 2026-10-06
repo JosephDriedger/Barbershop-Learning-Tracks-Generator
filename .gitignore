@@ -218,3 +218,38 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- BarbershopLearningTracks ---
+# Generated audio must never be committed (see scripts/check_no_audio_in_repo.py)
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.opus
+*.m4a
+*.aac
+*.aiff
+*.aif
+*.wma
+
+# Generated OpenUtau projects and interchange bundles
+*.ustx
+*.ust
+*.vsqx
+openutau_bundle/
+
+# Application output and working directories
+output/
+work/
+Learning Tracks/
+
+# External binaries (FFmpeg is installed separately in development)
+ffmpeg.exe
+ffprobe.exe
+ffmpeg/
+
+# Tooling
+.idea/
+.vscode/
+.ruff_cache/
+.mypy_cache/
