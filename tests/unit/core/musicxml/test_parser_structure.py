@@ -193,11 +193,11 @@ def test_missing_metadata_is_none_not_invented(tmp_path: Path) -> None:
     assert (song.composer, song.arranger, song.source.software) == (None, None, None)
 
 
-def test_song_has_no_tempo_or_meter_maps_yet(tmp_path: Path) -> None:
+def test_score_without_a_tempo_has_an_empty_tempo_map(tmp_path: Path) -> None:
     song = parse_text(tmp_path, score(measure(1, FOUR, attrs=attributes()))).song
     assert song is not None
-    assert song.tempo_map == ()
-    assert song.time_signatures == ()
+    assert song.tempo_map == ()  # never a default such as 120
+    assert [(t.beats, t.beat_type) for t in song.time_signatures] == [(4, 4)]
 
 
 # --- clef notation data ---------------------------------------------------------------

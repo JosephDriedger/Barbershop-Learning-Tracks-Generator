@@ -111,6 +111,33 @@ returns derived `PerformanceNote`s and tie diagnostics:
   MIDI after merging (`e6_ties` is now an exact match). Invalid ties give the same attacks as
   MuseScore but are ERRORs for us.
 
+### Tempo and meter (implemented in M3b2b)
+
+**Tempo** comes only from `<sound tempo>` (inside a `<direction>` or directly in a measure), in
+quarter notes per minute, as an exact `Fraction` (92.5 is 185/2; nothing is rounded).
+- No tempo leaves `Song.tempo_map` empty. There is never a default and MuseScore's MIDI default
+  of 120 is not score data. `TEMPO_MISSING` is a later validation condition.
+- `tempo="0"` ("ask the user") is WARNING `TEMPO_ZERO_UNRESOLVED` and sets nothing. An invalid
+  value is ERROR `TEMPO_INVALID`. A `<metronome>` without `<sound tempo>` is WARNING
+  `METRONOME_WITHOUT_SOUND`; tempo is never inferred from it or from words such as "Allegro".
+- **Position = cursor + offset**, with the offset in `divisions` converted exactly. Following
+  MusicXML 4.0: a `<sound>`'s own `<offset>` applies and overrides the direction's; a direction's
+  `<offset>` applies **only** with `sound="yes"` (default `no`: the sound takes effect at the
+  current location). A position outside its measure is ERROR `TEMPO_OFFSET_OUT_OF_MEASURE`; it is
+  never clamped.
+- **MuseScore divergence (documented, pinned by permanent tests):** MuseScore 4.7.4 applies a
+  direction's `<offset>` whatever `sound` says and ignores a `<sound>`'s own `<offset>`. We follow
+  the specification; `test_parser_tempo_offsets.py` records both behaviors.
+- Every explicit valid tempo is kept (even if equal to the previous one). Identical values at the
+  same position, in one part or several, are one event; different values at the same position are
+  ERROR `TEMPO_CONFLICT` and that position is left unresolved. A tempo declared in one part only
+  (typical for MuseScore) is used.
+
+**Meter**: `Song.time_signatures` has one `TimeSignature` per **effective change**. Each part
+records the meter in effect at every measure; parts are compared by what is in effect (a part
+that declares nothing inherits), and any difference is ERROR `TIME_SIGNATURE_CONFLICT`. Repeated
+declarations of the same meter, in one part or several, add no event.
+
 ### Evidence from a real TTBB export
 
 One real barbershop score supplied by the project owner (a 71-measure arrangement exported

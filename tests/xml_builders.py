@@ -104,6 +104,34 @@ def transpose_xml(
     )
 
 
+def tempo_direction(
+    bpm: str | None,
+    *,
+    dir_offset: str = "",
+    sound_offset: str = "",
+    metronome: str = "",
+    words: str = "",
+) -> str:
+    """A ``<direction>`` with an optional ``<sound tempo>``.
+
+    ``dir_offset`` is a full ``<offset ...>`` element placed on the direction;
+    ``sound_offset`` is the divisions value for an ``<offset>`` inside the ``<sound>``.
+    """
+    type_xml = ""
+    if metronome:
+        type_xml += (
+            "<metronome><beat-unit>quarter</beat-unit>"
+            f"<per-minute>{metronome}</per-minute></metronome>"
+        )
+    if words:
+        type_xml += f"<words>{words}</words>"
+    sound = ""
+    if bpm is not None:
+        inner = f"<offset>{sound_offset}</offset>" if sound_offset else ""
+        sound = f'<sound tempo="{bpm}">{inner}</sound>' if inner else f'<sound tempo="{bpm}"/>'
+    return f"<direction>{dir_offset}<direction-type>{type_xml}</direction-type>{sound}</direction>"
+
+
 def score(
     *parts: str,
     names: Sequence[str] | None = None,

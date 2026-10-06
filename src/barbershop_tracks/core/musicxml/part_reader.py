@@ -22,11 +22,18 @@ from fractions import Fraction
 
 from barbershop_tracks.core.musicxml.duration_type import notated_quarters
 from barbershop_tracks.core.musicxml.issues import IssueCollector
+from barbershop_tracks.core.musicxml.meter import MeterKey
 from barbershop_tracks.core.musicxml.repeats import (
     REPEAT_NOT_SUPPORTED_YET,
     UNSUPPORTED_JUMP,
     barline_has_repeat_structure,
     jump_attributes_of,
+)
+from barbershop_tracks.core.musicxml.tempo import (
+    TempoEvent,
+    has_metronome_without_tempo,
+    offset_element,
+    parse_tempo_value,
 )
 from barbershop_tracks.core.musicxml.tie_notation import TieInfo, read_tie_info
 from barbershop_tracks.core.musicxml.values import child_text, parse_decimal, parse_int
@@ -55,6 +62,8 @@ class PartTimeline:
     clefs: list[ClefChange]
     measure_numbers: list[int]
     measure_lengths: list[Fraction]  # quarter notes, per measure, in score order
+    meters: list[MeterKey | None]  # effective meter at each measure (None if unknown)
+    tempos: list[TempoEvent]  # explicit, valid tempo events found in this part
 
 
 class _PitchError(Exception):
@@ -73,6 +82,8 @@ def read_part(part: ET.Element, part_id: str, issues: IssueCollector) -> PartTim
         clefs=reader.clefs,
         measure_numbers=reader.measure_numbers,
         measure_lengths=reader.measure_lengths,
+        meters=reader.meters,
+        tempos=reader.tempos,
     )
 
 
@@ -85,9 +96,13 @@ class _PartReader:
         self.clefs: list[ClefChange] = []
         self.measure_numbers: list[int] = []
         self.measure_lengths: list[Fraction] = []
+        self.meters: list[MeterKey | None] = []
+        self.tempos: list[TempoEvent] = []
         # state that persists across measures
         self._divisions: Fraction | None = None
         self._nominal: Fraction | None = None
+        self._meter: MeterKey | None = None
+        self._pending_tempos: list[tuple[Fraction, Fraction]] = []  # (local position, bpm)
         self._default_transform: PitchTransform | None = IDENTITY_TRANSFORM
         self._staff_transforms: dict[int, PitchTransform | None] = {}
         self._reported_divisions = False
@@ -119,8 +134,10 @@ class _PartReader:
                 if handler is not None:
                     handler(child)
             length = self._measure_length(measure)
+            self._flush_tempos(length)
             self.measure_numbers.append(self._number)
             self.measure_lengths.append(length)
+            self.meters.append(self._meter)
             start += length
 
     def _begin_measure(self, measure: ET.Element, ordinal: int, start: Fraction) -> None:
@@ -137,6 +154,7 @@ class _PartReader:
             )
         self._number = number
         self._measure_start = start
+        self._pending_tempos = []
         self._cursor = _ZERO
         self._extent = _ZERO
         self._last_local = None
@@ -276,8 +294,9 @@ class _PartReader:
                 ).measure_length
             except ValueError:
                 length = None
-        if length is None:
+        if length is None or beats_n is None or type_n is None:
             self._nominal = None
+            self._meter = None
             self._reported_time = True
             self._error(
                 "TIME_SIGNATURE_UNSUPPORTED",
@@ -286,6 +305,7 @@ class _PartReader:
             )
         else:
             self._nominal = length
+            self._meter = (beats_n, type_n)
             self._reported_time = False
 
     def _clef(self, clef: ET.Element) -> None:
@@ -576,8 +596,76 @@ class _PartReader:
             )
 
     def _direction(self, element: ET.Element) -> None:
+        """Handle a ``<direction>`` or a ``<sound>`` directly in the measure."""
         for name in jump_attributes_of(element):
             self._error(UNSUPPORTED_JUMP, f"jump marker '{name}' is not supported")
+        direction = element if element.tag == "direction" else None
+        sounds = element.findall("sound") if direction is not None else [element]
+        for sound in sounds:
+            raw = sound.get("tempo")
+            if raw is not None:
+                self._tempo(sound, direction, raw)
+        if direction is not None and has_metronome_without_tempo(direction):
+            self._warn(
+                "METRONOME_WITHOUT_SOUND",
+                "a metronome mark has no <sound tempo>, so it is notation only and sets no "
+                "tempo; tempo is never inferred from it",
+                local=self._cursor,
+            )
+
+    # --- tempo ------------------------------------------------------------------------
+
+    def _tempo(self, sound: ET.Element, direction: ET.Element | None, raw: str) -> None:
+        bpm = parse_tempo_value(raw)
+        if bpm is None:
+            self._error("TEMPO_INVALID", f"tempo {raw!r} is not a non-negative number")
+            return
+        if bpm == 0:
+            self._warn(
+                "TEMPO_ZERO_UNRESOLVED",
+                "tempo 0 means 'ask the user'; no tempo is set and none is assumed",
+                local=self._cursor,
+            )
+            return
+        offset = self._tempo_offset(sound, direction)
+        if offset is not None:
+            self._pending_tempos.append((self._cursor + offset, bpm))
+
+    def _tempo_offset(self, sound: ET.Element, direction: ET.Element | None) -> Fraction | None:
+        """The applicable offset in quarter notes (0 if none), or ``None`` if unusable."""
+        source = offset_element(sound, direction)
+        if source is None:
+            return _ZERO
+        value = parse_decimal((source.text or "").strip())
+        if value is None:
+            self._error("TEMPO_INVALID", "a tempo <offset> is not a number", local=self._cursor)
+            return None
+        if self._divisions is None:
+            if not self._reported_divisions:
+                self._reported_divisions = True
+                self._error("DIVISIONS_MISSING", "<divisions> was not given before this point")
+            return None
+        return value / self._divisions
+
+    def _flush_tempos(self, length: Fraction) -> None:
+        """Validate this measure's tempo positions now that its length is known. No clamping."""
+        for local, bpm in self._pending_tempos:
+            if local < 0 or local > length:
+                self._error(
+                    "TEMPO_OFFSET_OUT_OF_MEASURE",
+                    f"a tempo lands at {local} quarter notes from the start of a measure that "
+                    f"is {length} long",
+                )
+                continue
+            self.tempos.append(
+                TempoEvent(
+                    position=self._measure_start + local,
+                    bpm=bpm,
+                    part_id=self._part_id,
+                    measure=self._number,
+                )
+            )
+        self._pending_tempos = []
 
 
 def _read_pitch(note: ET.Element) -> Pitch:

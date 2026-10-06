@@ -34,8 +34,8 @@ no lyrics from any real work, and safe to publish.
 | File | Question |
 |---|---|
 | `t_a_at_cursor` | Tempo placed between notes (beat 3). |
-| `t_b_dir_offset_no`, `t_c_dir_offset_yes`, `t_e_dir_offset_default` | Direction `<offset>` with `sound` no / yes / absent. MuseScore ignores all three. |
-| `t_d_sound_offset` | `<offset>` inside `<sound>`. MuseScore ignores it too. |
+| `t_b_dir_offset_no`, `t_c_dir_offset_yes`, `t_e_dir_offset_default` | Direction `<offset>` (after one quarter note) with `sound` no / yes / absent. MusicXML 4.0: only `yes` moves the tempo. MuseScore moves it in all three (tempo at tick 960). |
+| `t_d_sound_offset` | `<offset>` inside `<sound>`. MusicXML 4.0: it applies. MuseScore ignores it (tempo stays at tick 480). |
 | `t_f_two_changes` | Two tempo changes in one measure. |
 | `t_g_decimal` | Decimal tempo (92.5). |
 | `t_h_zero` | `tempo="0"` (spec: "ask the user"). MuseScore ignores it and writes 120. |
@@ -46,6 +46,24 @@ no lyrics from any real work, and safe to publish.
 
 MuseScore's MIDI output always contains a tempo event (a default 120 when the score has none), so
 that default is never treated as score data.
+
+## `ttbb/`
+
+Original, synthetic fixtures that mirror the *structure* of a common MuseScore barbershop export
+(not any real score): two parts ("TENOR\nLEAD", "BARI\nBASS") in a bracketed part group, one
+implied staff and two voices each, divisions 12, G clef with octave change -1 and F clef, a
+one-beat implicit pickup (measure 0), a tie across a barline, a 4/4 to 3/4 meter change, and a
+voice that enters via `<forward>`. The pitches are a plain scale/arpeggio pattern with no melody
+or lyrics from any real work.
+
+| File | Tempo |
+|---|---|
+| `ttbb_layout` | none (MuseScore's MIDI adds a default 120, which is never score data) |
+| `ttbb_layout_shared_tempo` | 96 in both parts at the start |
+| `ttbb_layout_tempo_change` | 96 then 72 (at the 3/4 measure), declared in both parts |
+| `ttbb_layout_tempo_first_part_only` | 96 then 72, declared in the first part only (typical MuseScore) |
+
+Each has a MuseScore re-export and an oracle JSON (notes and exact tempo events).
 
 Provenance: generated on 2026-10-06 with MuseScore Studio 4.7.4 on Windows. These are
 research inputs for the M3 parser, not final test fixtures; M3 will add its own focused ones.

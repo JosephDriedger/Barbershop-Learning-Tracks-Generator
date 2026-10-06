@@ -27,7 +27,15 @@ That is a quirk, not something to copy silently.
 | Unit | `<sound tempo>` is in quarter notes per minute. | Same. Decimals were kept (`92.5` came out as 92.5). |
 | `tempo="0"` | "prompts the sound-generating program to ask the user". | Ignored; its MIDI shows its default 120. |
 | No tempo | Valid. | Writes a default 120 into its MIDI. We never copy that default. |
-| `<offset>` | Units are divisions. A **direction** `<offset>` affects playback **only if `sound="yes"`** (default `no`, "for compatibility"); otherwise a `<sound>` in the direction takes effect at the current location. A `<sound>`'s **own** `<offset>` child overrides the direction's and always applies. | **Ignored entirely.** Tempo landed at the cursor in every variant (`sound` no, yes, default, and a `<sound><offset>`). |
+| `<offset>` | Units are divisions. A **direction** `<offset>` affects playback **only if `sound="yes"`** (default `no`, "for compatibility"); otherwise a `<sound>` in the direction takes effect at the current location. A `<sound>`'s **own** `<offset>` child overrides the direction's and always applies. | **Applies a direction's `<offset>` whatever `sound` says** (no, yes and absent all moved the tempo to the cursor plus the offset) and **ignores a `<sound>`'s own `<offset>`** (the tempo stayed at the cursor). |
+
+> **Correction (M3b2b).** The first version of this plan said MuseScore "ignores offsets
+> entirely". Re-reading the oracle (`tempo_ties/oracle/t_b..t_e`) showed that was wrong: the
+> direction was placed after the first note (480 ticks) and MuseScore put the tempo at 960 for
+> `sound="no"`, `"yes"` and absent (it applied the 480-tick offset), but at 480 for the
+> `<sound>`'s own offset (it ignored it). Our implementation follows the specification, so it
+> agrees with MuseScore only for `sound="yes"` and for no offset; see the permanent tests in
+> `test_parser_tempo_offsets.py`.
 | `<metronome>` | Notation. | Written alongside `<sound tempo>`. |
 
 ### Other
@@ -185,8 +193,9 @@ Original and synthetic, mirroring the observed structure but not copied from any
   `t_a` and `t_f` tempo positions and values, `t_g` decimal tempo, and both TTBB fixtures.
 - Documented divergences (each has a test that asserts our behavior and cites the oracle):
   `u_tied_only` (we ERROR, MuseScore ties), `u_pitch_mismatch`/`u_unmatched_*` (we ERROR,
-  MuseScore sounds both notes), `t_b`/`t_c`/`t_d`/`t_e` offsets (we follow the specification,
-  MuseScore ignores offsets), `t_h` and no-tempo fixtures (MuseScore writes 120, we leave the tempo
+  MuseScore sounds both notes), `t_b`/`t_e` (direction offset with `sound` no/absent: we keep the tempo at the cursor,
+  MuseScore applies the offset) and `t_d` (a `<sound>`'s own offset: we apply it, MuseScore
+  ignores it; `t_a` and `t_c` agree), `t_h` and no-tempo fixtures (MuseScore writes 120, we leave the tempo
   unresolved).
 - Tempo oracle values are compared exactly: MIDI microseconds-per-quarter are compared to
   `60_000_000 / bpm` as exact rationals, never as floats.
@@ -302,8 +311,9 @@ fixtures (no tempo, shared tempo, later tempo change); final MuseScore oracle co
 1. **`<tied>` without `<tie>`** as an ERROR (my proposal) versus a warning that follows the
    specification (re-attack). MuseScore ties them.
 2. **Tempo `<offset>` follows the specification** (sound-child offset always; direction offset only
-   with `sound="yes"`), which refines the earlier "apply `<offset>`". MuseScore ignores offsets, so a
-   file that MuseScore plays one way we may place differently.
+   with `sound="yes"`), which refines the earlier "apply `<offset>`". MuseScore differs (it applies a direction's
+   offset whatever `sound` says and ignores a `<sound>`'s own offset), so a file that MuseScore
+   plays one way we may place differently. This is a documented compatibility divergence.
 3. **Tie matching by sounding pitch** (so enharmonic ties join), with the exact
    `Pitch.absolute_semitones` model addition.
 4. **`tempo="0"`** treated as unresolved with a WARNING (spec: "ask the user").

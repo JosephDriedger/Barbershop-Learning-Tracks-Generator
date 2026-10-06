@@ -14,8 +14,10 @@ from dataclasses import dataclass
 
 from barbershop_tracks.core.musicxml.issues import IssueCollector
 from barbershop_tracks.core.musicxml.limits import DEFAULT_LIMITS, LoaderLimits
+from barbershop_tracks.core.musicxml.meter import build_meter_map
 from barbershop_tracks.core.musicxml.part_reader import PartTimeline, read_part
 from barbershop_tracks.core.musicxml.source import MusicXmlSource, load_musicxml_source
+from barbershop_tracks.core.musicxml.tempo import reconcile_tempos
 from barbershop_tracks.core.musicxml.values import child_text
 from barbershop_tracks.core.timeline import merge_tied_notes
 from barbershop_tracks.models import (
@@ -62,11 +64,21 @@ def parse_score(source: MusicXmlSource) -> ParseResult:
     for part in parts:  # tie problems are reported at parse time; the Song keeps source notes
         issues.extend(merge_tied_notes(part.events, part_id=part.part_id).issues)
     clefs: list[ClefChange] = [clef for timeline in timelines for clef in timeline.clefs]
+    tempo_map = reconcile_tempos([t for tl in timelines for t in tl.tempos], issues)
+    time_signatures = build_meter_map(
+        part_ids=[tl.part_id for tl in timelines],
+        meters=[tl.meters for tl in timelines],
+        measure_numbers=timelines[0].measure_numbers,
+        measure_lengths=timelines[0].measure_lengths,
+        issues=issues,
+    )
     song = Song(
         title=_title(root),
         composer=_creator(root, "composer"),
         arranger=_creator(root, "arranger"),
         parts=tuple(parts),
+        tempo_map=tempo_map,
+        time_signatures=time_signatures,
         source=SourceMetadata(
             path=source.path,
             format_name="MusicXML",
