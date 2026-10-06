@@ -1,0 +1,56 @@
+{
+ "source": "MuseScore 4.7.4 MIDI export",
+ "ppq": 480,
+ "tracks": [
+  [
+   {
+    "tick": 0,
+    "midi_note": 60
+   },
+   {
+    "tick": 480,
+    "midi_note": 62
+   },
+   {
+    "tick": 960,
+    "midi_note": 64
+   },
+   {
+    "tick": 1440,
+    "midi_note": 65
+   },
+   {
+    "tick": 1920,
+    "midi_note": 67
+   },
+   {
+    "tick": 2400,
+    "midi_note": 69
+   },
+   {
+    "tick": 2880,
+    "midi_note": 71
+   },
+   {
+    "tick": 3360,
+    "midi_note": 72
+   },
+   {
+    "tick": 3840,
+    "midi_note": 74
+   },
+   {
+    "tick": 4320,
+    "midi_note": 74
+   },
+   {
+    "tick": 4800,
+    "midi_note": 74
+   },
+   {
+    "tick": 5280,
+    "midi_note": 74
+   }
+  ]
+ ]
+}
