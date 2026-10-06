@@ -47,6 +47,28 @@ no lyrics from any real work, and safe to publish.
 MuseScore's MIDI output always contains a tempo event (a default 120 when the score has none), so
 that default is never treated as score data.
 
+## `lyrics/`
+
+Research for M3c (see `docs/m3c-plan.md`): 38 single-measure scores with `inputs/` and
+MuseScore 4.7.4 `musescore_roundtrip/` outputs. Every lyric is an original nonsense syllable
+(`la`, `ni`, `na`, `ma`, `ba`) or a short symbol string used only to test special-character
+handling (`+`, `-`, `[la]`, `la~`). No real lyrics.
+
+| Files | Question |
+|---|---|
+| `l01`-`l05` | Melisma: typed extend, untyped extend, slur with no extend, extend across a rest, extend at the end of the part. MuseScore always writes an untyped `<extend/>` and leaves following notes lyric-less. |
+| `l06`-`l08` | Lyrics and ties: on the first note only, on both notes, with an extender. |
+| `l09`-`l12` | Lyrics on a rest, a cue note, a grace note, and chord members. MuseScore keeps the first two and moves the grace and chord lyrics onto the main/first note as a second lyric with the same number. |
+| `l13`-`l17` | Verses: two verses, verse 2 only (MuseScore renumbers it to 1), no number, `name`, `time-only` (both attributes dropped). |
+| `l18`-`l22` | Syllabic: a three-syllable word, a word split by a rest, `end` without `begin`, `begin` never ended, text without `<syllabic>` (written as `single`). |
+| `l23`-`l26` | Elision (`<elision>` with a glyph, an underscore, a SMuFL glyph) and a text containing a space. |
+| `l27`-`l29` | `<humming/>`, `<laughing/>` (dropped by MuseScore), `end-line` / `end-paragraph` (dropped). |
+| `l30`-`l34` | Special characters, a trailing hyphen, two voices with their own lyrics, edge whitespace (kept), empty text (dropped). |
+| `l35`-`l38` | `<elision>` forms: `smufl="lyricsElision"`, `smufl="lyricsElisionWide"`, a no-break space, and an empty element. MuseScore writes the same single SMuFL glyph **U+E551** (font "Leland Text") between two `<text>` elements for all three non-space forms, and keeps only one `<syllabic>` (the last). A no-break-space elision becomes one `<text>` with U+00A0 inside. |
+
+The 38 lyric inputs contain only the syllables `la`, `ni`, `na`, `ma`, `ba` and the symbol strings
+named above; no other words appear in any of them.
+
 ## `ttbb/`
 
 Original, synthetic fixtures that mirror the *structure* of a common MuseScore barbershop export
