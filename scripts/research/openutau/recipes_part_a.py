@@ -95,6 +95,7 @@ def build(
     backward_repeat_at: int | None = None,
     implicit_first: bool = False,
     transforms: Mapping[VoiceRole, PitchTransform] | None = None,
+    ppq: int = 480,
 ) -> Recipe:
     spans: list[MeasureSpan] = []
     cursor = Fraction(0)
@@ -133,7 +134,7 @@ def build(
     performed = perform_song(song)
     parsed = ParseResult(song=song, issues=performed.issues, performed=performed)
     assignments = RoleAssignments(entries=tuple((role, LINE_IDS[role]) for role in VOICES))
-    return Recipe(artifact_id, description, parsed, assignments)
+    return Recipe(artifact_id, description, parsed, assignments, ppq)
 
 
 _BASES = {VoiceRole.TENOR: 64, VoiceRole.LEAD: 60, VoiceRole.BARITONE: 55, VoiceRole.BASS: 48}
@@ -195,6 +196,37 @@ def grid() -> Recipe:
         simple,
         measure_lengths=[4, 4],
         signatures=[(0, 4, 4)],
+    )
+
+
+def grid_ppq960() -> Recipe:
+    """The PPQ discriminator: the same musical idea exported at PPQ 960 (a variant of ``grid``).
+
+    A quarter note is tick 960 here, so a copy of the ticks and a rescale onto a 480-per-quarter
+    timebase give different numbers, while the musical position (tick / PPQ) is what must agree.
+    1/64 of a quarter is tick 15 at PPQ 960 and would be 7.5 at 480: an exact BLT position that a
+    480-based importer can only round.
+    """
+    third = Fraction(1, 3)
+    lead: list[Spec] = [(0, 1, 60), (1, Fraction(1, 2), 62), (Fraction(3, 2), Fraction(1, 2), 64)]
+    lead += [(2 + i * third, third, 65 + i) for i in range(3)]  # triplet eighths: 320 ticks
+    fine = Fraction(3)
+    lead += [(fine, Fraction(1, 64), 60)]  # 15 ticks at PPQ 960 (7.5 at 480)
+    lead += [(fine + Fraction(1, 64), Fraction(3, 64), 62)]  # starts at 975, 45 ticks long
+    lead += [(fine + Fraction(1, 16), Fraction(1, 32), 64)]  # starts at 1020, 30 ticks long
+    lead += [(4, Fraction(7, 12), 65)]  # 560 ticks at PPQ 960
+    simple: dict[VoiceRole, list[Spec]] = {
+        role: [(0, 1, _BASES[role]), (4, 1, _BASES[role] + 2)] for role in VOICES
+    }
+    simple[VoiceRole.LEAD] = lead
+    return build(
+        "grid_ppq960",
+        "A06 discriminator: exported at PPQ 960; Lead has a quarter, eighths, triplet eighths "
+        "(320 ticks), a 1/64 (tick 15) and 3/64 (45) probe, and a 7/12 note (560 ticks)",
+        simple,
+        measure_lengths=[4, 4],
+        signatures=[(0, 4, 4)],
+        ppq=960,
     )
 
 
@@ -263,6 +295,7 @@ RECIPES: dict[str, Callable[[], Recipe]] = {
     "baseline": baseline,
     "pitches": pitches,
     "grid": grid,
+    "grid_ppq960": grid_ppq960,
     "tempo": tempo,
     "meter": meter,
     "pickup": pickup,

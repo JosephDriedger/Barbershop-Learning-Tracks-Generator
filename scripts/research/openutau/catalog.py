@@ -125,6 +125,19 @@ CATALOG: tuple[Experiment, ...] = (
         extra=("Inspect the saved project (or another numeric view); do not infer from snapping.",),
     ),
     _a(
+        "A06_TIMING_GRID_PPQ960",
+        "PPQ discriminator: ticks copied, rescaled exactly, or rounded",
+        "grid_ppq960",
+        (
+            "OpenUtau's project resolution (USTX `resolution`)",
+            "per note: MIDI tick and PPQ (expected table), the OpenUtau position and duration",
+            "musical position tick/PPQ versus OpenUtau position/resolution, for starts and "
+            "durations: exact copy, exact rescale, rounded rescale or other",
+            "the 1/64-quarter probe (tick 15 at PPQ 960): rounded, truncated or kept",
+        ),
+        extra=("Save a temporary project and run observe.py ustx-summary on it.",),
+    ),
+    _a(
         "A07_TEMPO",
         "Tempo map: source BPM, MIDI value, OpenUtau value",
         "tempo",

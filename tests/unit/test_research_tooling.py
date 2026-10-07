@@ -125,6 +125,23 @@ def test_the_grid_recipe_lands_on_the_documented_ticks() -> None:
     assert (1440, 1536) in lead  # a quintuplet slot: 96 ticks
 
 
+def test_the_ppq_960_discriminator_is_real_production_output_at_ppq_960() -> None:
+    handoff = prepared("grid_ppq960")
+    assert handoff.manifest["midi"]["ppq"] == 960
+    lead = [
+        (e["start_tick"], e["end_tick"])
+        for e in generate.part_a_expected(handoff.midi.plan)
+        if e.get("track") == "Lead"
+    ]
+    assert (0, 960) in lead  # a quarter note is tick 960, not 480
+    assert (1920, 2240) in lead  # a triplet eighth: 320 ticks
+    assert (2880, 2895) in lead  # 1/64 of a quarter: 15 ticks (7.5 at PPQ 480)
+    assert (2895, 2940) in lead  # starts at the odd tick 2895, 45 ticks long
+    assert (3840, 4400) in lead  # 7/12 of a quarter: 560 ticks
+    assert BY_ID["A06_TIMING_GRID_PPQ960"].input_id == "grid_ppq960"
+    assert BY_ID["A06_TIMING_GRID"].input_id == "grid"  # the original input is unchanged
+
+
 def test_adjacent_notes_share_a_tick() -> None:
     notes = [
         e
