@@ -4,20 +4,34 @@ Subcommands:
 
 * ``check SCORE``: assess whether a capability can generate from the score;
 * ``lines SCORE``: list the source lines and their identifiers (read-only suggestions, nothing
-  is assigned).
+  is assigned);
+* ``export SCORE``: write the quartet MIDI handoff package (readiness for
+  ``quartet-midi`` first).
 
-Exit codes (the whole public contract): ``0`` ready, ``1`` not ready (a blocking finding, or an
-advisory one under ``--strict``), ``2`` invocation, input or load failure. A readiness problem in a
-score that loaded fine is a report and exit ``1``, never ``2``.
+Exit codes (the whole public contract): ``0`` ready / exported, ``1`` not ready (a blocking
+finding, or an advisory one under ``--strict``) or not exportable, ``2`` invocation, input, load,
+export-package or filesystem failure. A readiness problem in a score that loaded fine is a
+report and exit ``1``, never ``2``. Failures that exit ``2`` print ``error[CODE]: message`` on
+stderr; the code is stable and meant for scripts.
 """
 
 import argparse
+import hashlib
 import re
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from barbershop_tracks import __version__
 from barbershop_tracks.core.errors import ScoreLoadError
+from barbershop_tracks.core.handoff import (
+    HandoffError,
+    prepare_handoff,
+    sanitize_name,
+    write_package,
+)
+from barbershop_tracks.core.handoff.render import render_export_json, render_export_text
+from barbershop_tracks.core.midi import DEFAULT_PPQ, MidiExportError, validate_ppq
 from barbershop_tracks.core.musicxml import ParseResult, parse_musicxml
 from barbershop_tracks.core.readiness import CAPABILITIES, RoleAssignments, assess_readiness
 from barbershop_tracks.core.readiness.lines import describe_lines
@@ -104,6 +118,51 @@ def build_parser() -> argparse.ArgumentParser:
     )
     lines.add_argument("score", help="a .musicxml, .xml or .mxl file")
     lines.add_argument("--format", choices=("text", "json"), default="text")
+
+    export = commands.add_parser(
+        "export",
+        help="write the quartet MIDI handoff package",
+        description=(
+            "Write a MIDI handoff package for OpenUtau (semi-automatic: nothing is sent to "
+            "OpenUtau). Exit 0 exported, 1 not exportable, 2 usage/load/filesystem failure."
+        ),
+    )
+    export.add_argument("score", help="a .musicxml, .xml or .mxl file")
+    export.add_argument(
+        "--out", required=True, metavar="DIR", help="the directory that will hold the package"
+    )
+    export.add_argument(
+        "--assign",
+        action="append",
+        default=[],
+        type=_assignment,
+        metavar="ROLE=LINE",
+        help="assign a role to an exact source line, e.g. TENOR=P1/s1/v1 (all four roles)",
+    )
+    export.add_argument(
+        "--ignore",
+        action="append",
+        default=[],
+        type=_line_id,
+        metavar="LINE",
+        help="exclude an exact source line on purpose (repeat per line)",
+    )
+    export.add_argument("--name", help="the package name (default: the score's file name)")
+    export.add_argument(
+        "--ppq",
+        type=int,
+        default=DEFAULT_PPQ,
+        help=f"ticks per quarter note (default {DEFAULT_PPQ})",
+    )
+    export.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace an existing package, only if it is positively one of ours",
+    )
+    export.add_argument(
+        "--strict", action="store_true", help="refuse, before writing, if advisory findings exist"
+    )
+    export.add_argument("--format", choices=("text", "json"), default="text")
     return parser
 
 
@@ -144,6 +203,57 @@ def _run_lines(args: argparse.Namespace) -> int:
     return EXIT_READY
 
 
+def _fail(error: HandoffError) -> int:
+    print(f"error[{error.code}]: {error.message}", file=sys.stderr)
+    return EXIT_USAGE
+
+
+def _run_export(args: argparse.Namespace) -> int:
+    try:
+        validate_ppq(args.ppq)  # a bad --ppq is an invocation error, not an unsuitable score
+    except MidiExportError as error:
+        print(f"error[{error.code}]: {error.message}", file=sys.stderr)
+        return EXIT_USAGE
+    parsed = _load(args.score)
+    if parsed is None:
+        return EXIT_USAGE
+    score = Path(args.score)
+    try:
+        source_sha256 = hashlib.sha256(score.read_bytes()).hexdigest()
+        name = sanitize_name(args.name if args.name is not None else score.stem)
+    except OSError as exc:
+        print(f"error: cannot read {args.score}: {exc.strerror or exc}", file=sys.stderr)
+        return EXIT_USAGE
+    except HandoffError as error:
+        return _fail(error)
+    assignments = RoleAssignments(entries=tuple(args.assign), ignored=tuple(args.ignore))
+    preparation = prepare_handoff(
+        parsed,
+        assignments,
+        name=name,
+        source_name=score.name,
+        source_sha256=source_sha256,
+        ppq=args.ppq,
+        strict=args.strict,
+    )
+    path: Path | None = None
+    replaced = False
+    handoff = preparation.handoff
+    if handoff is not None:
+        try:
+            written = write_package(
+                Path(args.out), handoff.dirname, handoff.files, overwrite=args.overwrite
+            )
+        except HandoffError as error:
+            return _fail(error)
+        path, replaced = written.path, written.replaced
+        for warning in written.warnings:
+            print(f"warning: {warning}", file=sys.stderr)
+    render = render_export_json if args.format == "json" else render_export_text
+    sys.stdout.write(render(preparation, path=path, strict=args.strict, replaced=replaced))
+    return EXIT_READY if handoff is not None else EXIT_NOT_READY
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)  # a usage error exits with status 2
@@ -151,5 +261,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_check(args)
     if args.command == "lines":
         return _run_lines(args)
+    if args.command == "export":
+        return _run_export(args)
     parser.print_help()
     return EXIT_READY

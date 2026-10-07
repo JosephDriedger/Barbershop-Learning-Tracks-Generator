@@ -119,4 +119,20 @@ TEST_TONE = Capability(
     tempo_required=True,
 )
 
-CAPABILITIES: dict[str, Capability] = {c.name: c for c in (QUARTET_VOCAL, TEST_TONE)}
+# "Can this performed score be exported as the quartet MIDI handoff?" It names no backend and no
+# package format, and it deliberately does not inherit any lyric requirement: lyrics are not part
+# of the M5 handoff.
+MIDI_QUARTET = Capability(
+    name="quartet-midi",
+    required_roles=frozenset(VoiceRole),
+    all_musical_lines_accounted_for=True,
+    assigned_lines_must_sound=True,
+    monophony_required=True,
+    integral_midi_pitch_required=True,
+    midi_range=(0, 127),
+    tempo_required=True,
+    lyric_policy=LyricPolicy.NONE,
+    typical_ranges=DEFAULT_TYPICAL_RANGES,
+)
+
+CAPABILITIES: dict[str, Capability] = {c.name: c for c in (QUARTET_VOCAL, TEST_TONE, MIDI_QUARTET)}

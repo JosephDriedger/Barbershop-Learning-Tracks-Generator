@@ -11,6 +11,7 @@ from barbershop_tracks.core.readiness.assignments import RoleAssignments
 from barbershop_tracks.core.readiness.capability import (
     CAPABILITIES,
     DEFAULT_TYPICAL_RANGES,
+    MIDI_QUARTET,
     QUARTET_VOCAL,
     TEST_TONE,
     Capability,
@@ -37,6 +38,7 @@ __all__ = [
     "CAPABILITIES",
     "DEFAULT_TYPICAL_RANGES",
     "ISSUE_POLICY",
+    "MIDI_QUARTET",
     "QUARTET_VOCAL",
     "TEST_TONE",
     "Capability",
