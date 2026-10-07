@@ -253,3 +253,6 @@ ffmpeg/
 .vscode/
 .ruff_cache/
 .mypy_cache/
+
+# --- M6 research output (generated MIDI/USTX/WAV experiments; never committed) ---
+research-output/

@@ -24,6 +24,7 @@ dev = [
     "mypy>=1.10",
     "ruff>=0.5",
     "pyinstaller>=6.0",
+    "pyyaml>=6.0",  # research tooling only (scripts/research/openutau); not a runtime dependency
 ]
 
 [project.scripts]
@@ -41,6 +42,7 @@ barbershop_tracks = ["py.typed"]
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
+pythonpath = ["scripts/research/openutau"]
 addopts = ["-ra", "--strict-markers", "--strict-config"]
 markers = [
     "integration: needs external tools (FFmpeg, OpenUtau); skipped when unavailable",
@@ -62,7 +64,7 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "C4", "PT", "PTH", "RUF"]
 python_version = "3.12"
 strict = true
 files = ["src", "tests", "scripts"]
-mypy_path = "tests"
+mypy_path = ["tests", "scripts/research/openutau"]
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
