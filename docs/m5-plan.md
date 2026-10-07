@@ -258,3 +258,25 @@ package. Open for M5b: D9 export exit-code semantics (§11).
 OpenUtau version; tempo import for non-integral µs and mid-song changes; PPQ 480 vs other
 resolutions and any internal rescaling or rounding; part naming from track names; behavior for notes
 without lyrics; whether the end-of-track tick sets part length; whether meter events matter.
+
+## 15. M5a status notes (implemented, not committed)
+
+- `core/midi/`: `ticks`, `tempo`, `meter`, `model`, `build`, `encode`, `verify`, `export`.
+  `export_midi(performed, assignments, *, ppq=480) -> MidiExport` is pure and in memory.
+- **Deviation from §4:** the SMF bytes are written by our own small encoder (`encode.py`), not by
+  `mido`. That fixes every byte (no running status, no inserted events, no library defaults) and
+  makes `mido` an *independent* reader for `verify.py`, so writer and verifier cannot share a bug.
+- The `Song` model already forbids duplicate tempo positions and non-power-of-two meter
+  denominators, so the exporter's same-tick conflict and denominator checks are defensive; they
+  are tested by building a `PerformedSong` directly.
+- `Pitch` already refuses integral pitches outside MIDI 0..127; the exporter's range check is
+  defensive and tested with a stand-in.
+- The readiness registry scan skips `core/midi`: export failures are typed `MidiExportError` codes,
+  not `ValidationIssue`s.
+- **Implemented, VLQ policy:** delta times use the canonical variable-length quantity, at most four
+  bytes (`0x0FFFFFFF`); a larger or negative delta is `MIDI_DELTA_OUT_OF_RANGE`, never truncated.
+  Limits apply to each event-to-event delta (including the gap to end of track), not to absolute
+  ticks. Pinned in `test_midi_vlq.py`.
+- **Implemented, exit codes (D9 approved):** 0 success, 1 score not suitable, 2 usage/load/export/
+  package/filesystem failure, with stable textual error codes (`MidiExportError.code`) instead of
+  more exit codes. Applies to M5b.
