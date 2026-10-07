@@ -7,8 +7,8 @@ from PySide6.QtWidgets import QLabel, QMainWindow, QWidget
 class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("BarbershopLearningTracks")
-        label = QLabel("BarbershopLearningTracks (M1 scaffold)")
+        self.setWindowTitle("BLT Music Generator")
+        label = QLabel("BLT Music Generator (M1 scaffold)")
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setCentralWidget(label)
         self.resize(480, 240)

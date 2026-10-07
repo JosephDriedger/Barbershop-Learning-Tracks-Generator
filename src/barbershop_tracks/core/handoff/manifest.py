@@ -22,7 +22,7 @@ from barbershop_tracks.core.readiness import Disposition, ReadinessReport
 SCHEMA = "barbershop-tracks.handoff/1"
 SUPPORTED_VERSIONS = frozenset({1})
 PACKAGE_TYPE = "barbershop-tracks.handoff"
-GENERATOR = "barbershop-learning-tracks"
+GENERATOR = "BLT Music Generator"
 
 LYRICS_STATUS = {
     "status": "not_exported",

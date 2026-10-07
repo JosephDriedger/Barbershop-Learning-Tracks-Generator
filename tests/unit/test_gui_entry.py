@@ -12,7 +12,7 @@ from barbershop_tracks.ui.main_window import MainWindow
 def test_main_window_constructs(qtbot: QtBot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
-    assert window.windowTitle() == "BarbershopLearningTracks"
+    assert window.windowTitle() == "BLT Music Generator"
 
 
 @pytest.mark.gui

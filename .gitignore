@@ -219,7 +219,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# --- BarbershopLearningTracks ---
+# --- BLT Music Generator ---
 # Generated audio must never be committed (see scripts/check_no_audio_in_repo.py)
 *.wav
 *.mp3

@@ -228,7 +228,7 @@ behave as expected. Until then, treat 5.2 as the design, not a guarantee.
 
 ```
 MusicXML
-  -> BarbershopLearningTracks: parse, validate, expand repeats
+  -> BLT Music Generator: parse, validate, expand repeats
   -> writes bundle:  <work dir>/<Song>/openutau_bundle/
         <Song>.mid          single file, 4 named tracks (Tenor, Lead, Baritone, Bass)
         manifest.json       roles, per-part note counts, expected duration, tempo map,
@@ -241,7 +241,7 @@ MusicXML
         3. Listen, correct pronunciation as needed
         4. File > Export Audio > Export wav Files
         5. Note the export folder (next to the saved project)
-  -> BarbershopLearningTracks "Import stems":
+  -> BLT Music Generator "Import stems":
         user selects the 4 WAVs (or the export folder) and confirms which file is which role
   -> stem ingest validates, then FFmpeg mixes the 13 outputs
 ```

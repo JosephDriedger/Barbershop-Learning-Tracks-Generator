@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "barbershop-learning-tracks"
 version = "0.1.0"
-description = "Generate four-part barbershop learning tracks from MusicXML."
+description = "BLT Music Generator: four-part barbershop learning tracks from MusicXML."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

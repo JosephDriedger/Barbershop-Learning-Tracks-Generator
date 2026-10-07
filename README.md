@@ -1,4 +1,4 @@
-# BarbershopLearningTracks
+# BLT Music Generator
 
 Desktop app that generates four-part barbershop learning tracks (Tenor, Lead, Baritone,
 Bass) from a MusicXML file exported from MuseScore.

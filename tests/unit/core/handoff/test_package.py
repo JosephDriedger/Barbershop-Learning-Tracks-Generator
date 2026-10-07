@@ -143,7 +143,7 @@ def test_the_manifest_has_the_required_identifiers_and_fields() -> None:
     m = manifest_of()
     assert m["schema"] == SCHEMA == "barbershop-tracks.handoff/1"
     assert m["package_type"] == PACKAGE_TYPE
-    assert m["generator"]["name"] == "barbershop-learning-tracks"
+    assert m["generator"]["name"] == "BLT Music Generator"
     assert m["generator"]["version"]
     assert m["source"] == {"display_name": "demo.musicxml", "sha256": "0" * 64}
     assert m["midi"]["file"] == "demo.mid"

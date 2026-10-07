@@ -72,7 +72,7 @@ def _line_id(text: str) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="barbershop-tracks",
-        description="Generate four-part barbershop learning tracks from MusicXML.",
+        description="BLT Music Generator: four-part barbershop learning tracks from MusicXML.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command", metavar="COMMAND")

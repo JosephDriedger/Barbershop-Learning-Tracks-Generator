@@ -3,7 +3,7 @@
 
 def instructions_text(midi_file: str) -> str:
     return (
-        "BarbershopLearningTracks: OpenUtau hand-off\n"
+        "BLT Music Generator: OpenUtau hand-off\n"
         "============================================\n"
         "\n"
         f"This package holds {midi_file}, a four-voice MIDI file (tracks Tenor, Lead, Baritone,\n"
