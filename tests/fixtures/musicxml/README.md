@@ -138,3 +138,33 @@ the specification the M3d plan says so and a permanent test pins the divergence.
 All `repeats/` fixtures are original synthetic scores (one whole note per measure, no lyrics, no real music). Only the extracted JSON is committed; the `.mid` files MuseScore wrote are not, so the audio/binary guard needs no MIDI exemption.
 
 The `r05*` pickup fixtures end with a three-beat measure written in 4/4 without `implicit`, so our existing `MEASURE_INCOMPLETE` policy (the timeline assumes the full measure) and MuseScore (which shortens it) give different timings. The oracle tests assert the performed **order** only for them; the exact pickup/repeat arithmetic is tested separately with `implicit="yes"` measures.
+
+## `endings/`
+
+M3e research (first/second endings, voltas). Same conventions as `repeats/`: one whole note per measure, the pitch names the measure (A = measure index 0 ... G = 6), original synthetic scores, JSON oracle extracted from MuseScore Studio 4.7.4's MIDI export (no `.mid` committed). `<ending>` semantics come from the MusicXML 4.0 reference first; MuseScore is behavioural evidence only.
+
+| Fixtures | What they show |
+|---|---|
+| `v01`, `v01b`, `v10` | Standard `\|: A B [1 C :\| [2 D \| E` plays A B C A B D E. `stop` versus `discontinue` makes no difference to playback. |
+| `v02`, `v03` | An ending spanning two measures (first or second ending). |
+| `v04`, `v17` | Comma lists: MuseScore writes `number="1, 2"` and puts `times="3"` on the backward repeat inside that ending. The ending list drives the passes. |
+| `v05`, `v05b`, `v06` | Three endings give three passes with no `times` needed. `times` is ignored when endings exist (`v06`: `times="3"` with endings 1 and 2 plays two passes), as the specification says (`times` is for repeats that are not part of an ending). |
+| `v07`, `v08` | Endings with no backward repeat: MuseScore plays only A B C and **drops the second ending and everything after it**. |
+| `v09a`-`v09g` | Missing, non-numeric, `0`, range `1-2`, spaces and leading-zero numbers: MuseScore ignores the ending marks (plays the ending measure on every pass) except `01`, which it reads as 1, and `3`, where it drops music after the repeat. The specification pattern allows neither ranges nor leading zeros. |
+| `v11`, `v12` | An ending start with no stop is tolerated; a stop with no start is ignored. |
+| `v13` | Only a second ending after a plain repeat. |
+| `v14`, `v15` | An ending at the end of the score; two consecutive volta groups. |
+| `v16` | An ending `start` on the **right** barline of the previous measure: MuseScore attaches it to the measure that contains the barline (the same containing-measure reading as for repeats). |
+| `v18`, `v19` | Endings with a bare backward repeat (repeat from the score start); an ending spanning measures. |
+| `v20`, `v20b` | Several parts: identical structure, and endings in one part only (MuseScore applies one part's structure to all). |
+| `w01`-`w05` | Ties around endings. MuseScore ties only score-adjacent notes: a tie into ending 1 is broken on the pass that skips it (`w01`), a tie from the end of ending 1 into ending 2 is never held and its destination attack is **silently dropped** (`w02`). |
+| `x01`, `x02` | Tempo and meter declared inside endings: explicit declarations replay when their measure is played. |
+| `y01`, `y02` | Pickups before and inside the repeat. |
+
+**How to read the `endings/` fixtures.** Four things are kept apart: what the MusicXML 4.0 reference says (the authority), whether MuseScore agrees, whether it diverges, and what our supported subset does.
+
+* *Specification-supported and MuseScore agrees; accepted:* `v01`, `v01b`, `v02`, `v03`, `v04`, `v05`, `v05b`, `v10`, `v14`, `v15`, `v18`, `v19`, `v20`, `x01`, `x02`, `y01`, `y02`, `w03`.
+* *Spec says `times` is not used with endings; MuseScore ignores it; we reject a contradiction:* `v06`.
+* *MuseScore loses or reinterprets music; we reject with a specific error and never emulate:* `v07`, `v08` (drops the rest of the score), `v09a`-`v09g` (malformed, missing, range, zero, leading-zero, spaces numbers; `01` normalised by MuseScore), `v11`, `v12`, `v13`, `v16` (containing-measure placement), `v20b` (one part wins), `w02` (silently drops the destination attack).
+* *Outside our supported subset although MuseScore plays it:* `v17` (a lone ending carrying its own backward repeat).
+* *Ties across skipped endings; MuseScore ties only score-adjacent notes, we cut and keep the destination attack:* `w01`, `w02`, `w04`, `w05`.
