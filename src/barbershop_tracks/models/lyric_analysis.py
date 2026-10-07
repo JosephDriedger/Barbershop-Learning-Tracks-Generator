@@ -12,6 +12,7 @@ from fractions import Fraction
 
 from barbershop_tracks.models.lyric import Lyric, Syllabic
 from barbershop_tracks.models.performance import PerformanceNote
+from barbershop_tracks.models.performed import LocatedIssue
 from barbershop_tracks.models.validation import ValidationResult
 
 
@@ -121,6 +122,8 @@ class LineLyricAnalysis:
     words: tuple[LyricWord, ...]
     coverage: LyricCoverage
     issues: ValidationResult = field(default_factory=ValidationResult)
+    # the same issues, in the same order, with a performance location where one exists
+    located: tuple[LocatedIssue, ...] = ()
 
     def roles(self) -> tuple[AttackRole, ...]:
         return tuple(attack.role for attack in self.attacks)

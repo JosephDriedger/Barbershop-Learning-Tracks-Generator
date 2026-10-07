@@ -338,20 +338,42 @@ dynamics, articulations, `harmony`, credits.
 
 ## Repeat structures
 
-Any repeat structure that cannot be resolved deterministically is a validation **ERROR**
-that prevents generation. The intended performance order is never guessed.
+Implemented in M3d (plain repeats). Details and the MuseScore comparison are in `docs/m3d-plan.md`
+and `tests/fixtures/musicxml/README.md`. Any structure that cannot be resolved deterministically is
+a validation **ERROR** that prevents generation, and the plan then stays the written order; the
+intended performance order is never guessed and MuseScore's quirks are never emulated.
 
-| Phase | Structure | Rule |
-|---|---|---|
-| 1 | Forward repeat (start) | Marks the section start. |
-| 1 | Backward repeat (end) | Plays the section `times` times in total (default 2). With no preceding forward repeat the section starts at the beginning of the piece, as in the MuseScore oracle. |
-| 1 | Sequential, non-nested repeats | Each is expanded in order. |
-| 2 | First/second endings (voltas) | `number` lists the passes on which the ending plays; `"1, 2"` form accepted. Must be a complete, consistent set. |
-| Not supported | Nested repeats, jumps and codas, `discontinue` without a clear structure, endings that skip a pass | ERROR. |
+| Structure | Rule |
+|---|---|
+| Forward repeat | Left barline of the measure it starts. Any other placement: `REPEAT_BARLINE_PLACEMENT`. |
+| Backward repeat | Right barline of the measure it ends. `times` is the total number of passes. |
+| `times` | Spec: non-negative integer, no default. Absent means 2 (our policy). `0`, negative, non-integer: `REPEAT_TIMES_INVALID`; `1`: warning; above 16: error. |
+| Backward with no forward before any repeat sign | Repeats from the score start. A later bare backward: `REPEAT_START_AMBIGUOUS`. |
+| Forward never closed | Plays through, `REPEAT_FORWARD_UNUSED` warning. |
+| Nested repeats | `REPEAT_NESTED_UNSUPPORTED`. |
+| Parts | Identical structure required, else `REPEAT_STRUCTURE_CONFLICT`. |
+| Endings (voltas) | `ENDING_NOT_SUPPORTED_YET` until M3e. |
+| D.C./D.S./segno/coda/fine | `UNSUPPORTED_JUMP`. |
 
-All parts must expand to the **same measure order**, otherwise the ERROR is
-`REPEAT_MISMATCH_ACROSS_PARTS`. Phase 1 is validated against the oracle files; phase 2
-against the volta oracles.
+Performance order is a derived `PerformedSong`; the source `Song` is never changed.
+
+* **Ties** are resolved over the performed order. A repeat jump is never written adjacency, so a
+  tie never crosses one: both sides are cut and reported as `TIE_BROKEN_BY_REPEAT` (warning), and
+  the tied-to note is a new attack, not dropped (MuseScore drops it). Ties across sequential and
+  repeat-exit transitions are kept.
+* **Tempo**: explicit events replay at shifted positions on every visit. The tempo carried across a
+  jump is a query (`effective_tempo_at`); nothing is synthesised (MuseScore re-asserts the landing
+  measure's tempo and writes a default 120).
+* **Meter**: `meter_events` holds only the explicit declarations met on each visit (a jump never
+  creates one, and a measure that inherits its meter has none). The meter in force is the query
+  `effective_meter_at`: the written context of the measure being played, so a jump back to a measure
+  that only inherits 4/4 plays under 4/4 with no declaration invented. MuseScore's MIDI shows the
+  playback result only; it is evidence, not source semantics. Note that `Song.time_signatures`
+  records effective *changes*, so a redundant re-declaration of the same meter is not a recorded
+  event and is not replayed.
+* **Lyrics**: analysis runs over the performed, tie-merged line. A repeat jump ends words, typed
+  and untyped melismas; each visit meets its own lyric events again. Diagnostics carry a
+  `PerformanceLocation` ("measure 2, second visit") alongside the source measure identity.
 
 ## Open items
 

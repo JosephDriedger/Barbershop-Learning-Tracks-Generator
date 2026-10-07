@@ -39,6 +39,7 @@ from barbershop_tracks.models import (
 class TieMergeResult:
     notes: tuple[PerformanceNote, ...]
     issues: ValidationResult
+    issue_notes: tuple[Note, ...] = ()  # the note each issue is about, in the same order
 
 
 @dataclass(slots=True)
@@ -60,12 +61,14 @@ class _Group:
 class _Merger:
     part_id: str
     issues: list[ValidationIssue] = field(default_factory=list)
+    issue_notes: list[Note] = field(default_factory=list)
     open_groups: list[_Group] = field(default_factory=list)
     finished: list[tuple[int, PerformanceNote]] = field(default_factory=list)
     counter: int = 0
     ambiguous_reported: set[tuple[Fraction, Fraction]] = field(default_factory=set)
 
     def report(self, code: str, message: str, note: Note) -> None:
+        self.issue_notes.append(note)
         self.issues.append(
             ValidationIssue(
                 severity=Severity.ERROR,
@@ -179,6 +182,7 @@ def merge_tied_notes(events: Sequence[Note], *, part_id: str) -> TieMergeResult:
     return TieMergeResult(
         notes=tuple(performed for _, performed in merger.finished),
         issues=ValidationResult.of(merger.issues),
+        issue_notes=tuple(merger.issue_notes),
     )
 
 

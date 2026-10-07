@@ -15,9 +15,10 @@ from fractions import Fraction
 
 from barbershop_tracks.models.note import Note
 from barbershop_tracks.models.part import Part
+from barbershop_tracks.models.performance import PerformanceNote
 from barbershop_tracks.models.song import Song
-from barbershop_tracks.models.timing import require_int, to_fraction
-from barbershop_tracks.models.validation import ValidationResult
+from barbershop_tracks.models.timing import TempoChange, TimeSignature, require_int, to_fraction
+from barbershop_tracks.models.validation import ValidationIssue, ValidationResult
 
 
 class TransitionKind(Enum):
@@ -171,14 +172,160 @@ class PerformedLine:
             raise KeyError("note is not an event of this performed line") from None
 
 
+_ORDINALS = {1: "first", 2: "second", 3: "third", 4: "fourth", 5: "fifth", 6: "sixth"}
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PerformanceLocation:
+    """Where in the performance something happened, keeping the source measure identity.
+
+    ``measure_index`` is the source measure (the identity); ``number`` is only its display
+    number. ``visit`` says which time that written measure is being played, and
+    ``performed_measure_index`` is the 0-based position in the performed order.
+    """
+
+    measure_index: int
+    number: int
+    visit: int
+    performed_position: Fraction
+    performed_measure_index: int
+
+    def __post_init__(self) -> None:
+        require_int(self.measure_index, name="measure_index")
+        require_int(self.visit, name="visit")
+        require_int(self.performed_measure_index, name="performed_measure_index")
+        if self.visit < 1:
+            raise ValueError("visit must be at least 1")
+        object.__setattr__(
+            self, "performed_position", to_fraction(self.performed_position, name="position")
+        )
+
+    def describe(self) -> str:
+        """For example ``"measure 3, second visit"``."""
+        ordinal = _ORDINALS.get(self.visit, f"{self.visit}th")
+        return f"measure {self.number}, {ordinal} visit"
+
+
+@dataclass(frozen=True, slots=True)
+class LocatedIssue:
+    """A finding together with its performance location (``None`` if it has no single place)."""
+
+    issue: ValidationIssue
+    location: PerformanceLocation | None = None
+
+    def __str__(self) -> str:
+        where = f" [{self.location.describe()}]" if self.location is not None else ""
+        return f"{self.issue}{where}"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PerformedMeterEvent:
+    """An **explicit** time-signature declaration met during the performed traversal.
+
+    It exists only where the score itself declares a time signature in a measure that is played;
+    a measure that merely inherits a meter never has one, and a repeat jump never creates one.
+    ``signature.position`` is the performed position; ``measure_index`` and ``visit`` say which
+    visit of which written measure declared it. The meter that *applies* at a position is a
+    different question: ``PerformedSong.effective_meter_at``.
+    """
+
+    signature: TimeSignature
+    measure_index: int | None
+    visit: int = 1
+
+
 @dataclass(frozen=True, slots=True)
 class PerformedSong:
-    """A song in performance order. ``song`` is the literal source, referenced and unchanged."""
+    """A song in performance order. ``song`` is the literal source, referenced and unchanged.
+
+    * ``lines`` / ``merged``: per line, the performed notes and the tie-merged attacks (ties are
+      resolved over the performed traversal, never across a repeat jump);
+    * ``tempo_events``: the **explicit** source tempo events, repeated at their shifted performed
+      positions on every visit. Carried tempo is not stored: ``effective_tempo_at`` answers it;
+    * ``meter_events``: the explicit time-signature declarations met on each visit, nothing else.
+      The meter in force is the query ``effective_meter_at``: the written context of the measure
+      being played, so it is restored on a jump without any declaration being invented;
+    * ``located_issues``: every finding of the performance stage, with its location.
+    """
 
     song: Song
     plan: PerformancePlan
     lines: tuple[PerformedLine, ...]
-    issues: ValidationResult
+    merged: tuple[tuple[PerformanceNote, ...], ...]
+    located_issues: tuple[LocatedIssue, ...] = ()
+    tempo_events: tuple[TempoChange, ...] = ()
+    meter_events: tuple[PerformedMeterEvent, ...] = ()
+
+    def __post_init__(self) -> None:
+        if len(self.merged) != len(self.lines):
+            raise ValueError("there must be one merged tuple per line")
+
+    @property
+    def issues(self) -> ValidationResult:
+        return ValidationResult.of(located.issue for located in self.located_issues)
 
     def line(self, part_id: str) -> PerformedLine | None:
         return next((line for line in self.lines if line.part_id == part_id), None)
+
+    def attacks(self, part_id: str) -> tuple[PerformanceNote, ...]:
+        """The tie-merged performed attacks of one line."""
+        for line, notes in zip(self.lines, self.merged, strict=True):
+            if line.part_id == part_id:
+                return notes
+        raise KeyError(part_id)
+
+    def location_of(self, note: Note) -> PerformanceLocation | None:
+        """The performance location of a performed note (``None`` outside the plan)."""
+        played = self.plan.locate(note.start)
+        if played is None:
+            return None
+        return PerformanceLocation(
+            measure_index=played.source_index,
+            number=played.number,
+            visit=played.visit,
+            performed_position=note.start,
+            performed_measure_index=played.performed_index,
+        )
+
+    def effective_tempo_at(self, position: Fraction) -> TempoChange | None:
+        """The tempo in force at ``position``: the last explicit event at or before it.
+
+        Tempo is performance state, so it carries across a repeat jump; nothing is invented
+        for a position before the first tempo event.
+        """
+        found = None
+        for event in self.tempo_events:
+            if event.position > position:
+                break
+            found = event
+        return found
+
+    def effective_meter_at(self, position: Fraction) -> TimeSignature | None:
+        """The meter in force at ``position``; ``position`` of the result is the measure start.
+
+        A measure's meter is the one in force at that measure in the *written* score, so after a
+        repeat jump the destination plays under its own written meter, whether or not it declares
+        one. Nothing is added to ``meter_events`` for that. ``None`` before any meter exists.
+        """
+        played = self.plan.locate(position)
+        if played is None:
+            return self._last_declared(position)
+        span = self.song.measures[played.source_index]
+        found = None
+        for signature in self.song.time_signatures:
+            if signature.position > span.start:
+                break
+            found = signature
+        if found is None:
+            return None
+        return TimeSignature(
+            position=played.performed_start, beats=found.beats, beat_type=found.beat_type
+        )
+
+    def _last_declared(self, position: Fraction) -> TimeSignature | None:
+        found = None
+        for event in self.meter_events:
+            if event.signature.position > position:
+                break
+            found = event.signature
+        return found

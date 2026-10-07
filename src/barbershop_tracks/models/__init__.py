@@ -31,9 +31,12 @@ from barbershop_tracks.models.note import Note
 from barbershop_tracks.models.part import Part
 from barbershop_tracks.models.performance import PerformanceNote
 from barbershop_tracks.models.performed import (
+    LocatedIssue,
     NoteOccurrence,
+    PerformanceLocation,
     PerformancePlan,
     PerformedLine,
+    PerformedMeterEvent,
     PerformedSong,
     PlayedMeasure,
     TransitionKind,
@@ -56,6 +59,7 @@ __all__ = [
     "JobResult",
     "JobStatus",
     "LineLyricAnalysis",
+    "LocatedIssue",
     "Lyric",
     "LyricCoverage",
     "LyricKind",
@@ -69,9 +73,11 @@ __all__ = [
     "Note",
     "NoteOccurrence",
     "Part",
+    "PerformanceLocation",
     "PerformanceNote",
     "PerformancePlan",
     "PerformedLine",
+    "PerformedMeterEvent",
     "PerformedSong",
     "Pitch",
     "PitchTransform",

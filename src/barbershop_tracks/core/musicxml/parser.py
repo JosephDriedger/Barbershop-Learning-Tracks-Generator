@@ -21,7 +21,7 @@ from barbershop_tracks.core.musicxml.repeat_marks import reconcile_marks
 from barbershop_tracks.core.musicxml.source import MusicXmlSource, load_musicxml_source
 from barbershop_tracks.core.musicxml.tempo import reconcile_tempos
 from barbershop_tracks.core.musicxml.values import child_text
-from barbershop_tracks.core.timeline import merge_tied_notes, perform_song
+from barbershop_tracks.core.timeline import perform_song
 from barbershop_tracks.models import (
     ClefChange,
     MeasureSpan,
@@ -67,8 +67,6 @@ def parse_score(source: MusicXmlSource) -> ParseResult:
         return ParseResult(song=None, issues=issues.result())
     _check_alignment(timelines, issues)
     parts = _build_parts(timelines, names)
-    for part in parts:  # tie problems are reported at parse time; the Song keeps source notes
-        issues.extend(merge_tied_notes(part.events, part_id=part.part_id).issues)
     clefs: list[ClefChange] = [clef for timeline in timelines for clef in timeline.clefs]
     tempo_map = reconcile_tempos([t for tl in timelines for t in tl.tempos], issues)
     time_signatures = build_meter_map(

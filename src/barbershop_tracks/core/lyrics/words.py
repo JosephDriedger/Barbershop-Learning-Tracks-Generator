@@ -62,6 +62,12 @@ class WordBuilder:
         if self._open is not None:
             self._open.interrupted_by_rest = True
 
+    def jump(self) -> list[Finding]:
+        """Playback jumped (a repeat): an open word is not joined to what follows the jump."""
+        findings: list[Finding] = []
+        self._abandon_open(findings, "playback jumped back for a repeat")
+        return findings
+
     def add(self, attack_index: int, lyric: Lyric) -> list[Finding]:
         """Add every syllable of a text lyric (an elided lyric has more than one)."""
         findings: list[Finding] = []

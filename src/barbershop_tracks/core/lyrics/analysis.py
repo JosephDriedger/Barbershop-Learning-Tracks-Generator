@@ -9,7 +9,7 @@ Policies here that MusicXML does not define are *ours* and are named as such in 
 and in ``docs/m3c2-plan.md`` (lyrics on tie continuations, a rest ending an untyped extender).
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from fractions import Fraction
 
@@ -30,19 +30,46 @@ from barbershop_tracks.models import (
     AttackLyric,
     AttackRole,
     LineLyricAnalysis,
+    LocatedIssue,
     Lyric,
     LyricCoverage,
     LyricKind,
     Melisma,
     MissingRun,
     Note,
+    PerformanceLocation,
     PerformanceNote,
+    PerformedSong,
     Severity,
     Song,
     SongLyricAnalysis,
-    ValidationIssue,
-    ValidationResult,
 )
+
+Locator = Callable[[Note], PerformanceLocation | None]
+
+
+class _Collector(IssueCollector):
+    """An issue collector that remembers the note an issue is about (for its location)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.notes: list[Note | None] = []
+
+    def _add(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
+        super()._add(*args, **kwargs)
+        self.notes.append(None)
+
+    def about(self, note: Note, severity: Severity, code: str, message: str, part_id: str) -> None:
+        """Add an issue located at ``note``."""
+        super()._add(severity, code, message, part_id, note.measure, note.beat)
+        self.notes.append(note)
+
+    def located(self, locator: Locator | None) -> tuple[LocatedIssue, ...]:
+        issues = self.result().issues
+        return tuple(
+            LocatedIssue(issue, locator(note) if locator is not None and note is not None else None)
+            for issue, note in zip(issues, self.notes, strict=True)
+        )
 
 
 @dataclass(slots=True)
@@ -55,12 +82,22 @@ class _Record:
 
 
 def analyze_line(
-    performed: Sequence[PerformanceNote], *, part_id: str, verse: str | None = None
+    performed: Sequence[PerformanceNote],
+    *,
+    part_id: str,
+    verse: str | None = None,
+    jumps: Collection[Fraction] = (),
+    locator: Locator | None = None,
 ) -> LineLyricAnalysis:
-    """Analyze one voice line. ``verse`` (a logical verse) overrides the automatic choice."""
+    """Analyze one voice line. ``verse`` (a logical verse) overrides the automatic choice.
+
+    ``jumps`` are performed positions where playback lands after a repeat jump: all lyric state
+    (words, typed and untyped melismas) ends there. ``locator`` maps a note to its performance
+    location for ``LineLyricAnalysis.located``.
+    """
     available = logical_verses(performed)
     choice = choose_verse(available, verse)
-    issues = IssueCollector()
+    issues = _Collector()
     if verse is not None and not choice.found:
         issues.error(
             "LYRIC_VERSE_NOT_FOUND",
@@ -73,20 +110,34 @@ def analyze_line(
             _multiple_verses_message(choice.selected, available, choice.fell_back),
             part_id=part_id,
         )
-    return _analyze(performed, part_id, choice.selected, available, issues)
+    return _analyze(performed, part_id, choice.selected, available, issues, jumps, locator)
 
 
-def analyze_song_lyrics(song: Song, *, verse: str | None = None) -> SongLyricAnalysis:
-    """Analyze every line of ``song`` for one song-wide logical verse.
+def analyze_song_lyrics(
+    song: Song | PerformedSong, *, verse: str | None = None
+) -> SongLyricAnalysis:
+    """Analyze every line for one song-wide logical verse.
 
-    Ties are merged per line (``merge_tied_notes``); their diagnostics were already reported by
-    the parser and are not repeated. A requested or automatically chosen verse that a line does
-    not have simply gives that line no lyrics (a lyric-less voice is normal).
+    * ``Song``: the **literal**, non-expanded analysis, in written order, with ties merged over
+      the written order and no repeat jumps. Use it only for scores without repeats.
+    * ``PerformedSong``: the actual performed traversal: ties were resolved over the performed
+      order (their diagnostics are not repeated here) and repeat jumps end all lyric state.
+      Generation should use this form whenever a performance representation exists.
+
+    A requested or automatically chosen verse that a line does not have simply gives that line
+    no lyrics (a lyric-less voice is normal).
     """
-    lines = [
-        (part.part_id, merge_tied_notes(part.events, part_id=part.part_id).notes)
-        for part in song.parts
-    ]
+    if isinstance(song, PerformedSong):
+        lines = [(line.part_id, notes) for line, notes in zip(song.lines, song.merged, strict=True)]
+        jumps = song.plan.jump_positions
+        locator: Locator | None = song.location_of
+    else:
+        lines = [
+            (part.part_id, merge_tied_notes(part.events, part_id=part.part_id).notes)
+            for part in song.parts
+        ]
+        jumps = frozenset()
+        locator = None
     per_line = [logical_verses(notes) for _, notes in lines]
     available = merge_verses(per_line)
     choice = choose_verse(available, verse)
@@ -102,7 +153,7 @@ def analyze_song_lyrics(song: Song, *, verse: str | None = None) -> SongLyricAna
             _multiple_verses_message(choice.selected, available, choice.fell_back),
         )
     analyses = tuple(
-        _analyze(notes, part_id, choice.selected, line_verses, IssueCollector())
+        _analyze(notes, part_id, choice.selected, line_verses, _Collector(), jumps, locator)
         for (part_id, notes), line_verses in zip(lines, per_line, strict=True)
     )
     return SongLyricAnalysis(choice=choice, lines=analyses, issues=song_issues.result())
@@ -116,29 +167,31 @@ def _analyze(
     part_id: str,
     selected: str | None,
     available: tuple[str, ...],
-    issues: IssueCollector,
+    issues: _Collector,
+    jumps: Collection[Fraction] = (),
+    locator: Locator | None = None,
 ) -> LineLyricAnalysis:
     tracker, words = MelismaTracker(), WordBuilder()
     records: list[_Record] = []
     previous_end: Fraction | None = None
+    pending_jumps = sorted(jumps)
+    next_jump = 0
 
     def report(finding: Finding) -> None:
         note = performed[finding.attack_index].source[0]
-        issue = ValidationIssue(
-            severity=finding.severity,
-            code=finding.code,
-            message=finding.message,
-            part_id=part_id,
-            measure=note.measure,
-            beat=note.beat,
-        )
-        issues.extend(ValidationResult.of([issue]))
+        issues.about(note, finding.severity, finding.code, finding.message, part_id)
 
     def report_all(findings: Sequence[Finding]) -> None:
         for finding in findings:
             report(finding)
 
     for index, attack in enumerate(performed):
+        if next_jump < len(pending_jumps) and attack.start >= pending_jumps[next_jump]:
+            while next_jump < len(pending_jumps) and attack.start >= pending_jumps[next_jump]:
+                next_jump += 1  # one jump per attack, however many positions were passed
+            report_all(tracker.jump())
+            report_all(words.jump())
+            previous_end = None
         if attack.is_rest:
             tracker.rest()
             words.rest()
@@ -161,7 +214,9 @@ def _analyze(
 
     report_all(tracker.finish())
     report_all(words.finish())
-    return _finish(records, performed, part_id, selected, available, tracker, words, issues)
+    return _finish(
+        records, performed, part_id, selected, available, tracker, words, issues, locator
+    )
 
 
 def _classify(
@@ -224,7 +279,7 @@ def _tie_continuations(
     record: _Record,
     selected: str | None,
     tracker: MelismaTracker,
-    issues: IssueCollector,
+    issues: _Collector,
     part_id: str,
     report_all: Callable[[Sequence[Finding]], None],
 ) -> None:
@@ -255,22 +310,14 @@ def _tie_continuations(
 
 
 def _note_issue(
-    issues: IssueCollector,
+    issues: _Collector,
     part_id: str,
     note: Note,
     severity: Severity,
     code: str,
     message: str,
 ) -> None:
-    issue = ValidationIssue(
-        severity=severity,
-        code=code,
-        message=message,
-        part_id=part_id,
-        measure=note.measure,
-        beat=note.beat,
-    )
-    issues.extend(ValidationResult.of([issue]))
+    issues.about(note, severity, code, message, part_id)
 
 
 def _label(lyric: Lyric) -> str:
@@ -288,7 +335,8 @@ def _finish(
     available: tuple[str, ...],
     tracker: MelismaTracker,
     words: WordBuilder,
-    issues: IssueCollector,
+    issues: _Collector,
+    locator: Locator | None,
 ) -> LineLyricAnalysis:
     attacks = tuple(_attack(record, words) for record in records)
     coverage = _coverage(records, tracker)
@@ -301,6 +349,7 @@ def _finish(
         words=words.words(),
         coverage=coverage,
         issues=issues.result(),
+        located=issues.located(locator),
     )
 
 
@@ -378,11 +427,10 @@ def _line_issues(
     tracker: MelismaTracker,
     words: WordBuilder,
     coverage: LyricCoverage,
-    issues: IssueCollector,
+    issues: _Collector,
 ) -> None:
-    def at(index: int) -> tuple[int, Fraction]:
-        note = performed[index].source[0]
-        return note.measure, note.beat
+    def at(index: int) -> Note:
+        return performed[index].source[0]
 
     if has_mixed_numbering(performed, selected):
         issues.warning(
@@ -391,40 +439,43 @@ def _line_issues(
             part_id=part_id,
         )
     if tracker.interruptions:
-        measure, beat = at(tracker.interruptions[0])
-        issues.warning(
+        issues.about(
+            at(tracker.interruptions[0]),
+            Severity.WARNING,
             "LYRIC_MELISMA_INTERRUPTED",
-            f"{len(tracker.interruptions)} untyped extender(s) were ended by a rest and then "
-            "followed by a lyric-less attack, which is unresolved (our conservative "
-            "interpretation: MusicXML does not say whether an extender crosses a rest)",
-            part_id=part_id,
-            measure=measure,
-            beat=beat,
+            f"{len(tracker.interruptions)} untyped extender(s) were ended by a rest or a repeat "
+            "jump and then followed by a lyric-less attack, which is unresolved (our "
+            "conservative interpretation: MusicXML does not say whether an extender crosses a "
+            "rest)",
+            part_id,
         )
     if words.unspecified_count:
-        measure, beat = at(words.first_unspecified or 0)
-        issues.warning(
+        issues.about(
+            at(words.first_unspecified or 0),
+            Severity.WARNING,
             "LYRIC_SYLLABIC_MISSING",
             f"{words.unspecified_count} syllable(s) have no <syllabic>, so word boundaries are "
             "not stated",
-            part_id=part_id,
-            measure=measure,
-            beat=beat,
+            part_id,
         )
-    _coverage_issue(coverage, part_id, issues)
+    _coverage_issue(coverage, part_id, issues, performed)
     syllables = [(r.index, r.lyric) for r in records if r.role is AttackRole.SYLLABLE and r.lyric]
     for hazard in scan_hazards(syllables):
-        measure, beat = at(hazard.first_attack_index)
-        issues.warning(
+        issues.about(
+            at(hazard.first_attack_index),
+            Severity.WARNING,
             hazard.code,
             f"{hazard.count} syllable(s) {hazard.description}",
-            part_id=part_id,
-            measure=measure,
-            beat=beat,
+            part_id,
         )
 
 
-def _coverage_issue(coverage: LyricCoverage, part_id: str, issues: IssueCollector) -> None:
+def _coverage_issue(
+    coverage: LyricCoverage,
+    part_id: str,
+    issues: _Collector,
+    performed: Sequence[PerformanceNote],
+) -> None:
     if not coverage.sung_attacks:
         return
     if not coverage.has_any_lyric:
@@ -439,13 +490,13 @@ def _coverage_issue(coverage: LyricCoverage, part_id: str, issues: IssueCollecto
         runs = coverage.missing_runs
         first = runs[0]
         longest = max(run.count for run in runs)
-        issues.warning(
+        issues.about(
+            performed[first.first_index].source[0],
+            Severity.WARNING,
             "LYRIC_MISSING_SUMMARY",
             f"{coverage.missing_attacks} performed attacks lack resolved lyrics across "
             f"{len(runs)} run{'s' if len(runs) != 1 else ''} (longest {longest})",
-            part_id=part_id,
-            measure=first.first_measure,
-            beat=first.first_beat,
+            part_id,
         )
 
 
