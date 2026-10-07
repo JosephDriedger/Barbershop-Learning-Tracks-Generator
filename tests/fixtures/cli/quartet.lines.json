@@ -1,0 +1,74 @@
+{
+  "schema": "barbershop-tracks.lines/1",
+  "errors": 0,
+  "lines": [
+    {
+      "line_id": "P1/s1/v1",
+      "part_name": "Tenor",
+      "source_name": "Tenor",
+      "staff": 1,
+      "voice": "1",
+      "sounding_attacks": 8,
+      "has_lyrics": false,
+      "first_measure": 1,
+      "last_measure": 2,
+      "suggestion": {
+        "role": "tenor",
+        "basis": "name",
+        "confirmed": false,
+        "note": "the part name says tenor"
+      }
+    },
+    {
+      "line_id": "P2/s1/v1",
+      "part_name": "Lead",
+      "source_name": "Lead",
+      "staff": 1,
+      "voice": "1",
+      "sounding_attacks": 8,
+      "has_lyrics": true,
+      "first_measure": 1,
+      "last_measure": 2,
+      "suggestion": {
+        "role": "lead",
+        "basis": "name",
+        "confirmed": false,
+        "note": "the part name says lead"
+      }
+    },
+    {
+      "line_id": "P3/s1/v1",
+      "part_name": "Baritone",
+      "source_name": "Baritone",
+      "staff": 1,
+      "voice": "1",
+      "sounding_attacks": 8,
+      "has_lyrics": false,
+      "first_measure": 1,
+      "last_measure": 2,
+      "suggestion": {
+        "role": "baritone",
+        "basis": "name",
+        "confirmed": false,
+        "note": "the part name says baritone"
+      }
+    },
+    {
+      "line_id": "P4/s1/v1",
+      "part_name": "Bass",
+      "source_name": "Bass",
+      "staff": 1,
+      "voice": "1",
+      "sounding_attacks": 8,
+      "has_lyrics": false,
+      "first_measure": 1,
+      "last_measure": 2,
+      "suggestion": {
+        "role": "bass",
+        "basis": "name",
+        "confirmed": false,
+        "note": "the part name says bass"
+      }
+    }
+  ]
+}

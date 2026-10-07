@@ -1,0 +1,205 @@
+{
+  "schema": "barbershop-tracks.readiness/1",
+  "capability": {
+    "name": "quartet-vocal",
+    "required_roles": [
+      "baritone",
+      "bass",
+      "lead",
+      "tenor"
+    ],
+    "lyric_policy": "at_least_one_complete_line",
+    "lyric_source_role": null
+  },
+  "ready": false,
+  "clean": false,
+  "outcome": {
+    "strict": false,
+    "passed": false
+  },
+  "counts": {
+    "blocking": 8,
+    "advisory": 3,
+    "info": 0
+  },
+  "performed_length": "8",
+  "lines": [
+    {
+      "line_id": "P1/s1/v1",
+      "role": null,
+      "ignored": false,
+      "sounding_attacks": 8,
+      "first_start": "0",
+      "end": "8"
+    },
+    {
+      "line_id": "P2/s1/v1",
+      "role": null,
+      "ignored": false,
+      "sounding_attacks": 8,
+      "first_start": "0",
+      "end": "8"
+    },
+    {
+      "line_id": "P3/s1/v1",
+      "role": null,
+      "ignored": false,
+      "sounding_attacks": 8,
+      "first_start": "0",
+      "end": "8"
+    },
+    {
+      "line_id": "P4/s1/v1",
+      "role": null,
+      "ignored": false,
+      "sounding_attacks": 8,
+      "first_start": "0",
+      "end": "8"
+    }
+  ],
+  "findings": [
+    {
+      "disposition": "advisory",
+      "severity": "warning",
+      "code": "LYRIC_LINE_EMPTY",
+      "origin": "lyrics",
+      "role": null,
+      "line_id": "P1/s1/v1",
+      "measure": null,
+      "beat": null,
+      "location": null,
+      "superseded_by": null,
+      "message": "the line has 8 performed attacks and no usable lyrics for the selected verse"
+    },
+    {
+      "disposition": "advisory",
+      "severity": "warning",
+      "code": "LYRIC_LINE_EMPTY",
+      "origin": "lyrics",
+      "role": null,
+      "line_id": "P3/s1/v1",
+      "measure": null,
+      "beat": null,
+      "location": null,
+      "superseded_by": null,
+      "message": "the line has 8 performed attacks and no usable lyrics for the selected verse"
+    },
+    {
+      "disposition": "advisory",
+      "severity": "warning",
+      "code": "LYRIC_LINE_EMPTY",
+      "origin": "lyrics",
+      "role": null,
+      "line_id": "P4/s1/v1",
+      "measure": null,
+      "beat": null,
+      "location": null,
+      "superseded_by": null,
+      "message": "the line has 8 performed attacks and no usable lyrics for the selected verse"
+    },
+    {
+      "disposition": "blocking",
+      "severity": "error",
+      "code": "ROLE_MISSING",
+      "origin": "readiness",
+      "role": "tenor",
+      "line_id": null,
+      "measure": null,
+      "beat": null,
+      "location": null,
+      "superseded_by": null,
+      "message": "quartet-vocal needs a Tenor line and none is assigned"
+    },
+    {
+      "disposition": "blocking",
+      "severity": "error",
+      "code": "ROLE_MISSING",
+      "origin": "readiness",
+      "role": "lead",
+      "line_id": null,
+      "measure": null,
+      "beat": null,
+      "location": null,
+      "superseded_by": null,
+      "message": "quartet-vocal needs a Lead line and none is assigned"
+    },
+    {
+      "disposition": "blocking",
+      "severity": "error",
+      "code": "ROLE_MISSING",
+      "origin": "readiness",
+      "role": "baritone",
+      "line_id": null,
+      "measure": null,
+      "beat": null,
+      "location": null,
+      "superseded_by": null,
+      "message": "quartet-vocal needs a Baritone line and none is assigned"
+    },
+    {
+      "disposition": "blocking",
+      "severity": "error",
+      "code": "ROLE_MISSING",
+      "origin": "readiness",
+      "role": "bass",
+      "line_id": null,
+      "measure": null,
+      "beat": null,
+      "location": null,
+      "superseded_by": null,
+      "message": "quartet-vocal needs a Bass line and none is assigned"
+    },
+    {
+      "disposition": "blocking",
+      "severity": "error",
+      "code": "LINE_UNASSIGNED",
+      "origin": "readiness",
+      "role": null,
+      "line_id": "P1/s1/v1",
+      "measure": null,
+      "beat": null,
+      "location": null,
+      "superseded_by": null,
+      "message": "line 'P1/s1/v1' has 8 sounding notes but no role and is not ignored; a musical line is never silently discarded"
+    },
+    {
+      "disposition": "blocking",
+      "severity": "error",
+      "code": "LINE_UNASSIGNED",
+      "origin": "readiness",
+      "role": null,
+      "line_id": "P2/s1/v1",
+      "measure": null,
+      "beat": null,
+      "location": null,
+      "superseded_by": null,
+      "message": "line 'P2/s1/v1' has 8 sounding notes but no role and is not ignored; a musical line is never silently discarded"
+    },
+    {
+      "disposition": "blocking",
+      "severity": "error",
+      "code": "LINE_UNASSIGNED",
+      "origin": "readiness",
+      "role": null,
+      "line_id": "P3/s1/v1",
+      "measure": null,
+      "beat": null,
+      "location": null,
+      "superseded_by": null,
+      "message": "line 'P3/s1/v1' has 8 sounding notes but no role and is not ignored; a musical line is never silently discarded"
+    },
+    {
+      "disposition": "blocking",
+      "severity": "error",
+      "code": "LINE_UNASSIGNED",
+      "origin": "readiness",
+      "role": null,
+      "line_id": "P4/s1/v1",
+      "measure": null,
+      "beat": null,
+      "location": null,
+      "superseded_by": null,
+      "message": "line 'P4/s1/v1' has 8 sounding notes but no role and is not ignored; a musical line is never silently discarded"
+    }
+  ]
+}

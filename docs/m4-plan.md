@@ -214,3 +214,43 @@ barbershop-tracks lines SCORE [--format text|json]
 1. The default per-role ranges for the advisory heuristic (documented in code, configurable).
 2. Whether `TEST_TONE` should eventually allow microtonal pitch (the capability field already permits it).
 3. The `lyric_source_role` default for `QUARTET_VOCAL` once the M6 lyric-propagation decision is made.
+
+## 9. M4b status notes
+
+* **Lyric readiness** (`core/readiness/lyric_policy.py`) applies `Capability.lyric_policy`. A line is
+  *complete* when it has sounding attacks, carries lyric content (syllables, humming or laughing) and
+  has no attack without a resolved lyric (a melisma continuation is resolved) and none in conflict.
+  `AT_LEAST_ONE_COMPLETE_LINE` with no configured source needs any assigned line to be complete; with a
+  configured `lyric_source_role` that role's line must be complete; `ALL_ASSIGNED_LINES_COMPLETE` needs
+  every assigned line complete. Codes: `LYRIC_SOURCE_MISSING`, `LYRIC_SOURCE_INCOMPLETE`,
+  `LYRIC_LINE_MISSING`, `LYRIC_LINE_INCOMPLETE` (all ERROR, only for capabilities that use lyrics).
+  Lead is never hard-coded.
+* **Suggestions** (`suggest.py`, `lines.py`): name-based, or a flagged order guess for exactly four
+  unnamed lines; always `confirmed=False`; never applied.
+* **Rendering** (`render.py`): pure text and JSON; the JSON schema is `barbershop-tracks.readiness/1`
+  (and `barbershop-tracks.lines/1`) and shows source severity, disposition, origin, role, line, location
+  and the superseding code for every finding; fractions are exact strings; `outcome` records strictness.
+* **CLI**: `check` and `lines`; exit `0` ready, `1` not ready (blocking, or advisory under `--strict`),
+  `2` usage/input/load failure. A malformed `--assign` or an unknown role name is a usage error; an
+  unknown line, a role given twice or a line given two roles is a readiness finding (exit 1).
+* Golden outputs live in `tests/fixtures/cli/` and are produced from a synthetic quartet written to a
+  temporary directory (no paths appear in them).
+
+### Lyric completeness (definition)
+
+A line is **lyric-complete** when it has performed sounding attacks, carries lyric content, and every
+performed sounding attack resolves to a usable lyric role under the M3c analysis. Completeness is
+measured on performed sounding attacks, never on elapsed musical time:
+
+- rests, gaps between notes and other silences need no text;
+- a melisma continuation attack counts as resolved;
+- a tie-merged attack is one attack, however many source notes contributed, and needs one lyric;
+- an attack with no lyric and no melisma, or one in conflict, makes the line incomplete.
+
+Nothing is filled in from adjacent notes, another voice, another ending or verse, or inferred word
+structure beyond M3c. With a configured `lyric_source_role` that exact role must be complete and
+there is no fallback to another complete line. Propagation to harmony voices is an explicit M6
+decision. The role suggestions never resolve ambiguity: lines whose names collide on one role all get
+"no suggestion", and the four-unnamed-lines order guess is the only fallback, always unconfirmed.
+Regressions: `test_lyric_policy.py` (rest/gap, melisma, tie-merge, genuine gap) and
+`test_suggest.py`; machine-clean JSON stdout in `test_cli_check.py`.

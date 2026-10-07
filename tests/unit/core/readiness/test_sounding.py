@@ -8,7 +8,6 @@ from typing import Any
 import pytest
 
 from barbershop_tracks.core.readiness import (
-    QUARTET_VOCAL,
     TEST_TONE,
     Capability,
     Disposition,
@@ -19,6 +18,7 @@ from barbershop_tracks.core.readiness import (
 from barbershop_tracks.models import Note, Pitch, Step, VoiceRole
 from readiness_builders import (
     LINE_IDS,
+    QUARTET_STRUCTURE,
     melody,
     note,
     parsed_of,
@@ -36,7 +36,7 @@ LEAD = LINE_IDS[VoiceRole.LEAD]
 
 def run(
     lines: Mapping[str, Sequence[Note]],
-    capability: Capability = QUARTET_VOCAL,
+    capability: Capability = QUARTET_STRUCTURE,
     **kw: Any,
 ) -> ReadinessReport:
     song = song_of(lines, **kw)
@@ -103,7 +103,7 @@ def test_a_chord_is_aggregated_per_line_with_a_count() -> None:
 
 def test_monophony_is_a_capability_requirement() -> None:
     chord = [note(0, 1, C4), note(0, 1, D4)]
-    relaxed = replace(QUARTET_VOCAL, name="relaxed", monophony_required=False)
+    relaxed = replace(QUARTET_STRUCTURE, name="relaxed", monophony_required=False)
     assert codes(with_lead(chord, capability=relaxed)) == []
 
 
@@ -111,7 +111,7 @@ def test_unassigned_lines_are_not_checked_for_monophony() -> None:
     lines = quartet_lines()
     lines["P5/s1/v1"] = [note(0, 1, C4), note(0, 1, D4)]
     assigned = RoleAssignments(entries=quartet_assignments().entries, ignored=("P5/s1/v1",))
-    report = assess_readiness(parsed_of(song_of(lines)), assigned, QUARTET_VOCAL)
+    report = assess_readiness(parsed_of(song_of(lines)), assigned, QUARTET_STRUCTURE)
     assert "LINE_SIMULTANEOUS_NOTES" not in codes(report)
 
 
@@ -154,7 +154,7 @@ def test_the_sounding_pitch_is_authoritative_not_the_written_one() -> None:
 
 
 def test_pitches_outside_the_capability_midi_range_are_errors_for_integral_pitch() -> None:
-    narrow = replace(QUARTET_VOCAL, name="narrow", midi_range=(50, 70), typical_ranges=None)
+    narrow = replace(QUARTET_STRUCTURE, name="narrow", midi_range=(50, 70), typical_ranges=None)
     report = with_lead(
         [note(0, 1, Pitch(Step.C, 2)), note(1, 1, C4), note(2, 1, Pitch(Step.C, 6))],
         capability=narrow,
@@ -187,7 +187,7 @@ def test_an_unusual_range_is_advisory_only_and_never_changes_pitch() -> None:
 
 
 def test_the_range_heuristic_is_off_when_the_capability_has_none() -> None:
-    relaxed = replace(QUARTET_VOCAL, name="x", typical_ranges=None)
+    relaxed = replace(QUARTET_STRUCTURE, name="x", typical_ranges=None)
     assert "VOICE_RANGE_UNUSUAL" not in codes(
         run(quartet_lines(bass=melody(Pitch(Step.E, 5))), capability=relaxed)
     )
@@ -213,7 +213,7 @@ def test_a_tempo_at_zero_is_enough() -> None:
 
 
 def test_tempo_is_a_capability_requirement() -> None:
-    silent = replace(QUARTET_VOCAL, name="x", tempo_required=False)
+    silent = replace(QUARTET_STRUCTURE, name="x", tempo_required=False)
     assert codes(run(quartet_lines(), capability=silent, tempos=[])) == []
 
 

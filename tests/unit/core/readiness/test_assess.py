@@ -27,6 +27,7 @@ from barbershop_tracks.models import (
 )
 from readiness_builders import (
     LINE_IDS,
+    QUARTET_STRUCTURE,
     note,
     parsed_of,
     quartet_assignments,
@@ -76,7 +77,7 @@ def test_a_parser_warning_gets_its_registered_disposition() -> None:
         severity=Severity.WARNING, code="MEASURE_INCOMPLETE", message="short", part_id="P1"
     )
     parsed = parsed_of(song_of(quartet_lines()), ValidationResult.of([warning]))
-    report = assess_readiness(parsed, quartet_assignments(), QUARTET_VOCAL)
+    report = assess_readiness(parsed, quartet_assignments(), QUARTET_STRUCTURE)
     finding = report.by_code("MEASURE_INCOMPLETE")[0]
     assert finding.disposition is Disposition.ADVISORY
     assert finding.issue.severity is Severity.WARNING
@@ -102,7 +103,7 @@ def test_no_performed_score_is_not_ready() -> None:
 
 
 def test_ready_is_derived_from_findings_and_cannot_be_set() -> None:
-    report = assess_readiness(ready_parsed(), quartet_assignments(), QUARTET_VOCAL)
+    report = assess_readiness(ready_parsed(), quartet_assignments(), QUARTET_STRUCTURE)
     assert report.ready
     with pytest.raises((AttributeError, TypeError)):  # a derived property, not a stored flag
         report.ready = False  # type: ignore[misc]
@@ -241,11 +242,20 @@ def ttbb_assignments(parsed: ParseResult) -> RoleAssignments:
     return RoleAssignments(entries=tuple(zip(list(VoiceRole), ids, strict=True)))
 
 
-def test_ttbb_fixture_with_a_tempo_is_ready_for_the_quartet() -> None:
+def test_ttbb_fixture_with_a_tempo_is_ready_for_the_quartet_structure() -> None:
+    parsed = parse_musicxml(FIXTURES / "ttbb" / "inputs" / "ttbb_layout_shared_tempo.musicxml")
+    report = assess_readiness(parsed, ttbb_assignments(parsed), QUARTET_STRUCTURE)
+    assert report.ready
+    assert "LYRIC_LINE_EMPTY" in code_set(report)
+    # the capability does not use lyrics, so a lyric-less line is only information
+    assert report.by_code("LYRIC_LINE_EMPTY")[0].disposition is Disposition.INFO
+
+
+def test_the_same_fixture_needs_lyrics_for_the_vocal_capability() -> None:
     parsed = parse_musicxml(FIXTURES / "ttbb" / "inputs" / "ttbb_layout_shared_tempo.musicxml")
     report = assess_readiness(parsed, ttbb_assignments(parsed), QUARTET_VOCAL)
-    assert report.ready
-    assert "LYRIC_LINE_EMPTY" in code_set(report)  # lyric-less lines are advisory here
+    assert not report.ready  # no line carries lyrics
+    assert "LYRIC_SOURCE_MISSING" in code_set(report)
     assert report.by_code("LYRIC_LINE_EMPTY")[0].disposition is Disposition.ADVISORY
 
 

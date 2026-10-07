@@ -18,6 +18,7 @@ from barbershop_tracks.core.readiness.findings import (
     ReadinessFinding,
     ReadinessReport,
 )
+from barbershop_tracks.core.readiness.lyric_policy import check_lyrics
 from barbershop_tracks.core.readiness.policy import classify
 from barbershop_tracks.core.readiness.roles import check_roles
 from barbershop_tracks.core.readiness.sounding import (
@@ -84,6 +85,7 @@ def assess_readiness(
             )
     metronome = any(f.code == "METRONOME_WITHOUT_SOUND" for f in findings)
     findings += check_roles(facts)
+    findings += check_lyrics(facts, analysis)
     findings += check_monophony(facts)
     findings += check_pitch(facts)
     findings += check_tempo(facts, metronome_hint=metronome)

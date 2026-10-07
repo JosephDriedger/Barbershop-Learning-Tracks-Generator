@@ -1,10 +1,11 @@
 """Builders for readiness tests: hand-built songs, performed in memory (no XML)."""
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from fractions import Fraction
 
 from barbershop_tracks.core.musicxml import ParseResult
-from barbershop_tracks.core.readiness import RoleAssignments
+from barbershop_tracks.core.readiness import QUARTET_VOCAL, LyricPolicy, RoleAssignments
 from barbershop_tracks.core.timeline import perform_song
 from barbershop_tracks.models import (
     Lyric,
@@ -115,3 +116,8 @@ def quartet_assignments(**lines: str) -> RoleAssignments:
 
 def ready_parsed() -> ParseResult:
     return parsed_of(song_of(quartet_lines()))
+
+
+# The quartet capability without a lyric policy: for tests of roles, monophony, pitch and tempo,
+# which should not also need lyrics.
+QUARTET_STRUCTURE = replace(QUARTET_VOCAL, name="quartet-structure", lyric_policy=LyricPolicy.NONE)

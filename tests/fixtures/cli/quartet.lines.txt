@@ -1,0 +1,5 @@
+Source lines (copy an identifier into --assign ROLE=LINE or --ignore LINE):
+  P1/s1/v1  'Tenor'  8 attacks, measures 1-2, no lyrics; suggested tenor (name, unconfirmed)
+  P2/s1/v1  'Lead'  8 attacks, measures 1-2, lyrics; suggested lead (name, unconfirmed)
+  P3/s1/v1  'Baritone'  8 attacks, measures 1-2, no lyrics; suggested baritone (name, unconfirmed)
+  P4/s1/v1  'Bass'  8 attacks, measures 1-2, no lyrics; suggested bass (name, unconfirmed)

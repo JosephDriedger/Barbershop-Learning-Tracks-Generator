@@ -1,0 +1,13 @@
+Readiness for quartet-vocal: READY
+  0 blocking, 3 advisory, 0 info; performed length 8 quarters
+
+Advisory:
+  WARNING LYRIC_LINE_EMPTY (Tenor, P1/s1/v1): the line has 8 performed attacks and no usable lyrics for the selected verse
+  WARNING LYRIC_LINE_EMPTY (Baritone, P3/s1/v1): the line has 8 performed attacks and no usable lyrics for the selected verse
+  WARNING LYRIC_LINE_EMPTY (Bass, P4/s1/v1): the line has 8 performed attacks and no usable lyrics for the selected verse
+
+Lines:
+  P1/s1/v1: Tenor, 8 sounding attacks
+  P2/s1/v1: Lead, 8 sounding attacks
+  P3/s1/v1: Baritone, 8 sounding attacks
+  P4/s1/v1: Bass, 8 sounding attacks
