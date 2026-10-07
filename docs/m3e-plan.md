@@ -191,3 +191,16 @@ Settled in review: the mark/span/group layering above; pass-set partition with s
 generalised discontinuities with `repeat_pass`/`endings`; distinct tie codes; STOP/DISCONTINUE preserved
 in the span but equivalent for playback. Split: M3e1 (reading, spans, groups, planner, transitions,
 provenance) then M3e2 (ties, lyrics, tempo/meter, locations, full oracle comparison).
+
+## 9. M3e2 status notes
+
+* `TransitionKind.is_discontinuity` is the one place that knows which arrivals break written
+  adjacency; `PerformancePlan.discontinuity_positions` derives from it, and the tie breaking and the
+  lyric analysis consume only that. Adding a transition kind therefore needs one change.
+* One tie algorithm (`_break_ties`); only the code and wording follow the arrival kind
+  (`TIE_BROKEN_BY_REPEAT`, `TIE_BROKEN_BY_ENDING`, and a generic `TIE_BROKEN_BY_DISCONTINUITY` for a
+  future kind).
+* The lyric state machines expose a single `discontinuity()` reset; they have no ending-specific
+  branch.
+* Tempo and meter needed no change: explicit events are replayed from the measures actually played,
+  and effective meter comes from the written context of the measure played.

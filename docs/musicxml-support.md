@@ -352,15 +352,16 @@ intended performance order is never guessed and MuseScore's quirks are never emu
 | Forward never closed | Plays through, `REPEAT_FORWARD_UNUSED` warning. |
 | Nested repeats | `REPEAT_NESTED_UNSUPPORTED`. |
 | Parts | Identical structure required, else `REPEAT_STRUCTURE_CONFLICT`. |
-| Endings (voltas) | M3e1: read as spans (`start` at a left barline, `stop`/`discontinue` at a right one; numbers are positive comma lists) and planned as volta groups that partition passes `1..N` exactly, every ending but the last closing with a backward repeat, the last being exactly `{N}`. Specific `ENDING_*` errors otherwise; see `docs/m3e-plan.md`. Ties and lyrics do not yet treat a skipped ending as a discontinuity (M3e2). |
+| Endings (voltas) | M3e1: read as spans (`start` at a left barline, `stop`/`discontinue` at a right one; numbers are positive comma lists) and planned as volta groups that partition passes `1..N` exactly, every ending but the last closing with a backward repeat, the last being exactly `{N}`. Specific `ENDING_*` errors otherwise; see `docs/m3e-plan.md`. |
 | D.C./D.S./segno/coda/fine | `UNSUPPORTED_JUMP`. |
 
 Performance order is a derived `PerformedSong`; the source `Song` is never changed.
 
-* **Ties** are resolved over the performed order. A repeat jump is never written adjacency, so a
-  tie never crosses one: both sides are cut and reported as `TIE_BROKEN_BY_REPEAT` (warning), and
-  the tied-to note is a new attack, not dropped (MuseScore drops it). Ties across sequential and
-  repeat-exit transitions are kept.
+* **Ties** are resolved over the performed order. A discontinuity (a repeat jump or a skipped
+  ending, `PerformancePlan.discontinuity_positions`) is never written adjacency, so a tie never
+  crosses one: both sides are cut, reported as `TIE_BROKEN_BY_REPEAT` or `TIE_BROKEN_BY_ENDING`
+  (warnings, one shared algorithm), and the tied-to note is a new attack, not dropped (MuseScore
+  drops it). Ties across sequential and repeat-exit transitions are kept.
 * **Tempo**: explicit events replay at shifted positions on every visit. The tempo carried across a
   jump is a query (`effective_tempo_at`); nothing is synthesised (MuseScore re-asserts the landing
   measure's tempo and writes a default 120).
@@ -371,8 +372,8 @@ Performance order is a derived `PerformedSong`; the source `Song` is never chang
   playback result only; it is evidence, not source semantics. Note that `Song.time_signatures`
   records effective *changes*, so a redundant re-declaration of the same meter is not a recorded
   event and is not replayed.
-* **Lyrics**: analysis runs over the performed, tie-merged line. A repeat jump ends words, typed
-  and untyped melismas; each visit meets its own lyric events again. Diagnostics carry a
+* **Lyrics**: analysis runs over the performed, tie-merged line. A discontinuity (repeat jump or
+  skipped ending) ends words, typed and untyped melismas; each visit meets its own lyric events again. Diagnostics carry a
   `PerformanceLocation` ("measure 2, second visit") alongside the source measure identity.
 
 ## Open items

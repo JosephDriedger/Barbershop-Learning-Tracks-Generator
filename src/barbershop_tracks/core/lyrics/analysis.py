@@ -86,14 +86,15 @@ def analyze_line(
     *,
     part_id: str,
     verse: str | None = None,
-    jumps: Collection[Fraction] = (),
+    discontinuities: Collection[Fraction] = (),
     locator: Locator | None = None,
 ) -> LineLyricAnalysis:
     """Analyze one voice line. ``verse`` (a logical verse) overrides the automatic choice.
 
-    ``jumps`` are performed positions where playback lands after a repeat jump: all lyric state
-    (words, typed and untyped melismas) ends there. ``locator`` maps a note to its performance
-    location for ``LineLyricAnalysis.located``.
+    ``discontinuities`` are performed positions where playback lands after something other than
+    written adjacency (``PerformancePlan.discontinuity_positions``: a repeat jump or a skipped
+    ending): all lyric state (words, typed and untyped melismas) ends there. ``locator`` maps
+    a note to its performance location for ``LineLyricAnalysis.located``.
     """
     available = logical_verses(performed)
     choice = choose_verse(available, verse)
@@ -110,7 +111,9 @@ def analyze_line(
             _multiple_verses_message(choice.selected, available, choice.fell_back),
             part_id=part_id,
         )
-    return _analyze(performed, part_id, choice.selected, available, issues, jumps, locator)
+    return _analyze(
+        performed, part_id, choice.selected, available, issues, discontinuities, locator
+    )
 
 
 def analyze_song_lyrics(
@@ -119,9 +122,10 @@ def analyze_song_lyrics(
     """Analyze every line for one song-wide logical verse.
 
     * ``Song``: the **literal**, non-expanded analysis, in written order, with ties merged over
-      the written order and no repeat jumps. Use it only for scores without repeats.
+      the written order and no discontinuities. Use it only for scores without repeats.
     * ``PerformedSong``: the actual performed traversal: ties were resolved over the performed
-      order (their diagnostics are not repeated here) and repeat jumps end all lyric state.
+      order (their diagnostics are not repeated here) and every discontinuity (a repeat jump or a
+      skipped ending) ends all lyric state.
       Generation should use this form whenever a performance representation exists.
 
     A requested or automatically chosen verse that a line does not have simply gives that line
@@ -129,14 +133,14 @@ def analyze_song_lyrics(
     """
     if isinstance(song, PerformedSong):
         lines = [(line.part_id, notes) for line, notes in zip(song.lines, song.merged, strict=True)]
-        jumps = song.plan.jump_positions
+        discontinuities = song.plan.discontinuity_positions
         locator: Locator | None = song.location_of
     else:
         lines = [
             (part.part_id, merge_tied_notes(part.events, part_id=part.part_id).notes)
             for part in song.parts
         ]
-        jumps = frozenset()
+        discontinuities = frozenset()
         locator = None
     per_line = [logical_verses(notes) for _, notes in lines]
     available = merge_verses(per_line)
@@ -153,7 +157,9 @@ def analyze_song_lyrics(
             _multiple_verses_message(choice.selected, available, choice.fell_back),
         )
     analyses = tuple(
-        _analyze(notes, part_id, choice.selected, line_verses, _Collector(), jumps, locator)
+        _analyze(
+            notes, part_id, choice.selected, line_verses, _Collector(), discontinuities, locator
+        )
         for (part_id, notes), line_verses in zip(lines, per_line, strict=True)
     )
     return SongLyricAnalysis(choice=choice, lines=analyses, issues=song_issues.result())
@@ -168,14 +174,14 @@ def _analyze(
     selected: str | None,
     available: tuple[str, ...],
     issues: _Collector,
-    jumps: Collection[Fraction] = (),
+    discontinuities: Collection[Fraction] = (),
     locator: Locator | None = None,
 ) -> LineLyricAnalysis:
     tracker, words = MelismaTracker(), WordBuilder()
     records: list[_Record] = []
     previous_end: Fraction | None = None
-    pending_jumps = sorted(jumps)
-    next_jump = 0
+    pending = sorted(discontinuities)
+    next_break = 0
 
     def report(finding: Finding) -> None:
         note = performed[finding.attack_index].source[0]
@@ -186,11 +192,11 @@ def _analyze(
             report(finding)
 
     for index, attack in enumerate(performed):
-        if next_jump < len(pending_jumps) and attack.start >= pending_jumps[next_jump]:
-            while next_jump < len(pending_jumps) and attack.start >= pending_jumps[next_jump]:
-                next_jump += 1  # one jump per attack, however many positions were passed
-            report_all(tracker.jump())
-            report_all(words.jump())
+        if next_break < len(pending) and attack.start >= pending[next_break]:
+            while next_break < len(pending) and attack.start >= pending[next_break]:
+                next_break += 1  # one reset per attack, however many positions were passed
+            report_all(tracker.discontinuity())
+            report_all(words.discontinuity())
             previous_end = None
         if attack.is_rest:
             tracker.rest()

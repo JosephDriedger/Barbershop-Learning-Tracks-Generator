@@ -58,15 +58,29 @@ DIVERGES = {
     "v20b_two_parts_only_p1_endings": "ENDING_STOP_WITHOUT_START",
 }
 
-# Accepted; only the performed order is checked here (ties and short measures: M3e2 / policy).
+# Accepted; only the performed order is checked here (short measures in a longer meter: policy).
 # Letters are source measure indices: A = 0, B = 1, ...
 ORDER_ONLY = {
-    "w01_tie_into_ending1": "ABCABDE",
-    "w02_tie_into_ending2_from_ending1_end": "ABCABDE",
-    "w03_tie_out_of_ending2": "ABCABDE",
-    "w04_tie_from_before_ending_to_ending2": "ABCABDE",
-    "w05_tie_from_ending1_to_repeat_start": "ABCABDE",
     "y02_pickup_inside_repeat": "ABCABDE",
+}
+
+# Tie fixtures: the performed, tie-merged attacks against MuseScore's note-ons, plus the
+# diagnostics we emit. ``extra`` lists attacks WE keep that MuseScore silently drops.
+TIES = {
+    "w01_tie_into_ending1": ([], ["TIE_BROKEN_BY_ENDING"]),
+    "w02_tie_into_ending2_from_ending1_end": (
+        [(9600, 64)],  # the second ending's tied-to note is sung; MuseScore drops it
+        ["TIE_BROKEN_BY_REPEAT", "TIE_BROKEN_BY_ENDING"],
+    ),
+    "w03_tie_out_of_ending2": ([], []),
+    "w04_tie_from_before_ending_to_ending2": (
+        [],
+        ["TIE_UNMATCHED_START", "TIE_BROKEN_BY_ENDING", "TIE_BROKEN_BY_ENDING"],
+    ),
+    "w05_tie_from_ending1_to_repeat_start": (
+        [],
+        ["TIE_UNMATCHED_STOP", "TIE_BROKEN_BY_REPEAT", "TIE_BROKEN_BY_REPEAT"],
+    ),
 }
 
 
@@ -82,7 +96,7 @@ def _oracle(name: str) -> list[list[tuple[int, int]]]:
 
 def test_every_fixture_is_classified() -> None:
     on_disk = {p.stem for p in DIRECTORY.glob("*.musicxml")}
-    classified = set(MATCHES_MUSESCORE) | set(DIVERGES) | set(ORDER_ONLY)
+    classified = set(MATCHES_MUSESCORE) | set(DIVERGES) | set(ORDER_ONLY) | set(TIES)
     assert len(on_disk) == 38
     assert on_disk == classified
 
@@ -136,3 +150,49 @@ def test_musescore_drops_music_where_we_refuse() -> None:
 def test_the_volta_oracles_from_the_m3b_research_are_covered_elsewhere() -> None:
     # e9_volta and e12_volta_1_2_3 are compared in test_parser_oracle (both variants).
     assert (Path(__file__).resolve().parents[3] / "fixtures/musicxml/oracle/e9_volta.json").exists()
+
+
+@pytest.mark.parametrize("name", sorted(TIES))
+def test_tie_fixtures_compare_attack_by_attack_with_the_musescore_midi(name: str) -> None:
+    extra, expected_codes = TIES[name]
+    result = _parse(name)
+    assert result.performed is not None
+    attacks = []
+    for attack in result.performed.merged[0]:
+        if attack.is_rest:
+            continue
+        ticks = attack.start * PPQ
+        assert ticks.denominator == 1
+        assert attack.source[0].midi_note is not None
+        attacks.append((int(ticks), attack.source[0].midi_note))
+    oracle = _oracle(name)[0]
+    assert sorted(attacks) == sorted([*oracle, *extra])  # equal, or equal plus what we keep
+    assert sorted(i.code for i in result.issues) == sorted(expected_codes)
+
+
+def test_the_destination_attack_musescore_drops_is_kept_and_reported() -> None:
+    name = "w02_tie_into_ending2_from_ending1_end"
+    oracle = _oracle(name)[0]
+    ours = _parse(name)
+    assert ours.performed is not None
+    assert (9600, 64) not in oracle  # MuseScore: ending 2's tied-to note makes no attack
+    attacks = {int(a.start * PPQ) for a in ours.performed.merged[0]}
+    assert 9600 in attacks  # we sing it
+    broken = [i for i in ours.performed.located_issues if i.issue.code == "TIE_BROKEN_BY_ENDING"]
+    assert broken
+    location = broken[0].location
+    assert location is not None
+    assert (location.number, location.repeat_pass, location.endings) == (4, 2, (2,))
+
+
+def test_the_two_w02_tie_warnings_belong_to_two_distinct_performed_boundaries() -> None:
+    result = _parse("w02_tie_into_ending2_from_ending1_end")
+    assert result.performed is not None
+    located = {i.issue.code: i.location for i in result.performed.located_issues}
+    repeat, ending = located["TIE_BROKEN_BY_REPEAT"], located["TIE_BROKEN_BY_ENDING"]
+    assert repeat is not None
+    assert ending is not None
+    # the tie leaving ending 1 (pass 1) versus the tied-to note arriving in ending 2 (pass 2)
+    assert (repeat.number, repeat.repeat_pass, repeat.endings) == (3, 1, (1,))
+    assert (ending.number, ending.repeat_pass, ending.endings) == (4, 2, (2,))
+    assert repeat.performed_position != ending.performed_position

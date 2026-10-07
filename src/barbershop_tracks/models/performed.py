@@ -30,6 +30,18 @@ class TransitionKind(Enum):
     REPEAT_EXIT = "repeat_exit"  # a repeat finished its last pass: on to the next written measure
     ENDING_SKIP = "ending_skip"  # an ending that is not the next written one was selected
 
+    @property
+    def is_discontinuity(self) -> bool:
+        """True if performed state must not be assumed continuous across this arrival.
+
+        The single place that knows which kinds break written adjacency; ties, lyrics and any
+        future stateful interpretation go through it (or ``discontinuity_positions``).
+        """
+        return self in _DISCONTINUITIES
+
+
+_DISCONTINUITIES = frozenset({TransitionKind.REPEAT_JUMP, TransitionKind.ENDING_SKIP})
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class PlayedMeasure:
@@ -121,8 +133,7 @@ class PerformancePlan:
         the traversal crossed one of these, not which kind it was; the kind stays on each
         ``PlayedMeasure.arrival``.
         """
-        breaks = (TransitionKind.REPEAT_JUMP, TransitionKind.ENDING_SKIP)
-        return frozenset(m.performed_start for m in self.played if m.arrival in breaks)
+        return frozenset(m.performed_start for m in self.played if m.arrival.is_discontinuity)
 
     def locate(self, position: Fraction) -> PlayedMeasure | None:
         """The performed measure containing ``position`` (``None`` if outside the plan)."""

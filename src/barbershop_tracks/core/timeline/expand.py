@@ -159,7 +159,7 @@ def _perform_line(
             )
         )
     for before, after in pairwise(chunks):
-        if after.played.arrival is TransitionKind.REPEAT_JUMP:
+        if after.played.arrival.is_discontinuity:
             issues.extend(_break_ties(part.part_id, before, after))
     events = [note for chunk in chunks for note in chunk.notes]
     occurrences_list = [
@@ -181,39 +181,70 @@ def _shifted(note: Note, shift: Fraction) -> Note:
 
 
 def _break_ties(part_id: str, before: _Chunk, after: _Chunk) -> list[LocatedIssue]:
-    """Cut the ties that would cross a repeat jump and report each side once."""
+    """Cut the ties that would cross a discontinuity and report each side once.
+
+    The same mechanics for every kind of discontinuity; only the diagnostic code and wording
+    follow the transition kind that was crossed.
+    """
+    kind = after.played.arrival
     issues: list[LocatedIssue] = []
     end = before.played.performed_end
     tails = [i for i, n in enumerate(before.notes) if n.tied_to_next and n.end == end]
     for i in tails:
         before.notes[i] = replace(before.notes[i], tied_to_next=False)
     if tails:
-        issues.append(_broken(part_id, before.played, before.notes[tails[0]], len(tails), "leaves"))
+        issues.append(
+            _broken(part_id, before.played, before.notes[tails[0]], len(tails), "leaves", kind)
+        )
     start = after.played.performed_start
     heads = [i for i, n in enumerate(after.notes) if n.tied_from_previous and n.start == start]
     for i in heads:
         after.notes[i] = replace(after.notes[i], tied_from_previous=False)
     if heads:
-        issues.append(_broken(part_id, after.played, after.notes[heads[0]], len(heads), "enters"))
+        issues.append(
+            _broken(part_id, after.played, after.notes[heads[0]], len(heads), "enters", kind)
+        )
     return issues
 
 
-def _broken(part_id: str, played: PlayedMeasure, note: Note, count: int, side: str) -> LocatedIssue:
+_BREAK_CODES = {
+    TransitionKind.REPEAT_JUMP: "TIE_BROKEN_BY_REPEAT",
+    TransitionKind.ENDING_SKIP: "TIE_BROKEN_BY_ENDING",
+}
+_BREAK_CAUSES = {
+    TransitionKind.REPEAT_JUMP: "the repeat jump that follows",
+    TransitionKind.ENDING_SKIP: "the ending that is skipped to",
+}
+
+
+def _broken(
+    part_id: str,
+    played: PlayedMeasure,
+    note: Note,
+    count: int,
+    side: str,
+    kind: TransitionKind,
+) -> LocatedIssue:
     what = "a tie" if count == 1 else f"{count} ties"
+    code = _BREAK_CODES.get(kind, "TIE_BROKEN_BY_DISCONTINUITY")
     if side == "leaves":
+        cause = _BREAK_CAUSES.get(kind, "the discontinuity that follows")
         message = (
-            f"{what} leaving the end of this measure is not held across the repeat jump that "
-            "follows (ties never cross a repeat jump); the note is played at its own length"
+            f"{what} leaving the end of this measure is not held across {cause} "
+            "(ties never cross a discontinuity in the performed order); the note is played at "
+            "its own length"
         )
     else:
         message = (
             f"the tied-to note{'' if count == 1 else 's'} at the start of this measure follow"
-            f"{'s' if count == 1 else ''} a repeat jump, not the written measure before it, so "
-            f"{'it is' if count == 1 else 'they are'} sung as a new attack, not dropped"
+            f"{'s' if count == 1 else ''} a "
+            f"{'repeat jump' if kind is TransitionKind.REPEAT_JUMP else 'skipped ending'}, not "
+            f"the written measure before it, so {'it is' if count == 1 else 'they are'} sung as "
+            "a new attack, not dropped"
         )
     issue = ValidationIssue(
         severity=Severity.WARNING,
-        code="TIE_BROKEN_BY_REPEAT",
+        code=code,
         message=message,
         part_id=part_id,
         measure=note.measure,

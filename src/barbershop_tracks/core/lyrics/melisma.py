@@ -78,15 +78,18 @@ class MelismaTracker:
         if self.typed is not None:
             self.typed.rest_seen = True
 
-    def jump(self) -> list[Finding]:
-        """Playback jumped (a repeat): no extension is carried across the jump."""
+    def discontinuity(self) -> list[Finding]:
+        """Playback is not continuous (a repeat jump or a skipped ending): no extension is
+        carried across it."""
         findings: list[Finding] = []
         if self.inferred is not None:
             self._ended_by_rest = (
                 True  # counted like a rest: the next lyric-less attack is unresolved
             )
         self.inferred = None
-        self._close_typed("playback jumped back for a repeat", findings)
+        self._close_typed(
+            "playback was not continuous here (a repeat or a skipped ending)", findings
+        )
         return findings
 
     def unlyriced(self, index: int) -> tuple[AttackRole, Continuation | None]:

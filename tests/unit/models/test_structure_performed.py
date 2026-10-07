@@ -199,3 +199,41 @@ def test_the_song_checks_ending_spans() -> None:
         Song(title="t", measures=measures, ending_spans=(ending(2, 3, 1),))
     with pytest.raises(ValueError, match="overlap"):
         Song(title="t", measures=measures, ending_spans=(ending(0, 1, 1), ending(1, 2, 2)))
+
+
+# Every transition kind must have an explicit decision here. Adding a member to TransitionKind
+# without classifying it makes this test fail, so a future navigation feature can never inherit
+# a discontinuity default by accident.
+DISCONTINUITY_DECISIONS = {
+    TransitionKind.START: False,
+    TransitionKind.SEQUENTIAL: False,
+    TransitionKind.REPEAT_EXIT: False,
+    TransitionKind.REPEAT_JUMP: True,
+    TransitionKind.ENDING_SKIP: True,
+}
+
+
+def test_every_transition_kind_has_an_explicit_discontinuity_decision() -> None:
+    assert set(DISCONTINUITY_DECISIONS) == set(TransitionKind)
+    for kind, expected in DISCONTINUITY_DECISIONS.items():
+        assert kind.is_discontinuity is expected, kind
+
+
+def test_the_plan_exposes_exactly_the_discontinuous_arrivals() -> None:
+    kinds = list(TransitionKind)
+    played = []
+    for position, kind in enumerate(kinds):
+        played.append(
+            PlayedMeasure(
+                source_index=position,
+                number=position + 1,
+                visit=1,
+                performed_index=position,
+                performed_start=Fraction(position * 4),
+                length=Fraction(4),
+                arrival=TransitionKind.START if position == 0 else kind,
+            )
+        )
+    plan = PerformancePlan(played=tuple(played))
+    expected = {m.performed_start for m in plan.played if DISCONTINUITY_DECISIONS[m.arrival]}
+    assert plan.discontinuity_positions == expected

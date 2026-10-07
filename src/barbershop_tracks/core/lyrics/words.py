@@ -62,10 +62,12 @@ class WordBuilder:
         if self._open is not None:
             self._open.interrupted_by_rest = True
 
-    def jump(self) -> list[Finding]:
-        """Playback jumped (a repeat): an open word is not joined to what follows the jump."""
+    def discontinuity(self) -> list[Finding]:
+        """Playback is not continuous: an open word is not joined to what follows."""
         findings: list[Finding] = []
-        self._abandon_open(findings, "playback jumped back for a repeat")
+        self._abandon_open(
+            findings, "playback was not continuous here (a repeat or a skipped ending)"
+        )
         return findings
 
     def add(self, attack_index: int, lyric: Lyric) -> list[Finding]:
