@@ -352,7 +352,7 @@ intended performance order is never guessed and MuseScore's quirks are never emu
 | Forward never closed | Plays through, `REPEAT_FORWARD_UNUSED` warning. |
 | Nested repeats | `REPEAT_NESTED_UNSUPPORTED`. |
 | Parts | Identical structure required, else `REPEAT_STRUCTURE_CONFLICT`. |
-| Endings (voltas) | `ENDING_NOT_SUPPORTED_YET` until M3e. |
+| Endings (voltas) | M3e1: read as spans (`start` at a left barline, `stop`/`discontinue` at a right one; numbers are positive comma lists) and planned as volta groups that partition passes `1..N` exactly, every ending but the last closing with a backward repeat, the last being exactly `{N}`. Specific `ENDING_*` errors otherwise; see `docs/m3e-plan.md`. Ties and lyrics do not yet treat a skipped ending as a discontinuity (M3e2). |
 | D.C./D.S./segno/coda/fine | `UNSUPPORTED_JUMP`. |
 
 Performance order is a derived `PerformedSong`; the source `Song` is never changed.

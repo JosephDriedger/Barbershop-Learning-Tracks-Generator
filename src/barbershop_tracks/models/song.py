@@ -7,7 +7,7 @@ from pathlib import Path
 
 from barbershop_tracks.models.notation import ClefChange
 from barbershop_tracks.models.part import Part
-from barbershop_tracks.models.structure import MeasureSpan, RepeatMark
+from barbershop_tracks.models.structure import EndingSpan, MeasureSpan, RepeatMark
 from barbershop_tracks.models.timing import TempoChange, TimeSignature
 from barbershop_tracks.models.voice import VoiceRole
 
@@ -41,12 +41,14 @@ class Song:
     clef_changes: tuple[ClefChange, ...] = ()
     measures: tuple[MeasureSpan, ...] = ()
     repeat_marks: tuple[RepeatMark, ...] = ()
+    ending_spans: tuple[EndingSpan, ...] = ()
 
     def __post_init__(self) -> None:
         parts = tuple(self.parts)
         object.__setattr__(self, "clef_changes", tuple(self.clef_changes))
         measures = tuple(self.measures)
         repeat_marks = tuple(self.repeat_marks)
+        ending_spans = tuple(self.ending_spans)
         tempo_map = tuple(self.tempo_map)
         time_signatures = tuple(self.time_signatures)
         part_ids = [part.part_id for part in parts]
@@ -54,9 +56,10 @@ class Song:
             raise ValueError("part ids must be unique")
         _require_strictly_increasing([t.position for t in tempo_map], "tempo_map")
         _require_strictly_increasing([s.position for s in time_signatures], "time_signatures")
-        _check_structure(measures, repeat_marks)
+        _check_structure(measures, repeat_marks, ending_spans)
         object.__setattr__(self, "measures", measures)
         object.__setattr__(self, "repeat_marks", repeat_marks)
+        object.__setattr__(self, "ending_spans", ending_spans)
         object.__setattr__(self, "parts", parts)
         object.__setattr__(self, "tempo_map", tempo_map)
         object.__setattr__(self, "time_signatures", time_signatures)
@@ -79,7 +82,11 @@ def _require_strictly_increasing(positions: list[Fraction], name: str) -> None:
         raise ValueError(f"{name} positions must be strictly increasing")
 
 
-def _check_structure(measures: tuple[MeasureSpan, ...], marks: tuple[RepeatMark, ...]) -> None:
+def _check_structure(
+    measures: tuple[MeasureSpan, ...],
+    marks: tuple[RepeatMark, ...],
+    spans: tuple[EndingSpan, ...],
+) -> None:
     for position, span in enumerate(measures):
         if not isinstance(span, MeasureSpan):
             raise TypeError("measures must contain only MeasureSpan objects")
@@ -92,3 +99,12 @@ def _check_structure(measures: tuple[MeasureSpan, ...], marks: tuple[RepeatMark,
             raise TypeError("repeat_marks must contain only RepeatMark objects")
         if mark.measure_index >= len(measures):
             raise ValueError("a repeat mark refers to a measure that does not exist")
+    previous_end = -1
+    for ending in sorted(spans, key=lambda s: s.start_index):
+        if not isinstance(ending, EndingSpan):
+            raise TypeError("ending_spans must contain only EndingSpan objects")
+        if ending.end_index >= len(measures):
+            raise ValueError("an ending refers to a measure that does not exist")
+        if ending.start_index <= previous_end:
+            raise ValueError("ending spans must not overlap")
+        previous_end = ending.end_index

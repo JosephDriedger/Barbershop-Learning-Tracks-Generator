@@ -13,7 +13,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from barbershop_tracks.core.issues import IssueCollector
-from barbershop_tracks.models import RepeatKind, RepeatMark
+from barbershop_tracks.models import EndingSpan, RepeatKind, RepeatMark
 
 DEFAULT_TIMES = 2
 MAX_TIMES = 16
@@ -112,44 +112,62 @@ def _signature(mark: RepeatMark) -> tuple[str, int, int]:
     return (mark.kind.value, mark.measure_index, passes)
 
 
+def _span_signature(spans: Sequence[EndingSpan]) -> list[tuple[int, int, tuple[int, ...]]]:
+    """Ending spans compared by boundaries and pass sets; the stop/discontinue kind is engraving."""
+    return [(s.start_index, s.end_index, s.numbers) for s in spans]
+
+
 def reconcile_marks(
-    per_part: Sequence[tuple[str, Sequence[RawRepeat]]],
+    per_part: Sequence[tuple[str, Sequence[RawRepeat], Sequence[EndingSpan]]],
     measure_numbers: Sequence[int],
     issues: IssueCollector,
-) -> tuple[RepeatMark, ...]:
-    """The one repeat structure every part agrees on.
+) -> tuple[tuple[RepeatMark, ...], tuple[EndingSpan, ...]]:
+    """The one repeat and ending structure every part agrees on.
 
-    Parts agree when their ordered ``(kind, measure, resolved passes)`` lists are equal (an
-    absent ``times`` equals an explicit 2). Otherwise ``REPEAT_STRUCTURE_CONFLICT`` is reported
-    for the first difference and no structure is returned, so parts are never expanded onto
-    incompatible timelines.
+    Parts agree when their ordered ``(kind, measure, resolved passes)`` repeat lists **and** their
+    ending spans (boundaries and pass sets) are equal. Otherwise ``REPEAT_STRUCTURE_CONFLICT`` is
+    reported for the first difference and nothing is returned, so parts are never expanded onto
+    incompatible timelines and no part is authoritative.
     """
     if not per_part:
-        return ()
+        return (), ()
     ordered = [
-        (part_id, sorted(raws, key=lambda r: (r.measure_index, r.kind is RepeatKind.BACKWARD)))
-        for part_id, raws in per_part
+        (
+            part_id,
+            sorted(raws, key=lambda r: (r.measure_index, r.kind is RepeatKind.BACKWARD)),
+            spans,
+        )
+        for part_id, raws, spans in per_part
     ]
     marks = [
         tuple(RepeatMark(kind=r.kind, measure_index=r.measure_index, times=r.times) for r in raws)
-        for _, raws in ordered
+        for _, raws, _ in ordered
     ]
     reference_id, reference = ordered[0][0], marks[0]
-    for (part_id, _), other in zip(ordered[1:], marks[1:], strict=True):
-        signatures = [_signature(m) for m in reference], [_signature(m) for m in other]
-        if signatures[0] == signatures[1]:
+    reference_spans = ordered[0][2]
+    for (part_id, _, spans), other in zip(ordered[1:], marks[1:], strict=True):
+        same_marks = [_signature(m) for m in reference] == [_signature(m) for m in other]
+        same_spans = _span_signature(reference_spans) == _span_signature(spans)
+        if same_marks and same_spans:
             continue
-        where = _first_difference(reference, other)
+        if same_marks:
+            what = "the ending spans differ"
+            number = measure_numbers[spans[0].start_index] if spans else None
+            if not spans and reference_spans:
+                number = measure_numbers[reference_spans[0].start_index]
+        else:
+            where = _first_difference(reference, other)
+            what = f"first difference: {_describe(reference, other, where)}"
+            number = _number_at(measure_numbers, reference, other, where)
         issues.error(
             "REPEAT_STRUCTURE_CONFLICT",
-            f"part '{part_id}' has a different repeat structure from part '{reference_id}'"
-            f" (first difference: {_describe(reference, other, where)}); parts cannot be "
-            "expanded onto different timelines",
+            f"part '{part_id}' has a different repeat or ending structure from part "
+            f"'{reference_id}' ({what}); parts cannot be expanded onto different timelines",
             part_id=part_id,
-            measure=_number_at(measure_numbers, reference, other, where),
+            measure=number,
         )
-        return ()
-    return reference
+        return (), ()
+    return reference, tuple(reference_spans)
 
 
 def _first_difference(a: Sequence[RepeatMark], b: Sequence[RepeatMark]) -> int:

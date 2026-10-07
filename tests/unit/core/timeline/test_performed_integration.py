@@ -99,7 +99,7 @@ def test_a_tie_start_before_a_repeat_jump_is_broken_then_held_on_the_final_pass(
     assert broken.issue.severity is Severity.WARNING
     assert broken.location is not None
     assert (broken.location.number, broken.location.visit) == (2, 1)
-    assert broken.location.describe() == "measure 2, first visit"
+    assert broken.location.describe() == "measure 2, first visit, pass 1"
 
 
 def test_a_tied_to_note_at_a_repeat_start_is_a_new_attack_on_later_passes(tmp_path: Path) -> None:

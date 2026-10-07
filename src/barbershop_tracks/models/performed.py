@@ -28,6 +28,7 @@ class TransitionKind(Enum):
     SEQUENTIAL = "sequential"  # ordinary source adjacency: the next written measure
     REPEAT_JUMP = "repeat_jump"  # a backward repeat was taken: back to the start of the section
     REPEAT_EXIT = "repeat_exit"  # a repeat finished its last pass: on to the next written measure
+    ENDING_SKIP = "ending_skip"  # an ending that is not the next written one was selected
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -41,6 +42,11 @@ class PlayedMeasure:
     performed_start: Fraction
     length: Fraction
     arrival: TransitionKind
+    # the 1-based pass through the containing repeat or volta group; None outside a repeat
+    # context. NOT ``visit`` (how often this written measure itself has been played)
+    repeat_pass: int | None = None
+    # the pass set of the ending being played (empty outside an ending)
+    endings: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         require_int(self.source_index, name="source_index")
@@ -56,6 +62,11 @@ class PlayedMeasure:
             raise ValueError("start and length must not be negative")
         if not isinstance(self.arrival, TransitionKind):
             raise TypeError("arrival must be a TransitionKind")
+        if self.repeat_pass is not None:
+            require_int(self.repeat_pass, name="repeat_pass")
+            if self.repeat_pass < 1:
+                raise ValueError("repeat_pass must be at least 1")
+        object.__setattr__(self, "endings", tuple(self.endings))
 
     @property
     def performed_end(self) -> Fraction:
@@ -101,6 +112,17 @@ class PerformancePlan:
         return frozenset(
             m.performed_start for m in self.played if m.arrival is TransitionKind.REPEAT_JUMP
         )
+
+    @property
+    def discontinuity_positions(self) -> frozenset[Fraction]:
+        """Positions reached by an arrival that is not written adjacency.
+
+        A repeat jump or a skipped ending. Stateful interpretation (ties, lyrics) asks whether
+        the traversal crossed one of these, not which kind it was; the kind stays on each
+        ``PlayedMeasure.arrival``.
+        """
+        breaks = (TransitionKind.REPEAT_JUMP, TransitionKind.ENDING_SKIP)
+        return frozenset(m.performed_start for m in self.played if m.arrival in breaks)
 
     def locate(self, position: Fraction) -> PlayedMeasure | None:
         """The performed measure containing ``position`` (``None`` if outside the plan)."""
@@ -189,6 +211,8 @@ class PerformanceLocation:
     visit: int
     performed_position: Fraction
     performed_measure_index: int
+    repeat_pass: int | None = None
+    endings: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         require_int(self.measure_index, name="measure_index")
@@ -203,7 +227,12 @@ class PerformanceLocation:
     def describe(self) -> str:
         """For example ``"measure 3, second visit"``."""
         ordinal = _ORDINALS.get(self.visit, f"{self.visit}th")
-        return f"measure {self.number}, {ordinal} visit"
+        text = f"measure {self.number}, {ordinal} visit"
+        if self.repeat_pass is not None:
+            text += f", pass {self.repeat_pass}"
+        if self.endings:
+            text += ", ending " + ",".join(str(n) for n in self.endings)
+        return text
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,6 +314,8 @@ class PerformedSong:
             visit=played.visit,
             performed_position=note.start,
             performed_measure_index=played.performed_index,
+            repeat_pass=played.repeat_pass,
+            endings=played.endings,
         )
 
     def effective_tempo_at(self, position: Fraction) -> TempoChange | None:

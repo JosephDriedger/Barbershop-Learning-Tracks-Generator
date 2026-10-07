@@ -77,3 +77,42 @@ class RepeatMark:
                 raise ValueError("times must be at least 1")
             if self.kind is RepeatKind.FORWARD:
                 raise ValueError("a forward repeat has no times")
+
+
+class EndingClose(Enum):
+    """How an ending span is closed in the source. Playback treats both alike; the engraving
+    difference (a downward jog or none) is preserved rather than thrown away."""
+
+    STOP = "stop"
+    DISCONTINUE = "discontinue"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class EndingSpan:
+    """A validated ending: a ``start`` mark paired with the mark that closes it.
+
+    ``start_index`` and ``end_index`` are source measure indices (the identity), where the
+    markers are. ``numbers`` is the sorted set of passes the ending is played on (positive
+    integers); ``raw_number`` is the text as written. Performed pass numbers never appear here:
+    which pass plays which ending is derived by the planner.
+    """
+
+    start_index: int
+    end_index: int
+    numbers: tuple[int, ...]
+    closing: EndingClose
+    raw_number: str = ""
+
+    def __post_init__(self) -> None:
+        require_int(self.start_index, name="start_index")
+        require_int(self.end_index, name="end_index")
+        numbers = tuple(self.numbers)
+        if self.start_index < 0 or self.end_index < self.start_index:
+            raise ValueError("an ending must span at least one measure, in order")
+        if not numbers or any(not isinstance(n, int) or n < 1 for n in numbers):
+            raise ValueError("ending numbers must be positive integers")
+        if list(numbers) != sorted(set(numbers)):
+            raise ValueError("ending numbers must be sorted and unique")
+        if not isinstance(self.closing, EndingClose):
+            raise TypeError("closing must be an EndingClose")
+        object.__setattr__(self, "numbers", numbers)

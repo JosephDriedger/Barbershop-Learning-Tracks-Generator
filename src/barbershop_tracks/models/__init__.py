@@ -44,7 +44,13 @@ from barbershop_tracks.models.performed import (
 from barbershop_tracks.models.pitch import Pitch, Step
 from barbershop_tracks.models.pitch_transform import IDENTITY_TRANSFORM, PitchTransform
 from barbershop_tracks.models.song import Song, SourceMetadata
-from barbershop_tracks.models.structure import MeasureSpan, RepeatKind, RepeatMark
+from barbershop_tracks.models.structure import (
+    EndingClose,
+    EndingSpan,
+    MeasureSpan,
+    RepeatKind,
+    RepeatMark,
+)
 from barbershop_tracks.models.timing import TempoChange, TimeSignature
 from barbershop_tracks.models.validation import Severity, ValidationIssue, ValidationResult
 from barbershop_tracks.models.voice import VoiceRole
@@ -55,6 +61,8 @@ __all__ = [
     "AttackLyric",
     "AttackRole",
     "ClefChange",
+    "EndingClose",
+    "EndingSpan",
     "JobRequest",
     "JobResult",
     "JobStatus",

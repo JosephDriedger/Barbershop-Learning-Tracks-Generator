@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from fractions import Fraction
 
+from barbershop_tracks.core.musicxml.endings import build_spans
 from barbershop_tracks.core.musicxml.issues import IssueCollector
 from barbershop_tracks.core.musicxml.limits import DEFAULT_LIMITS, LoaderLimits
 from barbershop_tracks.core.musicxml.meter import build_meter_map
@@ -24,6 +25,7 @@ from barbershop_tracks.core.musicxml.values import child_text
 from barbershop_tracks.core.timeline import perform_song
 from barbershop_tracks.models import (
     ClefChange,
+    EndingSpan,
     MeasureSpan,
     Note,
     Part,
@@ -77,7 +79,7 @@ def parse_score(source: MusicXmlSource) -> ParseResult:
         issues=issues,
     )
     measures = _measure_table(timelines[0])
-    marks = _repeat_marks(timelines, measures, issues)
+    marks, endings = _repeat_structure(timelines, measures, issues)
     song = Song(
         title=_title(root),
         composer=_creator(root, "composer"),
@@ -94,6 +96,7 @@ def parse_score(source: MusicXmlSource) -> ParseResult:
         clef_changes=tuple(clefs),
         measures=measures,
         repeat_marks=marks,
+        ending_spans=endings,
     )
     performed = perform_song(song)
     issues.extend(performed.issues)
@@ -119,17 +122,22 @@ def _measure_table(timeline: PartTimeline) -> tuple[MeasureSpan, ...]:
     return tuple(spans)
 
 
-def _repeat_marks(
+def _repeat_structure(
     timelines: list[PartTimeline], measures: tuple[MeasureSpan, ...], issues: IssueCollector
-) -> tuple[RepeatMark, ...]:
-    """The repeat structure every part agrees on (none if they differ or are misaligned)."""
+) -> tuple[tuple[RepeatMark, ...], tuple[EndingSpan, ...]]:
+    """The repeat and ending structure every part agrees on (none if unusable or different)."""
     if any(len(t.measure_lengths) != len(measures) for t in timelines):
-        return ()  # PART_MEASURE_COUNT_MISMATCH already blocks; indices would not line up
-    if not all(t.repeats_usable for t in timelines):
-        return ()  # an unreadable sign was reported; a partly read structure is never expanded
-    return reconcile_marks(
-        [(t.part_id, t.repeats) for t in timelines], [m.number for m in measures], issues
-    )
+        return (), ()  # PART_MEASURE_COUNT_MISMATCH already blocks; indices would not line up
+    numbers = [m.number for m in measures]
+    usable = all(t.repeats_usable for t in timelines)
+    per_part = []
+    for timeline in timelines:
+        spans, ok = build_spans(timeline.ending_marks, numbers, timeline.part_id, issues)
+        usable = usable and ok
+        per_part.append((timeline.part_id, timeline.repeats, spans))
+    if not usable:
+        return (), ()  # an unreadable sign was reported; a partly read structure is never expanded
+    return reconcile_marks(per_part, numbers, issues)
 
 
 # --- parts ----------------------------------------------------------------------------

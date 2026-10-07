@@ -2,7 +2,7 @@
 
 The MusicXML specification defines the format; these tests only show that, on the research
 fixtures, our exact timeline and sounding pitches agree with what MuseScore 4.7.4 plays.
-Plain repeats are compared in performed order; endings are rejected until M3e.
+Plain repeats and volta endings are compared in performed order.
 """
 
 import json
@@ -158,10 +158,13 @@ def test_plain_repeat_fixtures_perform_like_the_musescore_midi(variant: str, nam
 
 @pytest.mark.parametrize("variant", VARIANTS)
 @pytest.mark.parametrize("name", ENDINGS)
-def test_ending_fixtures_are_rejected_until_m3e(variant: str, name: str) -> None:
+def test_volta_fixtures_perform_like_the_musescore_midi(variant: str, name: str) -> None:
     result = _parse(variant, name)
-    assert "ENDING_NOT_SUPPORTED_YET" in [i.code for i in result.issues]
-    assert result.issues.has_errors
+    assert not result.issues.has_errors, [str(i) for i in result.issues]
+    assert result.performed is not None
+    notes = [e for line in result.performed.lines for e in line.part.sounding_notes]
+    onsets = sorted((int(e.start * PPQ), e.midi_note) for e in notes if e.midi_note is not None)
+    assert onsets == sorted(onset for track in _oracle(name) for onset in track)
 
 
 def test_dacapo_fixture_is_rejected() -> None:

@@ -50,7 +50,7 @@ _ORDINAL_SUFFIX = {1: "first", 2: "second", 3: "third"}
 
 def perform_song(song: Song) -> PerformedSong:
     """Expand ``song`` into performance order and resolve ties over that order."""
-    planned = plan_performance(song.measures, song.repeat_marks)
+    planned = plan_performance(song.measures, song.repeat_marks, song.ending_spans)
     plan = planned.plan
     located: list[LocatedIssue] = [LocatedIssue(issue) for issue in planned.issues]
     lines: list[PerformedLine] = []
@@ -84,6 +84,8 @@ def _location(plan: PerformancePlan, position: Fraction) -> PerformanceLocation 
         visit=played.visit,
         performed_position=position,
         performed_measure_index=played.performed_index,
+        repeat_pass=played.repeat_pass,
+        endings=played.endings,
     )
 
 
@@ -223,6 +225,8 @@ def _broken(part_id: str, played: PlayedMeasure, note: Note, count: int, side: s
         visit=played.visit,
         performed_position=note.start,
         performed_measure_index=played.performed_index,
+        repeat_pass=played.repeat_pass,
+        endings=played.endings,
     )
     return LocatedIssue(issue, location)
 

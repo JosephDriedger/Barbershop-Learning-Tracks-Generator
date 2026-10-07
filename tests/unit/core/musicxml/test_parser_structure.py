@@ -252,20 +252,22 @@ def _barline(inner: str, location: str = "right") -> str:
 
 
 @pytest.mark.parametrize(
-    "inner",
+    ("inner", "code"),
     [
-        '<ending number="1" type="start"/>',
-        '<ending number="1, 2" type="stop"/><repeat direction="backward"/>',
+        ('<ending number="1" type="start"/>', "ENDING_BARLINE_PLACEMENT"),  # start belongs left
+        ('<ending number="x" type="stop"/>', "ENDING_NUMBER_INVALID"),
+        ('<ending number="1" type="sideways"/>', "ENDING_TYPE_INVALID"),
     ],
 )
-def test_endings_block_generation(tmp_path: Path, inner: str) -> None:
+def test_unreadable_endings_block_generation(tmp_path: Path, inner: str, code: str) -> None:
     m1 = measure(1, FOUR + _barline(inner), attrs=attributes())
     result = parse_text(tmp_path, score(m1 + measure(2, FOUR)))
-    issue = next(i for i in result.issues if i.code == "ENDING_NOT_SUPPORTED_YET")
+    issue = next(i for i in result.issues if i.code == code)
     assert issue.severity is Severity.ERROR
     assert issue.measure == 1
     assert issue.part_id == "P1"
-    assert "REPEAT_NOT_SUPPORTED_YET" not in _codes(result)  # the temporary code is retired
+    assert result.issues.has_errors  # generation is blocked
+    assert "ENDING_NOT_SUPPORTED_YET" not in _codes(result)  # the temporary code is retired
 
 
 def test_barline_without_repeat_is_fine(tmp_path: Path) -> None:

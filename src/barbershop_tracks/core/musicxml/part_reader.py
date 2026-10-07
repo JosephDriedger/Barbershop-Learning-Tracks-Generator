@@ -21,16 +21,12 @@ from dataclasses import dataclass
 from fractions import Fraction
 
 from barbershop_tracks.core.musicxml.duration_type import notated_quarters
+from barbershop_tracks.core.musicxml.endings import EndingMark, read_ending
 from barbershop_tracks.core.musicxml.issues import IssueCollector
 from barbershop_tracks.core.musicxml.lyrics import describe_lyrics, has_lyrics, read_lyrics
 from barbershop_tracks.core.musicxml.meter import MeterKey
 from barbershop_tracks.core.musicxml.repeat_marks import RawRepeat, read_repeat
-from barbershop_tracks.core.musicxml.repeats import (
-    ENDING_NOT_SUPPORTED_YET,
-    UNSUPPORTED_JUMP,
-    barline_has_ending,
-    jump_attributes_of,
-)
+from barbershop_tracks.core.musicxml.repeats import UNSUPPORTED_JUMP, jump_attributes_of
 from barbershop_tracks.core.musicxml.tempo import (
     TempoEvent,
     has_metronome_without_tempo,
@@ -71,6 +67,7 @@ class PartTimeline:
     raw_numbers: list[str | None]  # the measure number text as written
     implicit: list[bool]  # ``implicit="yes"`` measures (pickups and the like)
     repeats: list[RawRepeat]  # interpretable repeat signs, with source measure indices
+    ending_marks: list[EndingMark]  # interpretable ending markers, with source measure indices
     repeats_usable: bool  # False if any repeat sign or ending could not be read
 
 
@@ -95,6 +92,7 @@ def read_part(part: ET.Element, part_id: str, issues: IssueCollector) -> PartTim
         raw_numbers=reader.raw_numbers,
         implicit=reader.implicit,
         repeats=reader.repeats,
+        ending_marks=reader.ending_marks,
         repeats_usable=reader.repeats_usable,
     )
 
@@ -113,6 +111,7 @@ class _PartReader:
         self.raw_numbers: list[str | None] = []
         self.implicit: list[bool] = []
         self.repeats: list[RawRepeat] = []
+        self.ending_marks: list[EndingMark] = []
         self.repeats_usable = True
         # state that persists across measures
         self._divisions: Fraction | None = None
@@ -131,6 +130,7 @@ class _PartReader:
         self._last_local: Fraction | None = None
         self._content_seen = False
         self._right_repeat_seen = False
+        self._right_sign_code = "REPEAT_MID_MEASURE"
         self._reported_mid_repeat = False
         self._handlers: dict[str, Callable[[ET.Element], None]] = {
             "attributes": self._attributes,
@@ -183,6 +183,7 @@ class _PartReader:
         self._last_local = None
         self._content_seen = False
         self._right_repeat_seen = False
+        self._right_sign_code = "REPEAT_MID_MEASURE"
         self._reported_mid_repeat = False
 
     def _measure_length(self, measure: ET.Element) -> Fraction:
@@ -656,22 +657,30 @@ class _PartReader:
             self._reported_mid_repeat = True
             self.repeats_usable = False
             self._error(
-                "REPEAT_MID_MEASURE",
-                "a repeat sign at the right barline is followed by more notes in the measure",
+                self._right_sign_code,
+                "a repeat or ending sign at the right barline is followed by more notes in the "
+                "measure",
             )
 
     def _barline(self, element: ET.Element) -> None:
-        if barline_has_ending(element):
-            self.repeats_usable = False
-            self._error(
-                ENDING_NOT_SUPPORTED_YET,
-                "endings (voltas) are not supported yet; this score would otherwise be read "
-                "as a single pass",
-            )
-            return  # no partial interpretation: the repeat sign on this barline is not read
+        index = len(self.measure_lengths)
+        right = element.get("location", "right") == "right"
+        ending = read_ending(
+            element,
+            measure_index=index,
+            content_before=self._content_seen,
+            error=lambda code, message: self._error(code, message),
+        )
+        if ending is None and element.find("ending") is not None:
+            self.repeats_usable = False  # never expand a partly understood structure
+        if ending is not None:
+            self.ending_marks.append(ending)
+            if right:
+                self._right_repeat_seen = True
+                self._right_sign_code = "ENDING_MID_MEASURE"
         raw = read_repeat(
             element,
-            measure_index=len(self.measure_lengths),
+            measure_index=index,
             content_before=self._content_seen,
             error=lambda code, message: self._error(code, message),
             warn=lambda code, message: self._warn(code, message),
@@ -680,7 +689,7 @@ class _PartReader:
             self.repeats_usable = False  # never expand a partly understood structure
         if raw is not None:
             self.repeats.append(raw)
-            if element.get("location", "right") == "right":
+            if right:
                 self._right_repeat_seen = True
 
     def _direction(self, element: ET.Element) -> None:

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from barbershop_tracks.core.musicxml import ParseResult
-from barbershop_tracks.models import RepeatKind, Severity, TransitionKind
+from barbershop_tracks.models import RepeatKind, TransitionKind
 from xml_builders import attributes, measure, note, parse_text, score
 
 pytestmark = pytest.mark.usefixtures("no_network")
@@ -227,14 +227,17 @@ def test_a_second_bare_backward_is_ambiguous(tmp_path: Path) -> None:
     assert result.issues.has_errors
 
 
-def test_endings_are_not_interpreted_even_beside_a_repeat(tmp_path: Path) -> None:
-    ending = bar('<ending number="1" type="stop"/><repeat direction="backward"/>')
+def test_a_bad_ending_beside_a_repeat_leaves_the_whole_structure_unexpanded(
+    tmp_path: Path,
+) -> None:
+    ending = bar('<ending number="x" type="stop"/><repeat direction="backward"/>')
     result = parse(tmp_path, m(1, pre=forward(), first=True) + m(2, post=ending) + m(3))
-    assert "ENDING_NOT_SUPPORTED_YET" in codes(result)
-    issue = next(i for i in result.issues if i.code == "ENDING_NOT_SUPPORTED_YET")
-    assert issue.severity is Severity.ERROR
+    assert "ENDING_NUMBER_INVALID" in codes(result)
     assert result.song is not None
-    assert result.song.repeat_marks == ()  # no partial reading of a structure with an ending
+    assert result.song.repeat_marks == ()  # no partial reading of a structure with a bad ending
+    assert result.song.ending_spans == ()
+    assert result.performed is not None
+    assert result.performed.plan.is_identity
 
 
 def test_jump_markers_are_still_unsupported(tmp_path: Path) -> None:

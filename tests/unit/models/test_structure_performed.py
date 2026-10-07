@@ -134,3 +134,68 @@ def test_source_models_have_no_performance_fields() -> None:
 
     assert "visit" not in {f.name for f in fields(Note)}
     assert "visit" not in {f.name for f in fields(ValidationIssue)}
+
+
+def test_played_measure_carries_pass_and_ending_context() -> None:
+    measure = PlayedMeasure(
+        source_index=3,
+        number=4,
+        visit=1,
+        performed_index=5,
+        performed_start=Fraction(20),
+        length=Fraction(4),
+        arrival=TransitionKind.ENDING_SKIP,
+        repeat_pass=3,
+        endings=(3,),
+    )
+    assert (measure.visit, measure.repeat_pass, measure.endings) == (1, 3, (3,))
+    with pytest.raises(ValueError, match="repeat_pass"):
+        PlayedMeasure(
+            source_index=0,
+            number=1,
+            visit=1,
+            performed_index=0,
+            performed_start=Fraction(0),
+            length=Fraction(4),
+            arrival=TransitionKind.START,
+            repeat_pass=0,
+        )
+
+
+def test_performance_location_keeps_structured_context_and_formats_it_separately() -> None:
+    from barbershop_tracks.models import PerformanceLocation
+
+    location = PerformanceLocation(
+        measure_index=7,
+        number=8,
+        visit=2,
+        performed_position=Fraction(30),
+        performed_measure_index=9,
+        repeat_pass=2,
+        endings=(2,),
+    )
+    assert (location.measure_index, location.number, location.visit) == (7, 8, 2)
+    assert (location.repeat_pass, location.endings) == (2, (2,))
+    assert location.describe() == "measure 8, second visit, pass 2, ending 2"
+    plain = PerformanceLocation(
+        measure_index=0,
+        number=1,
+        visit=1,
+        performed_position=Fraction(0),
+        performed_measure_index=0,
+    )
+    assert plain.describe() == "measure 1, first visit"
+
+
+def test_the_song_checks_ending_spans() -> None:
+    from barbershop_tracks.models import EndingClose, EndingSpan
+
+    def ending(a: int, b: int, n: int) -> EndingSpan:
+        return EndingSpan(start_index=a, end_index=b, numbers=(n,), closing=EndingClose.STOP)
+
+    measures = (span(0, 0), span(1, 4), span(2, 8))
+    assert Song(title="t", measures=measures, ending_spans=(ending(1, 1, 1),))
+    with pytest.raises(ValueError, match="does not exist"):
+        Song(title="t", measures=measures, ending_spans=(ending(2, 3, 1),))
+    with pytest.raises(ValueError, match="overlap"):
+        Song(title="t", measures=measures, ending_spans=(ending(0, 1, 1), ending(1, 2, 2)))
