@@ -1,0 +1,93 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "C07_AUTOMATION",
+  "part": "C",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "documentation, wiki and source reading (repository master as read, plus the installed 0.1.565); one empirical project test",
+    "relevant_settings": {
+      "singer": "not needed"
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "ed613ee4d12d303d3bc66d65b2574786d343eb91"
+  },
+  "input": {
+    "description": "A documented stable mechanism without GUI interaction",
+    "recipe_id": null,
+    "artifact_sha256": null
+  },
+  "expected": {
+    "summary": "Undocumented flags and internal APIs are not promoted into the architecture. NOT_FOUND means the documented/current sources listed in the report were searched and no stable interface was found, not that none exists. Record links and provenance.",
+    "events": []
+  },
+  "observed": {
+    "summary": "OpenUtau.exe has no command-line interface in the source read: Program.Main passes args to the UI lifetime, nothing parses them, and a second instance exits. No wiki page or README documents headless use. Documented surfaces are narrower: the USTX file format (wiki), the Phonemizer API (experimental), Editing macros (documented, GUI), the classic resampler/wavtool protocol, and a DAW integration TCP API (spec v1.2, OpenUtau as client, GUI process required, not a render command). OpenUtau.Core has no UI dependency and the repository's own test project runs it headlessly; PlaybackManager.RenderToFiles exists but depends on the DocManager singleton and a TaskScheduler, and is not documented for embedding.",
+    "events": []
+  },
+  "classification": "NOT_FOUND",
+  "classification_note": "NOT_FOUND means the documented and current sources listed here were searched and no stable or documented interface for unattended open, singer selection, render and stem export was found; it does not prove none exists. Core rendering code exists and is not documented as an embedding API.",
+  "details": {
+    "surfaces": [
+      {
+        "surface": "OpenUtau.exe command line / headless mode",
+        "class": "NOT_FOUND"
+      },
+      {
+        "surface": "USTX project file format (wiki: USTX-file-format)",
+        "class": "DOCUMENTED_EXPERIMENTAL",
+        "why": "documented but no stability promise; version drifts (wiki 0.6, release 0.7, master 0.10)"
+      },
+      {
+        "surface": "Phonemizer API (OpenUtau.Core/Api)",
+        "class": "DOCUMENTED_EXPERIMENTAL",
+        "why": "README says Experimental, subject to change; for plugin authors, not rendering"
+      },
+      {
+        "surface": "Editing macros API (OpenUtau.Core/Editing)",
+        "class": "DOCUMENTED_EXPERIMENTAL",
+        "why": "documented for in-GUI editing macros; not a render path"
+      },
+      {
+        "surface": "Classic resampler and wavtool protocol (wiki: Resamplers-and-Wavtools)",
+        "class": "DOCUMENTED_STABLE",
+        "why": "long-standing UTAU convention that OpenUtau documents; covers one stage (per-note resampling), not a render pipeline"
+      },
+      {
+        "surface": "DAW integration TCP API v1.2 (OpenUtau.Core/DawIntegration/API.md)",
+        "class": "DOCUMENTED_EXPERIMENTAL",
+        "why": "specified, loopback only, OpenUtau as client; needs a running OpenUtau GUI; no render-to-file command; presence in released 0.1.565 not verified"
+      },
+      {
+        "surface": "IRenderer / singer type interfaces (wiki: Adding-support-for-a-new-synthesis-engine)",
+        "class": "DOCUMENTED_EXPERIMENTAL",
+        "why": "documents what an engine author implements, with no stability or headless statement"
+      },
+      {
+        "surface": "OpenUtau.Core as an embedded library (RenderEngine, PlaybackManager.RenderToFiles, DocManager.Initialize)",
+        "class": "UNDOCUMENTED",
+        "why": "exists and is exercised by the repository tests, but no documentation offers it as an API; coupled to a DocManager singleton"
+      }
+    ],
+    "project_file_compatibility_evidence": "C03: a script-edited USTX loaded in 0.1.565 and rendered",
+    "unattended_rendering_evidence": "none: every render so far used the GUI",
+    "core_has_ui_dependency": false,
+    "license": "MIT (repository LICENSE)",
+    "single_instance_guard": "a second OpenUtau process exits immediately (Program.Main)",
+    "sources": [
+      "https://github.com/stakira/OpenUtau",
+      "https://github.com/stakira/OpenUtau/blob/master/OpenUtau/Program.cs",
+      "https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Core/Api/README.md",
+      "https://github.com/stakira/OpenUtau/blob/master/OpenUtau.Core/DawIntegration/API.md",
+      "https://github.com/stakira/OpenUtau/wiki/USTX-file-format",
+      "https://github.com/stakira/OpenUtau/wiki/Adding-support-for-a-new-synthesis-engine"
+    ]
+  },
+  "evidence_method": "source",
+  "requires": {
+    "voicebank": false,
+    "manual_openutau": false
+  },
+  "notes": ""
+}

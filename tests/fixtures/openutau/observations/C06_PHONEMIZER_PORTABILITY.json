@@ -1,0 +1,48 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "C06_PHONEMIZER_PORTABILITY",
+  "part": "C",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "saved projects (A13/A14); the voicebank's character.yaml; source reading",
+    "relevant_settings": {
+      "singer": {
+        "name": "ALYS DB002 FRA",
+        "installed_as": "alys-db-002-fra",
+        "version": "v1.0.0",
+        "source_repository": "https://labs.phundrak.com/ALYS/ALYS-DB-002-FRA"
+      }
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "ed613ee4d12d303d3bc66d65b2574786d343eb91"
+  },
+  "input": {
+    "description": "How phonemizer identity is stored",
+    "recipe_id": null,
+    "artifact_sha256": null
+  },
+  "expected": {
+    "summary": "A phonemizer name is not assumed portable.",
+    "events": []
+  },
+  "observed": {
+    "summary": "Track field phonemizer: OpenUtau.Core.DefaultPhonemizer. The track menu groups built-in phonemizers by language (FR: CVVC, CMUSphinx, VCCV; EN: ARPA, ARPA+, others).",
+    "events": []
+  },
+  "classification": "BENIGN_DIFFERENCE",
+  "classification_note": "A track stores the phonemizer as a fully qualified class name string (observed OpenUtau.Core.DefaultPhonemizer; a voicebank's character.yaml names OpenUtau.Plugin.Builtin.ArpasingPhonemizer in the same style). It is an application component name, not an installation path, so it is portable between machines running the same OpenUtau version. The Phonemizer API documents itself as experimental, so a class name may change between versions (unverified).",
+  "details": {
+    "stored_form": "fully qualified class name",
+    "api_status": "documented as 'Experimental. Subject to change.' in OpenUtau.Core/Api/README.md",
+    "default_when_unset": "OpenUtau.Core.DefaultPhonemizer",
+    "cross_version_stability": "unverified"
+  },
+  "evidence_method": "project_file",
+  "requires": {
+    "voicebank": true,
+    "manual_openutau": true
+  },
+  "notes": ""
+}

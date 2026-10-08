@@ -1,0 +1,49 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "C02_STABILITY",
+  "part": "C",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "documentation and source reading (wiki USTX page; Formats/USTx.cs and OpenUtau.Core.csproj in the repository, master as read)",
+    "relevant_settings": {
+      "singer": "not needed"
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "ed613ee4d12d303d3bc66d65b2574786d343eb91"
+  },
+  "input": {
+    "description": "What the file contains vs what OpenUtau promises is stable",
+    "recipe_id": null,
+    "artifact_sha256": null
+  },
+  "expected": {
+    "summary": "A readable YAML file is not a stability promise.",
+    "events": []
+  },
+  "observed": {
+    "summary": "The USTX wiki page documents fields and recommends YAML 1.2 handling (ruamel.yaml over PyYAML). The loader in the repository source sets kUstxVersion, upgrades projects with a lower ustx_version and throws 'Project file is newer than software' for a higher one. No document promises compatibility between releases.",
+    "events": []
+  },
+  "classification": "UNKNOWN",
+  "classification_note": "UNKNOWN as to any stability promise: none was found. The wiki documents the format but states no compatibility guarantee. Evidence of drift: wiki 0.6, release 0.1.565 saves 0.7, master source is 0.10. Evidence of handling: the loader upgrades older versions and refuses a file newer than the software. Not a promise, so the format is not treated as stable.",
+  "details": {
+    "sources": [
+      "https://github.com/stakira/OpenUtau/wiki/USTX-file-format",
+      "https://github.com/stakira/OpenUtau (OpenUtau.Core/Format/USTx.cs)"
+    ],
+    "loader_behaviour": {
+      "older_file": "upgraded on load",
+      "newer_file": "rejected"
+    },
+    "implication": "a generated project should target the lowest ustx_version that carries what is needed and be verified against each supported OpenUtau version",
+    "stability_promise_found": false
+  },
+  "evidence_method": "documentation",
+  "requires": {
+    "voicebank": false,
+    "manual_openutau": false
+  },
+  "notes": ""
+}

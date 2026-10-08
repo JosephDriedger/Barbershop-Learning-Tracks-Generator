@@ -1,0 +1,69 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "C01_USTX_STRUCTURE",
+  "part": "C",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "projects saved by OpenUtau 0.1.565 after File > Open of M5 MIDI (A-series), plus the USTX wiki page",
+    "relevant_settings": {
+      "singer": "not needed"
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "ed613ee4d12d303d3bc66d65b2574786d343eb91"
+  },
+  "input": {
+    "description": "USTX structure of a tiny OpenUtau-created project",
+    "recipe_id": null,
+    "artifact_sha256": null
+  },
+  "expected": {
+    "summary": "A description; classification is UNKNOWN unless a contract statement is established.",
+    "events": []
+  },
+  "observed": {
+    "summary": "A saved project is YAML (UTF-8) with ustx_version 0.7 and resolution 480. Top-level: tempos [{position, bpm}] (ticks), time_signatures [{bar_position, beat_per_bar, beat_unit}] (positions in bars), expressions, tracks, voice_parts. Each track: singer (a string id, absent when none), phonemizer (a class name string), renderer_settings {renderer}, track_name, track_color, mute, solo, volume, pan. Each voice part: name, track_no, position, duration, notes. Each note: position, duration, tone (MIDI number), lyric, pitch (points), vibrato, phoneme_expressions, phoneme_overrides; no velocity. Legacy bpm, beat_per_bar and beat_unit remain at the root (the wiki calls them deprecated); tempos is the authoritative tempo list.",
+    "events": []
+  },
+  "classification": "MATCH",
+  "classification_note": "The structure OpenUtau 0.1.565 saves matches the wiki's field descriptions; the documented version number lags the saved one (see C02).",
+  "details": {
+    "ustx_version_saved_by_0_1_565": "0.7",
+    "ustx_version_documented_on_wiki": "0.6",
+    "ustx_version_in_master_source": "0.10",
+    "resolution": 480,
+    "track_fields": [
+      "singer",
+      "phonemizer",
+      "renderer_settings",
+      "track_name",
+      "track_color",
+      "mute",
+      "solo",
+      "volume",
+      "pan",
+      "track_expressions",
+      "voice_color_names"
+    ],
+    "note_fields": [
+      "position",
+      "duration",
+      "tone",
+      "lyric",
+      "pitch",
+      "vibrato",
+      "phoneme_expressions",
+      "phoneme_overrides"
+    ],
+    "tempo_representation": "tempos list in ticks (authoritative); root bpm deprecated",
+    "meter_representation": "time_signatures list with bar_position",
+    "wiki": "https://github.com/stakira/OpenUtau/wiki/USTX-file-format"
+  },
+  "evidence_method": "project_file",
+  "requires": {
+    "voicebank": false,
+    "manual_openutau": true
+  },
+  "notes": ""
+}

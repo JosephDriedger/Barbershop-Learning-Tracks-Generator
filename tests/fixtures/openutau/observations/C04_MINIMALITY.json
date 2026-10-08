@@ -1,0 +1,41 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "C04_MINIMALITY",
+  "part": "C",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "not run",
+    "relevant_settings": {
+      "singer": "not needed"
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "ed613ee4d12d303d3bc66d65b2574786d343eb91"
+  },
+  "input": {
+    "description": "What a useful project can omit",
+    "recipe_id": null,
+    "artifact_sha256": null
+  },
+  "expected": {
+    "summary": "Decides whether generic USTX generation would improve on MIDI.",
+    "events": []
+  },
+  "observed": {
+    "summary": "Only what OpenUtau itself writes was exercised. The minimal-project question is deferred.",
+    "events": []
+  },
+  "classification": "UNKNOWN",
+  "classification_note": "Not tested in this phase. Whether a project may omit singer, expressions or renderer settings is not established beyond the observation that a track with no singer saves without one and exports an empty stem (A15). A generated project should therefore carry everything an OpenUtau-saved project carries until a minimal form is verified per version.",
+  "details": {
+    "tested": false,
+    "known": "a track without singer is accepted and renders an empty WAV silently (A15)"
+  },
+  "evidence_method": "documentation",
+  "requires": {
+    "voicebank": true,
+    "manual_openutau": true
+  },
+  "notes": ""
+}

@@ -1,0 +1,48 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "C05_SINGER_PORTABILITY",
+  "part": "C",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "saved projects after selecting an installed singer (A13); source reading of USinger/UTrack",
+    "relevant_settings": {
+      "singer": {
+        "name": "ALYS DB002 FRA",
+        "installed_as": "alys-db-002-fra",
+        "version": "v1.0.0",
+        "source_repository": "https://labs.phundrak.com/ALYS/ALYS-DB-002-FRA"
+      }
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "ed613ee4d12d303d3bc66d65b2574786d343eb91"
+  },
+  "input": {
+    "description": "How singer identity is stored",
+    "recipe_id": null,
+    "artifact_sha256": null
+  },
+  "expected": {
+    "summary": "Machine-dependent identity materially affects whether BLT should generate projects.",
+    "events": []
+  },
+  "observed": {
+    "summary": "Saved track: singer: alys-db-002-fra (folder name). The installed singers are discovered by scanning the singers directory; the track's singer is looked up by that id (UTrack.OnSingerRefreshed checks SingerManager.Inst.Singers for the id).",
+    "events": []
+  },
+  "classification": "WORKFLOW_REQUIREMENT",
+  "classification_note": "A track stores the singer as a short string id, 'alys-db-002-fra', which is the voicebank folder name inside the singers directory; no path, no hash, no display name. It resolves only if an equally named singer is installed on that machine. A generator must read the id from the user's installed singers rather than invent it, and must treat a missing singer as an error (a missing singer otherwise renders a silent stem).",
+  "details": {
+    "stored_form": "folder name id",
+    "path_stored": false,
+    "installation_specific": true,
+    "missing_singer_behaviour": "silent empty WAV on export (A15)"
+  },
+  "evidence_method": "project_file",
+  "requires": {
+    "voicebank": true,
+    "manual_openutau": true
+  },
+  "notes": ""
+}
