@@ -279,6 +279,36 @@ def repeats() -> Recipe:
     )
 
 
+def stem_alignment() -> Recipe:
+    """A16: staggered entrances at a known tempo, to see whether exported stems share the global
+    timeline origin.
+
+    120 BPM exactly (500000 us per quarter), so one beat is 0.5 s. Tenor enters at beat 0, Lead at
+    1,
+    Baritone at 2, Bass at 3. Each voice has its own short note sequence and a different final end
+    (3, 4, 5 and 6 beats) inside an 8-beat song, so leading silence, trimming and trailing padding
+    can each be told apart.
+    """
+    return build(
+        "stem_alignment",
+        "A16: 120 BPM; entrances at beats 0, 1, 2, 3; distinct note sequences ending at beats "
+        "3, 4, 5, 6 of an 8-beat song",
+        {
+            VoiceRole.TENOR: [(0, 1, 64), (1, 1, 66), (2, 1, 64)],
+            VoiceRole.LEAD: [(1, 1, 60), (2, 1, 62), (3, 1, 64)],
+            VoiceRole.BARITONE: [
+                (2, 1, 55),
+                (3, Fraction(1, 2), 57),
+                (Fraction(7, 2), Fraction(3, 2), 59),
+            ],
+            VoiceRole.BASS: [(3, 1, 48), (4, 1, 50), (5, 1, 52)],
+        },
+        measure_lengths=[4, 4],
+        tempos=[(0, 120)],
+        signatures=[(0, 4, 4)],
+    )
+
+
 def adjacent() -> Recipe:
     """Back-to-back notes: note-off and note-on at the same tick, same pitch and changed pitch."""
     pattern = (0, 0, 2, 2, 0, 0, 0, 3)
@@ -301,4 +331,5 @@ RECIPES: dict[str, Callable[[], Recipe]] = {
     "pickup": pickup,
     "repeats": repeats,
     "adjacent": adjacent,
+    "stem_alignment": stem_alignment,
 }

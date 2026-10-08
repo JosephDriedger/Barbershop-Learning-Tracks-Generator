@@ -172,6 +172,32 @@ CATALOG: tuple[Experiment, ...] = (
         ),
     ),
     _a(
+        "A16_STEM_ALIGNMENT",
+        "Do exported stems share the global timeline origin (entrance offsets preserved)?",
+        "stem_alignment",
+        (
+            "per stem: sample rate, total frames and duration",
+            "expected entrance (beat 0, 1, 2, 3 at 120 BPM = 0, 0.5, 1.0, 1.5 s) versus the "
+            "measured first non-silent region, examining the waveform envelope rather than the "
+            "first nonzero sample (synthesis attack latency, silence threshold)",
+            "expected final note end (3, 4, 5, 6 beats = 1.5, 2.0, 2.5, 3.0 s) versus the measured "
+            "last non-silent region (release tail)",
+            "does the Bass stem contain its leading silence, or does it start at its first note",
+        ),
+        extra=(
+            "File > Open the .mid; assign the singer to all four tracks; leave every track unmuted "
+            "and nothing soloed.",
+            "Export with File > Export Audio > Export Wav Files To..., then measure the WAVs.",
+        ),
+        voicebank=True,
+        criteria=(
+            "MATCH if every stem preserves the global origin (leading silence equal to its "
+            "entrance, "
+            "within synthesis latency); INTEROPERABILITY_PROBLEM if stems start at their own first "
+            "note; UNKNOWN if latency prevents a definitive conclusion."
+        ),
+    ),
+    _a(
         "A11_ADJACENT_NOTES",
         "note-off and note-on at the same tick",
         "adjacent",

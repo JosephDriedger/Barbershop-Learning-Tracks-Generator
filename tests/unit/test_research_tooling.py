@@ -142,6 +142,25 @@ def test_the_ppq_960_discriminator_is_real_production_output_at_ppq_960() -> Non
     assert BY_ID["A06_TIMING_GRID"].input_id == "grid"  # the original input is unchanged
 
 
+def test_the_stem_alignment_recipe_staggers_entrances_at_an_exact_tempo() -> None:
+    handoff = prepared("stem_alignment")
+    plan = handoff.midi.plan
+    assert [(t.bpm, t.encoded_us_per_quarter) for t in plan.tempo] == [(120, 500000)]
+    notes = [e for e in generate.part_a_expected(plan) if e["kind"] == "note"]
+    first = {
+        n["track"]: n["start_tick"]
+        for n in notes
+        if n["start_tick"] == min(m["start_tick"] for m in notes if m["track"] == n["track"])
+    }
+    assert first == {"Tenor": 0, "Lead": 480, "Baritone": 960, "Bass": 1440}  # beats 0, 1, 2, 3
+    last = {t: max(n["end_tick"] for n in notes if n["track"] == t) for t in first}
+    assert last == {"Tenor": 1440, "Lead": 1920, "Baritone": 2400, "Bass": 2880}  # beats 3, 4, 5, 6
+    assert plan.end_tick == 3840  # 8 beats: trailing silence after every voice
+    assert BY_ID["A16_STEM_ALIGNMENT"].requires_voicebank
+    sequences = {t: [n["pitch"] for n in notes if n["track"] == t] for t in first}
+    assert len({tuple(v) for v in sequences.values()}) == 4  # distinct note sequences
+
+
 def test_adjacent_notes_share_a_tick() -> None:
     notes = [
         e
