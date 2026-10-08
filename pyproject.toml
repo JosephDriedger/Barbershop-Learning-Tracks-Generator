@@ -69,5 +69,5 @@ exclude = ["^research-output/"]  # downloaded research material (git-ignored), n
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["mido", "mido.*", "defusedxml", "defusedxml.*"]
+module = ["mido", "mido.*", "defusedxml", "defusedxml.*", "yaml", "yaml.*"]
 ignore_missing_imports = true

@@ -31,9 +31,15 @@ def codes_in_source() -> set[str]:
             continue  # only ``__all__`` lists of names live there, never issue codes
         if path.name == "policy.py" and path.parent.name == "readiness":
             continue  # the registry itself is not a producer of codes
-        if path.relative_to(SRC).parts[:2] in {("core", "midi"), ("core", "handoff")}:
+        if path.relative_to(SRC).parts[:2] in {
+            ("core", "midi"),
+            ("core", "handoff"),
+            ("core", "synthesis"),
+            ("core", "runtime"),
+        }:
             # Narrow on purpose: M5 serialization/package failures are typed ``MidiExportError`` /
-            # ``HandoffError`` codes
+            # ``HandoffError`` codes (M7b: ``SynthesisPlanError`` / ``UstxError`` /
+            # ``StagingError`` likewise)
             # ("can this be serialized safely?"), not ValidationIssues ("can capability X use this
             # score?"). Every other module is still scanned, so an unclassified issue still fails.
             continue
