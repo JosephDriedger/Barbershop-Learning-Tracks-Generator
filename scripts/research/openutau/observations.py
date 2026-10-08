@@ -41,7 +41,9 @@ _ENVIRONMENT = (
     "blt_commit",
 )
 # a drive-letter path, a UNC path, or a home directory: never recorded in observations
-_PATH = re.compile(r"[A-Za-z]:[\\/]|\\\\[A-Za-z0-9_.-]+\\|(?:^|[\s\"'(])/(?:Users|home)/")
+_PATH = re.compile(
+    r"(?<![A-Za-z0-9])[A-Za-z]:[\\/](?![\\/])|\\\\[A-Za-z0-9_.-]+\\|(?:^|[\s\"'(])/(?:Users|home)/"
+)
 
 
 def template(

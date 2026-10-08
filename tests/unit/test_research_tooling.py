@@ -470,3 +470,12 @@ def test_every_committed_observation_validates_and_is_bound_to_the_current_input
         assert data["experiment_id"] == path.stem
         problems = validate(data, current_input_sha256=observe._current_hash(data))
         assert problems == [], (path.name, problems)
+
+
+def test_a_url_is_not_mistaken_for_a_local_path_but_real_paths_still_are() -> None:
+    data = valid_observation()
+    data["notes"] = "source https://labs.example.org/ALYS/DB and ftp://host/x"
+    assert validate(data) == []
+    for leak in ("C:\\Users\\me\\x", "D:/work/x", "\\\\server\\share\\x", "see /home/me/x"):
+        data["notes"] = leak
+        assert any("local path" in p for p in validate(data)), leak

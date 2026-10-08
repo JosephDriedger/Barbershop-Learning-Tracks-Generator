@@ -1,0 +1,322 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "A15_RENDER_WORKFLOW",
+  "part": "A",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "File > Open of baseline.mid; singer assigned to all four tracks; default phonemizer",
+    "relevant_settings": {
+      "singer": {
+        "name": "ALYS DB002 FRA",
+        "installed_as": "alys-db-002-fra",
+        "type": "UTAU voicebank (French)",
+        "version": "v1.0.0",
+        "source_repository": "https://labs.phundrak.com/ALYS/ALYS-DB-002-FRA",
+        "bundled_license": "ALYS Restrictive Licence 1.0 (UTAU, OpenUTAU and Plogue Alter/Ego permitted; no redistribution)",
+        "installed_through": "Tools > Install Singer (singer type utau)"
+      },
+      "renderer_after_selection": "WORLDLINE-R"
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "e243497e165ae12707c6f5781aa8a7b4fdbf08ae"
+  },
+  "input": {
+    "description": "Manual workflow for one WAV per voice",
+    "recipe_id": "baseline",
+    "artifact_sha256": "dd3053d932bfa1fb7328845b86c58ec7ca4cb7c75150e1e80b5b0304e4d60f78"
+  },
+  "expected": {
+    "summary": "MATCH if every observed value equals the expected table; BENIGN_DIFFERENCE if only the representation differs; INTEROPERABILITY_PROBLEM if any musical value is wrong or lost; UNKNOWN if it could not be established numerically.",
+    "events": [
+      {
+        "kind": "tempo",
+        "tick": 0,
+        "bpm_source": "100",
+        "us_per_quarter_exact": "600000",
+        "us_per_quarter_midi": 600000
+      },
+      {
+        "kind": "meter",
+        "tick": 0,
+        "beats": 4,
+        "beat_type": 4
+      },
+      {
+        "kind": "end",
+        "tick": 3840,
+        "ppq": 480
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 59,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 52,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 68,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 68,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 3360,
+        "end_tick": 3840,
+        "velocity": 80
+      }
+    ]
+  },
+  "observed": {
+    "summary": "File > Export Audio > Export Wav Files To... (a save dialog taking a base file name) exported one WAV per track in one operation: <base>_<TrackName>.wav, i.e. Tenor, Lead, Baritone, Bass (four files). Each is mono, 16-bit, 44100 Hz and exactly as long as its own part: Tenor 211681 frames (4.8 s, 8 notes), Lead 185221 (4.2 s, 7), Baritone 158761 (3.6 s, 6), Bass 132301 (3.0 s, 5), so the stems are not padded to the song length. The four stems differ in content, and a repeated export of the Tenor track was byte-identical. Muting a track left it out of the export (3 files); soloing a track exported only that track (1 file). A track with no singer was exported as an empty zero-frame 46-byte WAV with no error. Rendering with the default phonemizer succeeded. Other menu items (Export Wav Files, Mixdown To Wav File) were not exercised.",
+    "events": [
+      {
+        "file": "A15_stems_Tenor.wav",
+        "frames": 211681,
+        "sample_rate": 44100,
+        "channels": 1,
+        "bits": 16
+      },
+      {
+        "file": "A15_stems_Lead.wav",
+        "frames": 185221,
+        "sample_rate": 44100,
+        "channels": 1,
+        "bits": 16
+      },
+      {
+        "file": "A15_stems_Baritone.wav",
+        "frames": 158761,
+        "sample_rate": 44100,
+        "channels": 1,
+        "bits": 16
+      },
+      {
+        "file": "A15_stems_Bass.wav",
+        "frames": 132301,
+        "sample_rate": 44100,
+        "channels": 1,
+        "bits": 16
+      }
+    ]
+  },
+  "classification": "WORKFLOW_REQUIREMENT",
+  "classification_note": "A deterministic manual workflow yields one WAV stem per TTBB voice, but only after File > Open, a manual singer selection on every track, and Export Wav Files To. Stems carry no trailing silence to the song end, so a later mixing layer must pad them to the performed length. Sample-level alignment of each stem start against the MIDI timeline was not measured (UNKNOWN).",
+  "details": {
+    "menu": "File > Export Audio > Export Wav Files To...",
+    "one_operation_exports_all_tracks": true,
+    "files": 4,
+    "naming": "<base>_<TrackName>.wav (the track name is part of the file name)",
+    "mute_effect": "muted track is not exported",
+    "solo_effect": "only the soloed track is exported",
+    "singer_required_for_audio": true,
+    "track_without_singer": "empty zero-frame WAV (46 bytes), no error shown",
+    "phonemizer_required": "no (default phonemizer rendered)",
+    "render_errors": "none",
+    "render_deterministic": "Tenor stem identical across two exports",
+    "stem_length_equals_part_length": true,
+    "untested": [
+      "Export Wav Files",
+      "Mixdown To Wav File",
+      "start alignment against MIDI time",
+      "audio quality (out of scope)"
+    ]
+  },
+  "evidence_method": "project_file",
+  "requires": {
+    "voicebank": true,
+    "manual_openutau": true
+  },
+  "notes": ""
+}
