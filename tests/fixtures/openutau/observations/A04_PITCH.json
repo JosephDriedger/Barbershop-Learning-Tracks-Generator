@@ -1,0 +1,481 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "A04_PITCH",
+  "part": "A",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "File > Open of the .mid (creates a new project)",
+    "relevant_settings": {
+      "singer": "none selected",
+      "voicebank_used": false
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "1e58e57ecd61b610ec3349925f6e7ea2088a0153"
+  },
+  "input": {
+    "description": "Expected MIDI note numbers vs imported pitches (sounding pitch)",
+    "recipe_id": "pitches",
+    "artifact_sha256": "aa44a0d834f10d3b7f56c824e7967f538b6d8b3bdb748705f8264a44b4c30ee5"
+  },
+  "expected": {
+    "summary": "MATCH if every observed value equals the expected table; BENIGN_DIFFERENCE if only the representation differs; INTEROPERABILITY_PROBLEM if any musical value is wrong or lost; UNKNOWN if it could not be established numerically.",
+    "events": [
+      {
+        "kind": "tempo",
+        "tick": 0,
+        "bpm_source": "100",
+        "us_per_quarter_exact": "600000",
+        "us_per_quarter_midi": 600000
+      },
+      {
+        "kind": "meter",
+        "tick": 0,
+        "beats": 4,
+        "beat_type": 4
+      },
+      {
+        "kind": "end",
+        "tick": 5760,
+        "ppq": 480
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 52,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 53,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 36,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 40,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 43,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 47,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 59,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 71,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 72,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 47,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 83,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 84,
+        "start_tick": 3360,
+        "end_tick": 3840,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 61,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 63,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 65,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 67,
+        "start_tick": 3360,
+        "end_tick": 3840,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 68,
+        "start_tick": 3840,
+        "end_tick": 4320,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 69,
+        "start_tick": 4320,
+        "end_tick": 4800,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 70,
+        "start_tick": 4800,
+        "end_tick": 5280,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 71,
+        "start_tick": 5280,
+        "end_tick": 5760,
+        "velocity": 80
+      }
+    ]
+  },
+  "observed": {
+    "summary": "All 28 notes of the pitches artifact imported with the expected sounding MIDI note numbers, including the octave boundaries 59/60, 71/72, 47/48, 83/84, the low extremes 36..47, and the transposed Baritone (written C4.. sounding 48, 50, 52, 53). Compared by script against the expected table: 0 differences.",
+    "events": [
+      {
+        "track_no": 0,
+        "position": 0,
+        "duration": 480,
+        "tone": 60,
+        "lyric": "a"
+      },
+      {
+        "track_no": 0,
+        "position": 480,
+        "duration": 480,
+        "tone": 61,
+        "lyric": "a"
+      },
+      {
+        "track_no": 0,
+        "position": 960,
+        "duration": 480,
+        "tone": 62,
+        "lyric": "a"
+      },
+      {
+        "track_no": 0,
+        "position": 1440,
+        "duration": 480,
+        "tone": 63,
+        "lyric": "a"
+      },
+      {
+        "track_no": 0,
+        "position": 1920,
+        "duration": 480,
+        "tone": 64,
+        "lyric": "a"
+      },
+      {
+        "track_no": 0,
+        "position": 2400,
+        "duration": 480,
+        "tone": 65,
+        "lyric": "a"
+      },
+      {
+        "track_no": 0,
+        "position": 2880,
+        "duration": 480,
+        "tone": 66,
+        "lyric": "a"
+      },
+      {
+        "track_no": 0,
+        "position": 3360,
+        "duration": 480,
+        "tone": 67,
+        "lyric": "a"
+      },
+      {
+        "track_no": 0,
+        "position": 3840,
+        "duration": 480,
+        "tone": 68,
+        "lyric": "a"
+      },
+      {
+        "track_no": 0,
+        "position": 4320,
+        "duration": 480,
+        "tone": 69,
+        "lyric": "a"
+      },
+      {
+        "track_no": 0,
+        "position": 4800,
+        "duration": 480,
+        "tone": 70,
+        "lyric": "a"
+      },
+      {
+        "track_no": 0,
+        "position": 5280,
+        "duration": 480,
+        "tone": 71,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 0,
+        "duration": 480,
+        "tone": 59,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 480,
+        "duration": 480,
+        "tone": 60,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 960,
+        "duration": 480,
+        "tone": 71,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 1440,
+        "duration": 480,
+        "tone": 72,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 1920,
+        "duration": 480,
+        "tone": 47,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 2400,
+        "duration": 480,
+        "tone": 48,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 2880,
+        "duration": 480,
+        "tone": 83,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 3360,
+        "duration": 480,
+        "tone": 84,
+        "lyric": "a"
+      },
+      {
+        "track_no": 2,
+        "position": 0,
+        "duration": 480,
+        "tone": 48,
+        "lyric": "a"
+      },
+      {
+        "track_no": 2,
+        "position": 480,
+        "duration": 480,
+        "tone": 50,
+        "lyric": "a"
+      },
+      {
+        "track_no": 2,
+        "position": 960,
+        "duration": 480,
+        "tone": 52,
+        "lyric": "a"
+      },
+      {
+        "track_no": 2,
+        "position": 1440,
+        "duration": 480,
+        "tone": 53,
+        "lyric": "a"
+      },
+      {
+        "track_no": 3,
+        "position": 0,
+        "duration": 480,
+        "tone": 36,
+        "lyric": "a"
+      },
+      {
+        "track_no": 3,
+        "position": 480,
+        "duration": 480,
+        "tone": 40,
+        "lyric": "a"
+      },
+      {
+        "track_no": 3,
+        "position": 960,
+        "duration": 480,
+        "tone": 43,
+        "lyric": "a"
+      },
+      {
+        "track_no": 3,
+        "position": 1440,
+        "duration": 480,
+        "tone": 47,
+        "lyric": "a"
+      }
+    ]
+  },
+  "classification": "MATCH",
+  "classification_note": "0 differences between expected sounding pitches and imported tone values.",
+  "details": {
+    "differences": 0
+  },
+  "evidence_method": "project_file",
+  "requires": {
+    "voicebank": false,
+    "manual_openutau": true
+  },
+  "notes": ""
+}

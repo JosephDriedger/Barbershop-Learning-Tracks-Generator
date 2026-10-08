@@ -1,0 +1,282 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "A06_TIMING_GRID_PPQ960",
+  "part": "A",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "File > Open of the .mid (creates a new project)",
+    "relevant_settings": {
+      "singer": "none selected",
+      "voicebank_used": false
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "1e58e57ecd61b610ec3349925f6e7ea2088a0153"
+  },
+  "input": {
+    "description": "PPQ discriminator: ticks copied, rescaled exactly, or rounded",
+    "recipe_id": "grid_ppq960",
+    "artifact_sha256": "c302f9448487ec356b9799bce96579bed2d3b01bdc212be386a11b6a55fb0bdc"
+  },
+  "expected": {
+    "summary": "MATCH if every observed value equals the expected table; BENIGN_DIFFERENCE if only the representation differs; INTEROPERABILITY_PROBLEM if any musical value is wrong or lost; UNKNOWN if it could not be established numerically.",
+    "events": [
+      {
+        "kind": "tempo",
+        "tick": 0,
+        "bpm_source": "100",
+        "us_per_quarter_exact": "600000",
+        "us_per_quarter_midi": 600000
+      },
+      {
+        "kind": "meter",
+        "tick": 0,
+        "beats": 4,
+        "beat_type": 4
+      },
+      {
+        "kind": "end",
+        "tick": 7680,
+        "ppq": 960
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 0,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 3840,
+        "end_tick": 4800,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 0,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 3840,
+        "end_tick": 4800,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 0,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 65,
+        "start_tick": 1920,
+        "end_tick": 2240,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 2240,
+        "end_tick": 2560,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 67,
+        "start_tick": 2560,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 2880,
+        "end_tick": 2895,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 2895,
+        "end_tick": 2940,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 2940,
+        "end_tick": 2970,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 65,
+        "start_tick": 3840,
+        "end_tick": 4400,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 0,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 3840,
+        "end_tick": 4800,
+        "velocity": 80
+      }
+    ]
+  },
+  "observed": {
+    "summary": "USTX resolution is 480. OpenUtau 0.1.565 rescaled the PPQ-960 musical timing onto its 480-per-quarter grid rather than copying the source ticks: 960 became 480, 320 became 160, 560 became 280, 30 became 15. Positions that map exactly onto the 480 grid were preserved exactly (musical position tick/960 equals position/480). Tested positions needing fractional project ticks were not preserved exactly: start 2895 (1447.5) became 1447; duration 45 (22.5) became 22; duration 15 (7.5) became 10. Reproduced identically in a second import.",
+    "events": [
+      {
+        "track_no": 1,
+        "position": 0,
+        "duration": 480,
+        "tone": 60,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 480,
+        "duration": 240,
+        "tone": 62,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 720,
+        "duration": 240,
+        "tone": 64,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 960,
+        "duration": 160,
+        "tone": 65,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 1120,
+        "duration": 160,
+        "tone": 66,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 1280,
+        "duration": 160,
+        "tone": 67,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 1440,
+        "duration": 10,
+        "tone": 60,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 1447,
+        "duration": 22,
+        "tone": 62,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 1470,
+        "duration": 15,
+        "tone": 64,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 1920,
+        "duration": 280,
+        "tone": 65,
+        "lyric": "a"
+      }
+    ]
+  },
+  "classification": "INTEROPERABILITY_PROBLEM",
+  "classification_note": "OpenUtau 0.1.565 imports MIDI musical timing into a project with resolution 480. PPQ-960 positions that map exactly onto that grid were preserved exactly; tested positions requiring fractional project ticks were not. Fractional project-tick timing was not preserved: some tested values were truncated downward (1447.5 to 1447, 22.5 to 22), while a 7.5-tick duration became 10, suggesting an additional minimum-duration rule that was not isolated here (UNKNOWN; no universal rounding algorithm is claimed). This is a statement about the tested version, not a general claim that PPQs other than 480 lose precision.",
+  "details": {
+    "openutau_resolution": 480,
+    "midi_ppq": 960,
+    "rescales_musical_position": true,
+    "exact": [
+      "0+960 -> 0+480",
+      "960+480 -> 480+240",
+      "1920+320 -> 960+160",
+      "3840+560 -> 1920+280",
+      "2940+30 -> 1470+15"
+    ],
+    "not_exact": [
+      {
+        "midi": "2880+15",
+        "openutau": "1440+10",
+        "exact_would_be": "1440+7.5"
+      },
+      {
+        "midi": "2895+45",
+        "openutau": "1447+22",
+        "exact_would_be": "1447.5+22.5"
+      }
+    ],
+    "minimum_duration_rule": "UNKNOWN (not isolated)",
+    "reproduced": true
+  },
+  "evidence_method": "project_file",
+  "requires": {
+    "voicebank": false,
+    "manual_openutau": true
+  },
+  "notes": ""
+}

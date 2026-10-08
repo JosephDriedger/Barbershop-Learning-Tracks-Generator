@@ -1,0 +1,419 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "A09_PICKUP",
+  "part": "A",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "File > Open of the .mid (creates a new project)",
+    "relevant_settings": {
+      "singer": "none selected",
+      "voicebank_used": false
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "1e58e57ecd61b610ec3349925f6e7ea2088a0153"
+  },
+  "input": {
+    "description": "Pickup timing and what happens to the pickup concept",
+    "recipe_id": "pickup",
+    "artifact_sha256": "2b90fbab7476df818b62560fe71c21c2b13a0d55f00f9c3f04aad83350c4d710"
+  },
+  "expected": {
+    "summary": "MATCH if every observed value equals the expected table; BENIGN_DIFFERENCE if only the representation differs; INTEROPERABILITY_PROBLEM if any musical value is wrong or lost; UNKNOWN if it could not be established numerically.",
+    "events": [
+      {
+        "kind": "tempo",
+        "tick": 0,
+        "bpm_source": "100",
+        "us_per_quarter_exact": "600000",
+        "us_per_quarter_midi": 600000
+      },
+      {
+        "kind": "meter",
+        "tick": 0,
+        "beats": 4,
+        "beat_type": 4
+      },
+      {
+        "kind": "end",
+        "tick": 4320,
+        "ppq": 480
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 59,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 59,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 3360,
+        "end_tick": 3840,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 3840,
+        "end_tick": 4320,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 52,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 52,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 3360,
+        "end_tick": 3840,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 3840,
+        "end_tick": 4320,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 3360,
+        "end_tick": 3840,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 3840,
+        "end_tick": 4320,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 68,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 68,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 3360,
+        "end_tick": 3840,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 3840,
+        "end_tick": 4320,
+        "velocity": 80
+      }
+    ]
+  },
+  "observed": {
+    "summary": "Note timing is exact (0 differences; the first note at 0, the next at 480). The project has one 4/4 time signature at bar 0 and no notion of an implicit or pickup measure, so OpenUtau's barlines fall at ticks 0, 1920, ... while the score's first full bar starts at tick 480.",
+    "events": [
+      {
+        "track_no": 1,
+        "position": 0,
+        "duration": 480,
+        "tone": 60,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 480,
+        "duration": 480,
+        "tone": 62,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 960,
+        "duration": 480,
+        "tone": 64,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 1440,
+        "duration": 480,
+        "tone": 62,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 1920,
+        "duration": 480,
+        "tone": 60,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 2400,
+        "duration": 480,
+        "tone": 62,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 2880,
+        "duration": 480,
+        "tone": 64,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 3360,
+        "duration": 480,
+        "tone": 62,
+        "lyric": "a"
+      },
+      {
+        "track_no": 1,
+        "position": 3840,
+        "duration": 480,
+        "tone": 60,
+        "lyric": "a"
+      }
+    ]
+  },
+  "classification": "BENIGN_DIFFERENCE",
+  "classification_note": "Musical timing survived; notation-level pickup identity did not (M5 documents this). The one-beat displacement of OpenUtau barlines relative to the score is a consequence of losing pickup semantics and is benign unless later rendering depends on measure numbering.",
+  "details": {
+    "time_signatures": [
+      {
+        "bar_position": 0,
+        "beat_per_bar": 4,
+        "beat_unit": 4
+      }
+    ],
+    "differences": 0
+  },
+  "evidence_method": "project_file",
+  "requires": {
+    "voicebank": false,
+    "manual_openutau": true
+  },
+  "notes": ""
+}

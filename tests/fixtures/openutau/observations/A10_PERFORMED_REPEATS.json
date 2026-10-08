@@ -1,0 +1,731 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "A10_PERFORMED_REPEATS",
+  "part": "A",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "File > Open of the .mid (creates a new project)",
+    "relevant_settings": {
+      "singer": "none selected",
+      "voicebank_used": false
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "1e58e57ecd61b610ec3349925f6e7ea2088a0153"
+  },
+  "input": {
+    "description": "Performed (repeat-expanded) sequence",
+    "recipe_id": "repeats",
+    "artifact_sha256": "8e97b90e63e750415694255c95bdefb21cbbfb6b31f9e8d0e38e82c5a8cd2af2"
+  },
+  "expected": {
+    "summary": "MATCH if every observed value equals the expected table; BENIGN_DIFFERENCE if only the representation differs; INTEROPERABILITY_PROBLEM if any musical value is wrong or lost; UNKNOWN if it could not be established numerically.",
+    "events": [
+      {
+        "kind": "tempo",
+        "tick": 0,
+        "bpm_source": "100",
+        "us_per_quarter_exact": "600000",
+        "us_per_quarter_midi": 600000
+      },
+      {
+        "kind": "tempo",
+        "tick": 3840,
+        "bpm_source": "100",
+        "us_per_quarter_exact": "600000",
+        "us_per_quarter_midi": 600000
+      },
+      {
+        "kind": "meter",
+        "tick": 0,
+        "beats": 4,
+        "beat_type": 4
+      },
+      {
+        "kind": "meter",
+        "tick": 3840,
+        "beats": 4,
+        "beat_type": 4
+      },
+      {
+        "kind": "end",
+        "tick": 9600,
+        "ppq": 480
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 3360,
+        "end_tick": 3840,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 3840,
+        "end_tick": 4320,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 4320,
+        "end_tick": 4800,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 4800,
+        "end_tick": 5280,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 5280,
+        "end_tick": 5760,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 5760,
+        "end_tick": 6240,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 6240,
+        "end_tick": 6720,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 6720,
+        "end_tick": 7200,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 7200,
+        "end_tick": 7680,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 59,
+        "start_tick": 7680,
+        "end_tick": 8160,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 59,
+        "start_tick": 8160,
+        "end_tick": 8640,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 59,
+        "start_tick": 8640,
+        "end_tick": 9120,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 59,
+        "start_tick": 9120,
+        "end_tick": 9600,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 3360,
+        "end_tick": 3840,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 3840,
+        "end_tick": 4320,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 4320,
+        "end_tick": 4800,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 4800,
+        "end_tick": 5280,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 5280,
+        "end_tick": 5760,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 5760,
+        "end_tick": 6240,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 6240,
+        "end_tick": 6720,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 6720,
+        "end_tick": 7200,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 7200,
+        "end_tick": 7680,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 52,
+        "start_tick": 7680,
+        "end_tick": 8160,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 52,
+        "start_tick": 8160,
+        "end_tick": 8640,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 52,
+        "start_tick": 8640,
+        "end_tick": 9120,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 52,
+        "start_tick": 9120,
+        "end_tick": 9600,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 3360,
+        "end_tick": 3840,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 3840,
+        "end_tick": 4320,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 4320,
+        "end_tick": 4800,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 4800,
+        "end_tick": 5280,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 5280,
+        "end_tick": 5760,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 5760,
+        "end_tick": 6240,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 6240,
+        "end_tick": 6720,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 6720,
+        "end_tick": 7200,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 7200,
+        "end_tick": 7680,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 7680,
+        "end_tick": 8160,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 8160,
+        "end_tick": 8640,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 8640,
+        "end_tick": 9120,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 9120,
+        "end_tick": 9600,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 2880,
+        "end_tick": 3360,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 3360,
+        "end_tick": 3840,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 3840,
+        "end_tick": 4320,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 4320,
+        "end_tick": 4800,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 4800,
+        "end_tick": 5280,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 5280,
+        "end_tick": 5760,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 5760,
+        "end_tick": 6240,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 6240,
+        "end_tick": 6720,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 6720,
+        "end_tick": 7200,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 7200,
+        "end_tick": 7680,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 68,
+        "start_tick": 7680,
+        "end_tick": 8160,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 68,
+        "start_tick": 8160,
+        "end_tick": 8640,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 68,
+        "start_tick": 8640,
+        "end_tick": 9120,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 68,
+        "start_tick": 9120,
+        "end_tick": 9600,
+        "velocity": 80
+      }
+    ]
+  },
+  "observed": {
+    "summary": "All notes appear at the performed (expanded) positions: 0 differences against the expected table (end tick 9600). The repeated explicit tempo (100 at tick 3840) and meter (4/4 at tick 3840) declarations are not present: the project holds one tempo [100 at 0] and one time signature [4/4 at bar 0].",
+    "events": [
+      {
+        "position": 0,
+        "bpm": 100
+      }
+    ]
+  },
+  "classification": "BENIGN_DIFFERENCE",
+  "classification_note": "OpenUtau deduplicated the equivalent repeated tempo and meter declarations; effective tempo and meter are unchanged.",
+  "details": {
+    "tempos": [
+      {
+        "position": 0,
+        "bpm": 100
+      }
+    ],
+    "time_signatures": [
+      {
+        "bar_position": 0,
+        "beat_per_bar": 4,
+        "beat_unit": 4
+      }
+    ],
+    "note_differences": 0
+  },
+  "evidence_method": "project_file",
+  "requires": {
+    "voicebank": false,
+    "manual_openutau": true
+  },
+  "notes": ""
+}

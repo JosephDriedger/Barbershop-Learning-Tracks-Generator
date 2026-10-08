@@ -459,3 +459,14 @@ def test_the_tempo_expectation_keeps_source_exact_and_encoded_apart() -> None:
     assert rounded["bpm_source"] == "90"
     assert rounded["us_per_quarter_exact"] == "2000000/3"
     assert rounded["us_per_quarter_midi"] == 666667
+
+
+def test_every_committed_observation_validates_and_is_bound_to_the_current_input() -> None:
+    folder = ROOT / "tests" / "fixtures" / "openutau" / "observations"
+    files = sorted(folder.glob("*.json"))
+    assert files, "no committed observations"
+    for path in files:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        assert data["experiment_id"] == path.stem
+        problems = validate(data, current_input_sha256=observe._current_hash(data))
+        assert problems == [], (path.name, problems)
