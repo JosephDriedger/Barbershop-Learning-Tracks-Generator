@@ -1,0 +1,109 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "B05_MELISMA_HYPHEN",
+  "part": "B",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "File > Open of the experimental .mid (no singer selected, no voicebank used)",
+    "relevant_settings": {
+      "singer": "none selected",
+      "voicebank_used": false,
+      "ustx_resolution": 480
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "8824b5ba64de58856566dffb8927e0acfdd57849"
+  },
+  "input": {
+    "description": "Melisma, first syllable then -, -",
+    "recipe_id": "B05_MELISMA_HYPHEN",
+    "artifact_sha256": "571005b938410d5821f73780f0d73babb1a3bc60956e303d63a9f92387d0e877"
+  },
+  "expected": {
+    "summary": "MATCH if each imported lyric equals the lyric event sent and continuation tokens behave as the contract needs; otherwise classify what differs (BENIGN_DIFFERENCE, INTEROPERABILITY_PROBLEM) with the exact strings in details.",
+    "events": [
+      {
+        "track": "Lead",
+        "kind": "lyric_note",
+        "pitch": 60,
+        "start_tick": 0,
+        "end_tick": 480,
+        "lyric": "won"
+      },
+      {
+        "track": "Lead",
+        "kind": "lyric_note",
+        "pitch": 62,
+        "start_tick": 480,
+        "end_tick": 960,
+        "lyric": "-"
+      },
+      {
+        "track": "Lead",
+        "kind": "lyric_note",
+        "pitch": 64,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "lyric": "-"
+      }
+    ]
+  },
+  "observed": {
+    "summary": "3 notes: sent won, -, -; imported won, +, +.",
+    "events": [
+      {
+        "track": "Lead",
+        "kind": "lyric_note",
+        "pitch": 60,
+        "start_tick": 0,
+        "end_tick": 480,
+        "lyric": "won"
+      },
+      {
+        "track": "Lead",
+        "kind": "lyric_note",
+        "pitch": 62,
+        "start_tick": 480,
+        "end_tick": 960,
+        "lyric": "+"
+      },
+      {
+        "track": "Lead",
+        "kind": "lyric_note",
+        "pitch": 64,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "lyric": "+"
+      }
+    ]
+  },
+  "classification": "BENIGN_DIFFERENCE",
+  "classification_note": "A lyric event that is exactly '-' was normalized to '+' on import (not to '+~', which earlier project notes had assumed). It is a substitution by OpenUtau; BLT should not rely on '-'. A trailing hyphen inside a word (B09 'well-') is not affected. The MIDI is an experimental probe written with mido (a lyric meta event at the note's own tick, before its note-on), not BLT output; BLT does not emit lyric events.",
+  "details": {
+    "differences_vs_sent": [
+      "event 1 lyric: expected '-', observed '+'",
+      "event 2 lyric: expected '-', observed '+'"
+    ],
+    "notes_sent": 3,
+    "notes_imported": 3,
+    "timing_and_pitch_preserved": true,
+    "sent_lyrics": [
+      "won",
+      "-",
+      "-"
+    ],
+    "imported_lyrics": [
+      "won",
+      "+",
+      "+"
+    ],
+    "normalization": "'-' -> '+'"
+  },
+  "evidence_method": "project_file",
+  "requires": {
+    "voicebank": false,
+    "manual_openutau": true
+  },
+  "notes": ""
+}
