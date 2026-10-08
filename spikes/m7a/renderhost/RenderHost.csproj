@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    M7a feasibility spike. Throwaway research code, NOT production and NOT built in CI.
+    References the pinned OpenUtau source checked out by hand into the git-ignored research-output
+    directory (release 0.1.565, commit a60ca5830b9064556157245d4bf8f5920d93e5f8).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>blt-spike-renderhost</AssemblyName>
+    <RootNamespace>BltSpike</RootNamespace>
+    <OpenUtauSrc Condition="'$(OpenUtauSrc)' == ''">$(MSBuildThisFileDirectory)..\..\..\research-output\spike\OpenUtau-src</OpenUtauSrc>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- the native resampler the GUI project copies beside the app (win-x64 only for this spike) -->
+    <None Include="$(OpenUtauSrc)\runtimes\win-x64\native\worldline.dll" Link="worldline.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(OpenUtauSrc)\OpenUtau.Core\OpenUtau.Core.csproj" />
+    <ProjectReference Include="$(OpenUtauSrc)\OpenUtau.Plugin.Builtin\OpenUtau.Plugin.Builtin.csproj" />
+  </ItemGroup>
+
+</Project>

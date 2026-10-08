@@ -256,3 +256,7 @@ ffmpeg/
 
 # --- M6 research output (generated MIDI/USTX/WAV experiments; never committed) ---
 research-output/
+
+# --- M7a spike build output ---
+spikes/**/bin/
+spikes/**/obj/

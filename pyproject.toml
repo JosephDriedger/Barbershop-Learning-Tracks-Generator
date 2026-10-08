@@ -65,6 +65,7 @@ python_version = "3.12"
 strict = true
 files = ["src", "tests", "scripts"]
 mypy_path = ["tests", "scripts/research/openutau"]
+exclude = ["^research-output/"]  # downloaded research material (git-ignored), never our code
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
