@@ -1,0 +1,231 @@
+{
+  "schema": "barbershop-tracks.research.openutau/1",
+  "experiment_id": "A16_STEM_ALIGNMENT",
+  "part": "A",
+  "environment": {
+    "openutau_version": "0.1.565",
+    "openutau_build": "0.1.565+a60ca5830b9064556157245d4bf8f5920d93e5f8",
+    "platform": "Windows 11",
+    "import_method": "File > Open of stem_alignment.mid; ALYS assigned to all four tracks; all tracks unmuted, none soloed; File > Export Audio > Export Wav Files To...",
+    "relevant_settings": {
+      "singer": {
+        "name": "ALYS DB002 FRA",
+        "installed_as": "alys-db-002-fra",
+        "type": "UTAU voicebank (French)",
+        "version": "v1.0.0",
+        "source_repository": "https://labs.phundrak.com/ALYS/ALYS-DB-002-FRA"
+      },
+      "renderer": "WORLDLINE-R",
+      "phonemizer": "OpenUtau.Core.DefaultPhonemizer",
+      "tempo_bpm": 120
+    },
+    "blt_version": "0.1.0",
+    "blt_commit": "3328d167f880c92d20a330b4064ba6ce1f2bd926"
+  },
+  "input": {
+    "description": "Do exported stems share the global timeline origin (entrance offsets preserved)?",
+    "recipe_id": "stem_alignment",
+    "artifact_sha256": "bcead0a65a317364da29ff52e1b4522b4ce2e22dea53621d5837cc06768380eb"
+  },
+  "expected": {
+    "summary": "MATCH if every stem preserves the global origin (leading silence equal to its entrance, within synthesis latency); INTEROPERABILITY_PROBLEM if stems start at their own first note; UNKNOWN if latency prevents a definitive conclusion.",
+    "events": [
+      {
+        "kind": "tempo",
+        "tick": 0,
+        "bpm_source": "120",
+        "us_per_quarter_exact": "500000",
+        "us_per_quarter_midi": 500000
+      },
+      {
+        "kind": "meter",
+        "tick": 0,
+        "beats": 4,
+        "beat_type": 4
+      },
+      {
+        "kind": "end",
+        "tick": 3840,
+        "ppq": 480
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 55,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 57,
+        "start_tick": 1440,
+        "end_tick": 1680,
+        "velocity": 80
+      },
+      {
+        "track": "Baritone",
+        "kind": "note",
+        "pitch": 59,
+        "start_tick": 1680,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 48,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 50,
+        "start_tick": 1920,
+        "end_tick": 2400,
+        "velocity": 80
+      },
+      {
+        "track": "Bass",
+        "kind": "note",
+        "pitch": 52,
+        "start_tick": 2400,
+        "end_tick": 2880,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 60,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 62,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      },
+      {
+        "track": "Lead",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 1440,
+        "end_tick": 1920,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 0,
+        "end_tick": 480,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 66,
+        "start_tick": 480,
+        "end_tick": 960,
+        "velocity": 80
+      },
+      {
+        "track": "Tenor",
+        "kind": "note",
+        "pitch": 64,
+        "start_tick": 960,
+        "end_tick": 1440,
+        "velocity": 80
+      }
+    ]
+  },
+  "observed": {
+    "summary": "All four stems share the global timeline origin: each is mono 16-bit 44.1 kHz and its length equals its last note end on the global timeline (1.5, 2.0, 2.5, 3.0 s at 120 BPM, within one frame), so leading silence is preserved and nothing is trimmed to the first note. The Lead, Baritone and Bass stems contain exact digital silence (all-zero samples) until 0.4000, 0.9000 and 1.4000 s: their audio begins about 0.1 s (measured 93 to 97 ms from a 2 ms RMS onset) before the expected entrance at 0.5, 1.0 and 1.5 s. The Tenor, whose entrance is at 0, has audio from the first sample. No stem extends to the 4.0 s song end, and none has a tail beyond its last note end.",
+    "events": [
+      {
+        "track": "Tenor",
+        "sample_rate": 44100,
+        "frames": 66151,
+        "duration_s": 1.5,
+        "expected_entrance_s": 0.0,
+        "first_nonzero_sample_s": 0.0,
+        "first_audio_region_s": 0.0,
+        "expected_final_end_s": 1.5,
+        "last_audio_region_end_s": 1.5
+      },
+      {
+        "track": "Lead",
+        "sample_rate": 44100,
+        "frames": 88201,
+        "duration_s": 2.0,
+        "expected_entrance_s": 0.5,
+        "first_nonzero_sample_s": 0.4,
+        "first_audio_region_s": 0.4031,
+        "expected_final_end_s": 2.0,
+        "last_audio_region_end_s": 2.0
+      },
+      {
+        "track": "Baritone",
+        "sample_rate": 44100,
+        "frames": 110251,
+        "duration_s": 2.5,
+        "expected_entrance_s": 1.0,
+        "first_nonzero_sample_s": 0.9,
+        "first_audio_region_s": 0.9039,
+        "expected_final_end_s": 2.5,
+        "last_audio_region_end_s": 2.5
+      },
+      {
+        "track": "Bass",
+        "sample_rate": 44100,
+        "frames": 132301,
+        "duration_s": 3.0,
+        "expected_entrance_s": 1.5,
+        "first_nonzero_sample_s": 1.4,
+        "first_audio_region_s": 1.4068,
+        "expected_final_end_s": 3.0,
+        "last_audio_region_end_s": 3.0
+      }
+    ]
+  },
+  "classification": "MATCH",
+  "classification_note": "Stems preserve the global timeline origin for OpenUtau 0.1.565 with this bank: leading silence equals the entrance (minus a roughly 0.1 s early onset that is a synthesis property), and stems end at their own last note end, so a mixer needs to pad the end to the performed length and needs no per-stem start offsets for origin. UNKNOWN, not resolved: the cause of the roughly 0.1 s early onset (consistent with UTAU preutterance but not verified, and singer dependent); and whether the Tenor first note, which starts at time 0, is clipped or shifted rather than having the same pre-note region.",
+  "details": {
+    "tempo_bpm": 120,
+    "seconds_per_beat": 0.5,
+    "song_length_beats": 8,
+    "stems_preserve_global_origin": true,
+    "leading_silence_is_exact_zero_samples": {
+      "Lead": true,
+      "Baritone": true,
+      "Bass": true
+    },
+    "measured_onset_offset_vs_entrance_s": {
+      "Lead": -0.0969,
+      "Baritone": -0.0961,
+      "Bass": -0.0932
+    },
+    "stem_length_equals_last_note_end": true,
+    "stem_reaches_song_end": false,
+    "end_padding_needed_to_reach_performed_length": true,
+    "start_offsets_needed_for_global_origin": false,
+    "unknown": [
+      "cause of the ~0.1 s early onset (not verified; singer dependent)",
+      "first note at time 0: clipped or shifted"
+    ],
+    "measurement": "wave samples read directly; 10 ms and 2 ms RMS windows; first nonzero sample; thresholds 1, 5 and 10 percent of peak RMS gave identical first regions"
+  },
+  "evidence_method": "project_file",
+  "requires": {
+    "voicebank": true,
+    "manual_openutau": true
+  },
+  "notes": ""
+}

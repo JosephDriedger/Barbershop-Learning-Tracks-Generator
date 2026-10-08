@@ -96,3 +96,29 @@ Facts, as separate statements about OpenUtau 0.1.565:
 Sample-level alignment of each stem with the MIDI timeline (A16); suitability of the default
 phonemizer for real lyrics; the effect of a manually selected phonemizer; the `Export Wav Files` and
 `Mixdown To Wav File` items; and whether the MIDI channel influences import.
+
+# A16: stem alignment
+
+`A16_STEM_ALIGNMENT`: MATCH, for **timeline-origin preservation only**, not sample-accurate synthesis
+onset. In OpenUtau 0.1.565 with ALYS DB002 FRA (120 BPM, entrances at beats 0, 1, 2, 3):
+
+- every exported WAV shares the global timeline origin: leading silence of the later-entering voices
+  is kept (exact zero samples) and stems are not trimmed to their first note;
+- each stem ends at about its last note's global end (1.5, 2.0, 2.5, 3.0 s), so stems do not extend
+  to the full performed song duration (4.0 s here);
+- audio begins about 0.1 s before the expected entrance (Lead about 0.4 s instead of 0.5 s, Baritone
+  about 0.9 s instead of 1.0 s, Bass about 1.4 s instead of 1.5 s). The cause is **UNKNOWN**: UTAU
+  preutterance is plausible but unverified. BLT must not introduce an automatic 100 ms shift, and this
+  is not evidence that all voicebanks share the offset;
+- the Tenor's first note at time zero is an unresolved boundary case (clipped or shifted).
+
+## Future mixer requirements (nothing implemented in M6)
+
+1. Preserve each WAV's existing global timeline origin.
+2. Do not trim leading silence.
+3. Do not shift stems based on a detected audio onset.
+4. Pad shorter stems at the end to the full performed score duration, not merely the longest stem.
+5. Validate each required stem before mixing.
+6. Detect missing, empty, truncated or otherwise unusable stems.
+7. Account explicitly for synthesis latency and release behaviour if later testing establishes that
+   they affect correctness.
