@@ -32,3 +32,23 @@ jobs:
         run: barbershop-tracks --version
       - name: GUI entry point
         run: barbershop-tracks-gui --smoke-test
+
+  render-host:
+    # Builds the production render host against the pinned OpenUtau source and runs the tests that
+    # drive the real host with a generated synthetic voicebank (no user voicebank involved).
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Build the render host (pinned OpenUtau 0.1.565)
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File host/build.ps1
+      - name: Host and rendering tests
+        run: pytest -m integration tests/integration

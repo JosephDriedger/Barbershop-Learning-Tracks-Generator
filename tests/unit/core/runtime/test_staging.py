@@ -14,8 +14,15 @@ from barbershop_tracks.core.runtime import (
 
 def test_layout_separates_roles(tmp_path: Path) -> None:
     layout = RuntimeLayout.under(tmp_path / "bin", tmp_path / "data")
-    roles = {layout.binaries, layout.singers, layout.cache, layout.staging, layout.outputs}
-    assert len(roles) == 5
+    roles = {
+        layout.binaries,
+        layout.runtime,
+        layout.singers,
+        layout.cache,
+        layout.staging,
+        layout.outputs,
+    }
+    assert len(roles) == 6
     assert layout.singers.parent == layout.data
 
 

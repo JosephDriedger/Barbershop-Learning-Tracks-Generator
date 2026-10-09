@@ -1,6 +1,8 @@
 """The on-disk layout BLT uses. Nothing here creates directories; callers do, on demand.
 
 * ``binaries``: read-only, shipped with the application (render host, native libraries).
+* ``runtime``: writable per-version copies of the host binaries (see ``host_install``);
+  OpenUtau.Core keeps its cache, prefs and logs beside the executable it runs from.
 * ``singers``: user-installed voicebanks; BLT never copies or ships them.
 * ``cache``: reproducible render cache (safe to delete).
 * ``staging``: per-job scratch directories, a sibling of ``outputs`` so that publication is a
@@ -20,6 +22,7 @@ APP_NAME = "BarbershopLearningTracks"
 class RuntimeLayout:
     binaries: Path
     data: Path
+    runtime: Path
     singers: Path
     cache: Path
     staging: Path
@@ -30,6 +33,7 @@ class RuntimeLayout:
         return cls(
             binaries=binaries,
             data=data,
+            runtime=data / "runtime",
             singers=data / "singers",
             cache=cache if cache is not None else data / "cache",
             staging=data / "staging",

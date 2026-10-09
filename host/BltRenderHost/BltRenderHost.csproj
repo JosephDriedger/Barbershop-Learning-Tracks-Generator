@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    BLT's unattended OpenUtau render host (M8). References the PINNED OpenUtau source checkout
+    (release 0.1.565, commit a60ca5830b9064556157245d4bf8f5920d93e5f8); host/build.ps1 fetches and
+    verifies it, then passes -p:OpenUtauSrc and -p:OpenUtauCommit. Nothing from OpenUtau is committed.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>blt-render-host</AssemblyName>
+    <RootNamespace>Blt.RenderHost</RootNamespace>
+    <Version>1.0.0</Version>
+    <OpenUtauSrc Condition="'$(OpenUtauSrc)' == ''">$(MSBuildThisFileDirectory)..\..\research-output\openutau-src</OpenUtauSrc>
+    <OpenUtauCommit Condition="'$(OpenUtauCommit)' == ''">unverified</OpenUtauCommit>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="OpenUtauCommit" Value="$(OpenUtauCommit)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- the native resampler the OpenUtau GUI project copies beside the app (win-x64) -->
+    <None Include="$(OpenUtauSrc)\runtimes\win-x64\native\worldline.dll" Link="worldline.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(OpenUtauSrc)\OpenUtau.Core\OpenUtau.Core.csproj" />
+    <ProjectReference Include="$(OpenUtauSrc)\OpenUtau.Plugin.Builtin\OpenUtau.Plugin.Builtin.csproj" />
+  </ItemGroup>
+
+</Project>

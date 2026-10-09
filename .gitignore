@@ -260,3 +260,7 @@ research-output/
 # --- M7a spike build output ---
 spikes/**/bin/
 spikes/**/obj/
+
+# --- M8 render host build output ---
+host/**/bin/
+host/**/obj/
