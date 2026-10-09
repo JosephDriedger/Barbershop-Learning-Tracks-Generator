@@ -36,10 +36,11 @@ def codes_in_source() -> set[str]:
             ("core", "handoff"),
             ("core", "synthesis"),
             ("core", "runtime"),
+            ("core", "rendering"),
         }:
             # Narrow on purpose: M5 serialization/package failures are typed ``MidiExportError`` /
             # ``HandoffError`` codes (M7b: ``SynthesisPlanError`` / ``UstxError`` /
-            # ``StagingError`` likewise)
+            # ``StagingError`` / ``RenderError`` likewise)
             # ("can this be serialized safely?"), not ValidationIssues ("can capability X use this
             # score?"). Every other module is still scanned, so an unclassified issue still fails.
             continue
