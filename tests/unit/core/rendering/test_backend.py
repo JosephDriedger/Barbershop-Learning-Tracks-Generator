@@ -1,9 +1,12 @@
 """The backend's contract, driven with a fake host process (no OpenUtau, no voicebank)."""
 
+import contextlib
 import os
+import subprocess
 import sys
 import threading
 import time
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -397,3 +400,41 @@ def test_a_new_render_clears_staging_left_by_a_dead_owner_but_not_an_active_one(
     assert not dead.path.exists()
     assert not recycled.path.exists()
     assert live.path.exists()  # an active job's staging directory is never touched
+
+
+# --- permission failures ---
+
+
+@contextlib.contextmanager
+def write_denied(path: Path) -> Iterator[None]:
+    """Deny the current user creating anything inside ``path`` (Windows ACL), then restore."""
+    user = os.environ["USERNAME"]
+    subprocess.run(
+        ["icacls", str(path), "/deny", f"{user}:(OI)(CI)(WD,AD)"], check=True, capture_output=True
+    )
+    try:
+        yield
+    finally:
+        subprocess.run(["icacls", str(path), "/remove:d", user], check=True, capture_output=True)
+
+
+windows_only = pytest.mark.skipif(sys.platform != "win32", reason="uses Windows ACLs")
+
+
+@windows_only
+def test_an_unwritable_staging_root_is_a_configuration_error(env: Env) -> None:
+    env.layout.staging.mkdir(parents=True)
+    with write_denied(env.layout.staging), pytest.raises(RenderConfigurationError) as info:
+        env.backend().render(plan(), env.destination)
+    assert info.value.code == "STAGING_UNAVAILABLE"
+    assert not env.destination.exists()
+
+
+@windows_only
+def test_an_unwritable_destination_keeps_everything_and_cleans_up(env: Env) -> None:
+    env.destination.parent.mkdir(parents=True)
+    with write_denied(env.destination.parent), pytest.raises(RenderConfigurationError) as info:
+        env.backend().render(plan(), env.destination)
+    assert info.value.code in {"PUBLISH_FAILED", "PUBLISH_DESTINATION_EXISTS"}
+    assert env.staging_entries() == []
+    assert not env.destination.exists()

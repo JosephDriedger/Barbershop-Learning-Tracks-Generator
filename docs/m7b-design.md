@@ -180,8 +180,7 @@ no supported setting to point `Singers`, cache or plugins elsewhere. Consequence
    `remove_staging` deletes only directories named `.staging-*`. Liveness checking itself
    (including pid reuse) is M8's job; the contract only requires the check be injected.
 
-Implemented and unit-tested here: naming, marker, stale detection, guarded removal, atomic publish.
-Not implemented: process-tree termination, the orchestrator, validation.
+Implemented in M8 (see `docs/m8-rendering.md`): naming, pid-reuse-safe marker, stale detection, guarded removal, atomic publication, process-tree termination and the orchestrator.
 
 ## Tests
 
