@@ -184,6 +184,15 @@ class LyricReviewState:
         for index in indices:
             self.set_text(index, "")
 
+    # --- cancel support ---------------------------------------------------------------------
+
+    def snapshot(self) -> list[tuple[str, bool, str, str]]:
+        return [(r.text, r.approved, r.approved_by, r.error) for r in self.rows]
+
+    def restore(self, saved: list[tuple[str, bool, str, str]]) -> None:
+        for row, (text, approved, by, error) in zip(self.rows, saved, strict=True):
+            row.text, row.approved, row.approved_by, row.error = text, approved, by, error
+
     # --- results and files -----------------------------------------------------------------
 
     def approvals(self) -> tuple[LyricApproval, ...]:

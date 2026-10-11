@@ -187,7 +187,11 @@ class AppController(QObject):
             },
             environ=self._environ,
         )
-        return replace(resolved, gain_profile=self.gain_profile())
+        try:
+            profile = self.gain_profile()
+        except MixConfigurationError:
+            profile = resolved.gain_profile  # reported by gain_problem(); generation is blocked
+        return replace(resolved, gain_profile=profile)
 
     def gain_profile(self) -> GainProfile:
         options = self.options
@@ -393,7 +397,16 @@ class AppController(QObject):
         serial = self._validation_serial
         approvals = self.approvals
         assignments = assign.to_role_assignments()
-        config = self.config()
+        try:
+            config = self.config()
+        except PipelineError as problem:
+            self.validating = False
+            self.validation = ValidationView(
+                (Message("error", problem.message),), False, None, None, 0, str(problem)
+            )
+            self.validation_changed.emit(self.validation)
+            self.state_changed.emit()
+            return
         identity = SourceIdentity(
             display_name=score.path.name, sha256=score.sha256, title=score.title or None
         )
@@ -476,6 +489,8 @@ class AppController(QObject):
         problem = self.gain_problem()
         if problem:
             out.append(problem)
+        if self.existing_package() and not self.options.replace:
+            out.append("A package with this name already exists: tick “Replace” or rename it.")
         if self.options.audio_format != "wav":
             ffmpeg = self.ffmpeg_path()
             if ffmpeg is None:
