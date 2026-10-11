@@ -34,3 +34,17 @@ STAGES: tuple[Stage, ...] = tuple(Stage)
 
 def ignore(_event: dict[str, Any]) -> None:
     return None
+
+
+STAGE_LABELS: dict[str, str] = {
+    "source_loading": "Reading the score",
+    "score_analysis": "Analysing the score",
+    "readiness_validation": "Checking the score and lyrics",
+    "ustx_preparation": "Preparing the singing project",
+    "voicebank_discovery": "Checking the singing voices",
+    "stem_rendering": "Singing the four voices",
+    "stem_validation": "Checking the recordings",
+    "mixing": "Mixing the 13 tracks",
+    "mp3_encoding": "Encoding MP3 files",
+    "package_publication": "Saving the finished tracks",
+}

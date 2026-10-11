@@ -41,9 +41,8 @@ from barbershop_tracks.core.musicxml import ParseResult, parse_musicxml
 from barbershop_tracks.core.pipeline.config import ResolvedConfig, discover_singers
 from barbershop_tracks.core.pipeline.errors import ErrorCategory, PipelineError
 from barbershop_tracks.core.pipeline.events import EventHandler, Stage, ignore
-from barbershop_tracks.core.pipeline.lyric_files import review_report
-from barbershop_tracks.core.readiness import MIDI_QUARTET, RoleAssignments, assess_readiness
-from barbershop_tracks.core.readiness.findings import ReadinessReport
+from barbershop_tracks.core.pipeline.preparation import blocking_details, prepare
+from barbershop_tracks.core.readiness import RoleAssignments
 from barbershop_tracks.core.rendering import (
     CancelToken,
     OpenUtauRenderBackend,
@@ -65,7 +64,6 @@ from barbershop_tracks.core.synthesis import (
     SynthesisPlan,
     SynthesisPlanError,
     VoiceEngineRef,
-    build_synthesis_plan,
 )
 from barbershop_tracks.core.synthesis.openutau import UstxError, write_ustx
 from barbershop_tracks.models import VoiceRole
@@ -189,21 +187,6 @@ def translate(error: BaseException) -> PipelineError:
     raise error
 
 
-def _blocking_details(report: ReadinessReport) -> list[dict[str, Any]]:
-    out = []
-    for finding in report.blocking:
-        out.append(
-            {
-                "code": finding.code,
-                "message": finding.issue.message,
-                "voice": finding.role.value if finding.role else None,
-                "line": finding.line_id,
-                "where": finding.location.describe() if finding.location else None,
-            }
-        )
-    return out
-
-
 class _Run:
     """One generation; keeps the stage bookkeeping out of the main flow."""
 
@@ -301,33 +284,34 @@ def _generate(
     run.stage(Stage.SCORE_ANALYSIS, "finished", title=parsed.song.title)
 
     run.stage(Stage.READINESS_VALIDATION, "started")
-    report = assess_readiness(parsed, request.assignments, MIDI_QUARTET, verse=request.verse)
-    if not report.ready:
-        raise PipelineError(
-            ErrorCategory.SOURCE,
-            "SOURCE_NOT_READY",
-            f"{len(report.blocking)} problem(s) in the score or the voice mapping block generation",
-            {"findings": _blocking_details(report)},
-        )
     identity = SourceIdentity(
         display_name=request.score.name, sha256=sha, title=parsed.song.title or None
     )
-    plan = build_synthesis_plan(
-        parsed.performed,
+    prepared = prepare(
+        parsed,
         request.assignments,
-        source=identity,
+        identity=identity,
         engine_refs=refs,
         verse=request.verse,
         approvals=request.approvals,
     )
-    if not plan.is_ready:
-        document = review_report(plan)
+    if prepared.report is not None and not prepared.report.ready:
+        raise PipelineError(
+            ErrorCategory.SOURCE,
+            "SOURCE_NOT_READY",
+            f"{len(prepared.report.blocking)} problem(s) in the score or the voice mapping block "
+            "generation",
+            {"findings": blocking_details(prepared.report)},
+        )
+    assert prepared.plan is not None
+    plan = prepared.plan
+    if prepared.review is not None:
         raise PipelineError(
             ErrorCategory.REVIEW,
             "LYRICS_NEED_REVIEW",
             f"{len(plan.review_items)} note(s) have no decided lyric; nothing is guessed or copied "
             "from another voice",
-            {"review": document},
+            {"review": prepared.review},
         )
     run.stage(Stage.READINESS_VALIDATION, "finished")
     run.check()

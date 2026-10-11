@@ -29,6 +29,8 @@ def codes_in_source() -> set[str]:
     for path in SRC.rglob("*.py"):
         if path.name == "__init__.py":
             continue  # only ``__all__`` lists of names live there, never issue codes
+        if path.relative_to(SRC).parts[0] == "ui":
+            continue  # the GUI only maps pipeline error codes to words; it produces no issues
         if path.name == "cli_generate.py":
             continue  # CLI usage codes (NO_OUTPUT, BAD_ASSIGN...) are invocation errors, not issues
         if path.name == "policy.py" and path.parent.name == "readiness":

@@ -37,6 +37,7 @@ from barbershop_tracks.core.pipeline import (
     DEFAULT_PHONEMIZER,
     DEFAULT_RENDERER,
     REVIEW_SCHEMA,
+    STAGE_LABELS,
     EngineChoice,
     ErrorCategory,
     GenerateRequest,
@@ -75,18 +76,7 @@ _EXIT = {
     ErrorCategory.CANCELLED: EXIT_CANCELLED,
 }
 _ROLES = {role.value: role for role in VoiceRole}
-_LABELS = {
-    "source_loading": "reading the score",
-    "score_analysis": "analysing the score",
-    "readiness_validation": "checking readiness and lyrics",
-    "ustx_preparation": "preparing the OpenUtau project",
-    "voicebank_discovery": "checking the voicebank",
-    "stem_rendering": "rendering the four voices",
-    "stem_validation": "validating the stems",
-    "mixing": "mixing the 13 tracks",
-    "mp3_encoding": "encoding MP3",
-    "package_publication": "publishing the package",
-}
+_LABELS = {k: v.lower() for k, v in STAGE_LABELS.items()}
 
 
 def _singer(text: str) -> tuple[VoiceRole | None, str]:

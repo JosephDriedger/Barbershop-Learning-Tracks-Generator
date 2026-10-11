@@ -24,6 +24,7 @@ Text is used exactly as written (it must be a plain, singable alias for the chos
 """
 
 import json
+from collections.abc import Sequence
 from fractions import Fraction
 from pathlib import Path
 from typing import Any
@@ -77,6 +78,23 @@ def review_report(plan: SynthesisPlan) -> dict[str, Any]:
             "source_sha256": plan.source.sha256,
             "approvals": template,
         },
+    }
+
+
+def approvals_document(approvals: Sequence[LyricApproval], source_sha256: str) -> dict[str, Any]:
+    """An approvals file (schema ``blt.lyric-approvals/1``) for ``approvals``."""
+    return {
+        "schema": APPROVALS_SCHEMA,
+        "source_sha256": source_sha256,
+        "approvals": [
+            {
+                "voice": a.role.value,
+                "start": str(a.start),
+                "text": a.text,
+                "approved_by": a.approved_by,
+            }
+            for a in approvals
+        ],
     }
 
 
