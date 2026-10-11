@@ -40,7 +40,7 @@ Int16 = NDArray[np.int16]
 
 @dataclass(frozen=True, slots=True)
 class TailPolicy:
-    """How much of a stem's end beyond the target may be dropped, and only if it is nearly silent."""
+    """How much of a stem's end beyond the target may be dropped, and only if nearly silent."""
 
     max_trim_seconds: float = 0.05
     max_trim_peak: float = 1e-3  # share of full scale; -60 dBFS
