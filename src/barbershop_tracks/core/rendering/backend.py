@@ -12,12 +12,13 @@ Whatever happens, the staging directory is removed, and nothing reaches the dest
 whole set validated. A previous result at the destination is kept when a new attempt fails.
 """
 
+import contextlib
 import dataclasses
 import json
 import os
 import time
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -45,6 +46,7 @@ from barbershop_tracks.core.runtime import (
     StagingError,
     ensure_host_runtime,
 )
+from barbershop_tracks.core.runtime.filelock import FileLock, LockWaitAbortedError
 from barbershop_tracks.core.runtime.staging import cleanup_stale, publish_directory, remove_staging
 from barbershop_tracks.core.synthesis import PlanNotReadyError, SynthesisPlan
 from barbershop_tracks.core.synthesis.openutau import UstxError, write_ustx
@@ -126,9 +128,10 @@ class OpenUtauRenderBackend:
                 "STAGING_UNAVAILABLE", f"cannot create a staging directory: {error}"
             ) from error
         try:
-            result = self._run(
-                plan, area, project_text, command_prefix, environment, token, on_event
-            )
+            with self._host_slot(token, on_event):
+                result = self._run(
+                    plan, area, project_text, command_prefix, environment, token, on_event
+                )
             host_result, events = result
             stems_dir = area.path / "stems"
             if on_event is not None:
@@ -155,6 +158,30 @@ class OpenUtauRenderBackend:
             self._discard(area.path)
 
     # --- steps --------------------------------------------------------------------------
+
+    @contextlib.contextmanager
+    def _host_slot(self, token: CancelToken, on_event: EventHandler | None) -> Iterator[None]:
+        """One host at a time per runtime root: they share OpenUtau's render cache."""
+        lock = FileLock(self.settings.layout.runtime / "render.lock")
+
+        def waiting() -> None:
+            if on_event is not None:
+                on_event({"event": "blt_wait", "reason": "another render is using the host"})
+
+        try:
+            lock.acquire(should_stop=lambda: token.cancelled, on_wait=waiting)
+        except LockWaitAbortedError:
+            raise RenderCancelledError(
+                "RENDER_CANCELLED", "cancelled while waiting for another render to finish"
+            ) from None
+        except OSError as error:
+            raise RenderConfigurationError(
+                "HOST_LOCK_UNAVAILABLE", f"cannot take the host lock: {error}"
+            ) from error
+        try:
+            yield
+        finally:
+            lock.release()
 
     def _host_launch(self) -> tuple[list[str], dict[str, str]]:
         settings = self.settings

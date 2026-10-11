@@ -441,3 +441,48 @@ def test_an_unwritable_destination_keeps_everything_and_cleans_up(env: Env) -> N
     assert info.value.code in {"PUBLISH_FAILED", "PUBLISH_DESTINATION_EXISTS"}
     assert env.staging_entries() == []
     assert not env.destination.exists()
+
+
+# --- one host at a time (they share OpenUtau's render cache) ---
+
+
+def test_renders_take_turns_at_the_host(env: Env) -> None:
+    timings: list[tuple[float, float]] = []
+
+    def work(index: int) -> None:
+        begin = time.monotonic()
+        env.backend("ok", FAKE_HOST_DELAY=0.6).render(plan(), env.destination.parent / f"s{index}")
+        timings.append((begin, time.monotonic()))
+
+    threads = [threading.Thread(target=work, args=(i,)) for i in range(2)]
+    started = time.monotonic()
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=60)
+    assert len(timings) == 2
+    assert time.monotonic() - started >= 1.1  # two 0.6 s hosts did not overlap
+
+
+def test_cancelling_while_waiting_for_the_host_leaves_nothing(env: Env) -> None:
+    holder = threading.Thread(
+        target=lambda: env.backend("ok", FAKE_HOST_DELAY=1.5).render(
+            plan(), env.destination.parent / "first"
+        )
+    )
+    holder.start()
+    time.sleep(0.5)  # the first render now owns the host
+    token = CancelToken()
+    waits: list[dict[str, object]] = []
+
+    def on_event(event: dict[str, object]) -> None:
+        if event.get("event") == "blt_wait":
+            waits.append(event)
+            token.cancel()
+
+    with pytest.raises(RenderCancelledError):
+        env.backend().render(plan(), env.destination, cancel=token, on_event=on_event)
+    holder.join(timeout=60)
+    assert len(waits) == 1
+    assert not env.destination.exists()
+    assert env.staging_entries() == []

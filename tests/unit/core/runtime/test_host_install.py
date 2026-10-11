@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -72,3 +73,32 @@ def test_an_unwritable_runtime_root_is_a_typed_error(tmp_path: Path) -> None:
     with pytest.raises(HostInstallError) as error:
         ensure_host_runtime(fake_build(tmp_path / "bin"), blocker / "runtime")
     assert error.value.code == "HOST_INSTALL_FAILED"
+
+
+def test_concurrent_first_installs_all_end_with_one_complete_copy(tmp_path: Path) -> None:
+    import threading
+
+    binaries = fake_build(tmp_path / "bin")
+    for index in range(40):  # make the copy slow enough for installs to overlap
+        (binaries / "sub" / f"filler{index}.dll").write_bytes(b"x" * 200_000)
+    outcomes: list[Any] = []
+
+    def work() -> None:
+        try:
+            outcomes.append(ensure_host_runtime(binaries, tmp_path / "rt"))
+        except BaseException as error:
+            outcomes.append(error)
+
+    threads = [threading.Thread(target=work) for _ in range(6)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=60)
+    assert len(outcomes) == 6
+    assert not [o for o in outcomes if isinstance(o, BaseException)], outcomes
+    directories = {o.directory for o in outcomes if not isinstance(o, BaseException)}
+    assert len(directories) == 1
+    (directory,) = directories
+    assert (directory / COMPLETE_MARKER).is_file()
+    assert (directory / "sub" / "filler39.dll").is_file()
+    assert [p.name for p in (tmp_path / "rt").iterdir()] == [directory.name]  # no leftovers

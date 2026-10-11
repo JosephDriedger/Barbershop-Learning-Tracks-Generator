@@ -12,6 +12,7 @@ and renamed into place, so an interrupted install never leaves a half-populated 
 looks complete.
 """
 
+import contextlib
 import hashlib
 import json
 import shutil
@@ -55,12 +56,15 @@ def fingerprint(binaries: Path) -> str:
     return digest.hexdigest()
 
 
+def _complete(target: Path) -> bool:
+    return (target / COMPLETE_MARKER).is_file() and (target / HOST_EXE).is_file()
+
+
 def ensure_host_runtime(binaries: Path, runtime_root: Path) -> HostRuntime:
     """Return a complete, writable copy of the host; install it first when this build is new."""
     identity = fingerprint(binaries)
     target = runtime_root / f"{RUNTIME_PREFIX}{identity[:16]}"
-    marker = target / COMPLETE_MARKER
-    if marker.is_file() and (target / HOST_EXE).is_file():
+    if _complete(target):
         return HostRuntime(target, target / HOST_EXE, identity, freshly_installed=False)
     try:
         runtime_root.mkdir(parents=True, exist_ok=True)
@@ -69,14 +73,22 @@ def ensure_host_runtime(binaries: Path, runtime_root: Path) -> HostRuntime:
         (partial / COMPLETE_MARKER).write_text(
             json.dumps({"fingerprint": identity, "source": binaries.name}), encoding="utf-8"
         )
-        if target.exists():  # an earlier, incomplete attempt: never reuse it
-            shutil.rmtree(target)
+        if _complete(target):  # a concurrent installer finished while we were copying
+            shutil.rmtree(partial, ignore_errors=True)
+            return HostRuntime(target, target / HOST_EXE, identity, freshly_installed=False)
+        if target.exists():
+            # an earlier, incomplete attempt: never reuse it. It is moved aside (atomically)
+            # rather than deleted in place, so a concurrent installer's rename cannot be undone.
+            aside = runtime_root / f".discard-{uuid.uuid4().hex}"
+            with contextlib.suppress(OSError):
+                target.rename(aside)
+            shutil.rmtree(aside, ignore_errors=True)
         try:
             partial.replace(target)
         except OSError:
             # a concurrent installer won the rename; use theirs if it is complete
             shutil.rmtree(partial, ignore_errors=True)
-            if not (marker.is_file() and (target / HOST_EXE).is_file()):
+            if not _complete(target):
                 raise
             return HostRuntime(target, target / HOST_EXE, identity, freshly_installed=False)
     except OSError as error:

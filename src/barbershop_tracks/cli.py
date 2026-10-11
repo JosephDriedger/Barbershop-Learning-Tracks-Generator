@@ -6,7 +6,9 @@ Subcommands:
 * ``lines SCORE``: list the source lines and their identifiers (read-only suggestions, nothing
   is assigned);
 * ``export SCORE``: write the quartet MIDI handoff package (readiness for
-  ``quartet-midi`` first).
+  ``quartet-midi`` first);
+* ``generate SCORE``: the whole pipeline to the 13 learning tracks (see ``cli_generate``);
+* ``config``: show where BLT finds singers, the render host and FFmpeg.
 
 Exit codes (the whole public contract): ``0`` ready / exported, ``1`` not ready (a blocking
 finding, or an advisory one under ``--strict``) or not exportable, ``2`` invocation, input, load,
@@ -23,6 +25,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from barbershop_tracks import __version__
+from barbershop_tracks.cli_generate import add_parsers as add_generate_parsers
+from barbershop_tracks.cli_generate import dispatch as dispatch_generate
 from barbershop_tracks.core.errors import ScoreLoadError
 from barbershop_tracks.core.handoff import (
     HandoffError,
@@ -163,6 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--strict", action="store_true", help="refuse, before writing, if advisory findings exist"
     )
     export.add_argument("--format", choices=("text", "json"), default="text")
+    add_generate_parsers(commands)
     return parser
 
 
@@ -263,5 +268,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_lines(args)
     if args.command == "export":
         return _run_export(args)
+    code = dispatch_generate(args)
+    if code is not None:
+        return code
     parser.print_help()
     return EXIT_READY

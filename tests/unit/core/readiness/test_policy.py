@@ -29,6 +29,8 @@ def codes_in_source() -> set[str]:
     for path in SRC.rglob("*.py"):
         if path.name == "__init__.py":
             continue  # only ``__all__`` lists of names live there, never issue codes
+        if path.name == "cli_generate.py":
+            continue  # CLI usage codes (NO_OUTPUT, BAD_ASSIGN...) are invocation errors, not issues
         if path.name == "policy.py" and path.parent.name == "readiness":
             continue  # the registry itself is not a producer of codes
         if path.relative_to(SRC).parts[:2] in {

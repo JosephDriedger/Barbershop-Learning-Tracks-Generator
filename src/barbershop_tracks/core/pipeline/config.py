@@ -5,7 +5,7 @@ Precedence for every setting, highest first:
 1. an explicit command-line option (``overrides``);
 2. an environment variable (``BLT_SINGERS_DIR``, ``BLT_FFMPEG``, ``BLT_HOST_DIR``, ``DOTNET_ROOT``,
    ``BLT_DATA_DIR``, ``BLT_OUTPUT_DIR``);
-3. the user's config file (``%APPDATA%\\BarbershopLearningTracks\\config.json``, or the file
+3. the user's config file (``%LOCALAPPDATA%\\BarbershopLearningTracks\\config.json``, or the file
    named by ``BLT_CONFIG``);
 4. discovery, only where it cannot be ambiguous: ``ffmpeg`` on ``PATH``, the platform data
    directories, the host next to the application (or in a development checkout), and the standard
