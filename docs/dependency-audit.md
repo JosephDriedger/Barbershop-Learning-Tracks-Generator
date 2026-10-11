@@ -63,7 +63,8 @@ Redistribution means shipping the DLL/native file inside the Windows installer (
 |---|---|---|
 | PySide6 | GUI | LGPL-3.0 / commercial; obligations analysed at M12: UNKNOWN until then |
 | defusedxml, mido, platformdirs | runtime | permissive; not re-audited here |
-| FFmpeg | external, user-configured (never bundled before the M12 evaluation) | UNKNOWN (build-dependent: LGPL vs GPL) |
+| numpy | audio mixing (M9) | BSD-3-Clause for numpy itself; the wheel also bundles OpenBLAS and compiler runtime libraries whose licences were **not** read: UNKNOWN until M12 |
+| FFmpeg | external, user-configured, MP3 only (M9); never bundled before the M12 evaluation | UNKNOWN (build-dependent: LGPL vs GPL) |
 
 ## Not shipped, by policy
 

@@ -50,5 +50,9 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Build the render host (pinned OpenUtau 0.1.565)
         run: powershell -NoProfile -ExecutionPolicy Bypass -File host/build.ps1
+      - name: FFmpeg for the MP3 test (CI only; BLT never bundles it)
+        run: |
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg -y --no-progress }
+          ffmpeg -version | Select-Object -First 1
       - name: Host and rendering tests
         run: pytest -m integration tests/integration

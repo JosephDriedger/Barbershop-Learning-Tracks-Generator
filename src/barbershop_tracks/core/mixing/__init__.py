@@ -11,6 +11,7 @@ from barbershop_tracks.core.mixing.errors import (
     MixInputError,
     MixOutputError,
 )
+from barbershop_tracks.core.mixing.mp3 import FfmpegMp3Encoder, find_ffmpeg
 from barbershop_tracks.core.mixing.package import (
     MANIFEST_NAME,
     AudioFormat,
@@ -35,6 +36,7 @@ __all__ = [
     "DEFAULT_PROFILE",
     "MANIFEST_NAME",
     "AudioFormat",
+    "FfmpegMp3Encoder",
     "GainProfile",
     "MixCancelledError",
     "MixClippingError",
@@ -53,6 +55,7 @@ __all__ = [
     "PackagedFile",
     "TailPolicy",
     "build_learning_tracks",
+    "find_ffmpeg",
     "is_our_package",
     "standard_mix_specs",
     "stems_from_render",
