@@ -91,6 +91,22 @@ def read_info(path: Path) -> WavInfo:
     return read_wav(path, decode=False).info
 
 
+def read_raw(path: Path) -> tuple[WavInfo, bytes]:
+    """The validated header and the undecoded sample bytes (for callers that decode in bulk)."""
+    try:
+        data = path.read_bytes()
+    except OSError as error:
+        raise WavFormatError("WAV_UNREADABLE", f"cannot read {path.name}: {error}") from error
+    fmt, body, _ = _chunks(data)
+    tag, channels, rate, bits = _format(fmt)
+    frame_bytes = channels * bits // 8
+    if len(body) % frame_bytes:
+        raise WavFormatError(
+            "WAV_TRUNCATED", f"data length {len(body)} is not a whole number of frames"
+        )
+    return WavInfo(channels, rate, bits, tag == _FLOAT, len(body) // frame_bytes), body
+
+
 def read_wav(path: Path, *, decode: bool = True) -> WavAudio:
     try:
         data = path.read_bytes()
