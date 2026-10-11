@@ -92,7 +92,10 @@ def test_a_ready_plan_is_rendered_validated_and_published(env: Env) -> None:
     assert all(report.path.parent == env.destination for report in result.stems.values())
     assert result.host_result["status"] == "ok"
     assert events[0]["event"] == "start"
-    assert events[-1]["event"] == "result"
+    host_events = [e for e in events if e["event"] != "blt_stage"]
+    assert host_events[-1]["event"] == "result"
+    stages = [(e["stage"], e["status"]) for e in events if e["event"] == "blt_stage"]
+    assert stages == [("stem_validation", "started"), ("stem_validation", "finished")]
     assert any(e["event"] == "progress" for e in events)
     assert env.staging_entries() == []  # nothing left behind
 

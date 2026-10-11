@@ -38,6 +38,7 @@ def codes_in_source() -> set[str]:
             ("core", "runtime"),
             ("core", "rendering"),
             ("core", "mixing"),
+            ("core", "pipeline"),
         }:
             # Narrow on purpose: M5 serialization/package failures are typed ``MidiExportError`` /
             # ``HandoffError`` codes (M7b: ``SynthesisPlanError`` / ``UstxError`` /

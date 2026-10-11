@@ -26,15 +26,18 @@ from barbershop_tracks.core.mixing.package import (
 )
 from barbershop_tracks.core.mixing.specs import (
     DEFAULT_PROFILE,
+    PRESETS,
     GainProfile,
     MixKind,
     MixSpec,
+    profile_from_dict,
     standard_mix_specs,
 )
 
 __all__ = [
     "DEFAULT_PROFILE",
     "MANIFEST_NAME",
+    "PRESETS",
     "AudioFormat",
     "FfmpegMp3Encoder",
     "GainProfile",
@@ -57,6 +60,7 @@ __all__ = [
     "build_learning_tracks",
     "find_ffmpeg",
     "is_our_package",
+    "profile_from_dict",
     "standard_mix_specs",
     "stems_from_render",
 ]

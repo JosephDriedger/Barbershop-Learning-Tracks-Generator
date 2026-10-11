@@ -70,6 +70,40 @@ class GainProfile:
 
 DEFAULT_PROFILE = GainProfile()
 
+# Named presets a command line or a GUI can offer. All keep every mix's gain sum at or below 1.0
+# for full-scale stems, except where noted in docs/m9-mixing.md.
+PRESETS: dict[str, GainProfile] = {
+    "default": DEFAULT_PROFILE,
+    "strong-focus": GainProfile(
+        name="strong-focus", predominant_focus=0.6, predominant_others=0.1, solo=0.6
+    ),
+    "gentle-focus": GainProfile(
+        name="gentle-focus", predominant_focus=0.4, predominant_others=0.18, solo=0.5
+    ),
+}
+
+_PROFILE_FIELDS = (
+    "full_quartet",
+    "predominant_focus",
+    "predominant_others",
+    "solo",
+    "without_each",
+)
+
+
+def profile_from_dict(raw: object) -> GainProfile:
+    """A profile from a JSON object: ``name`` plus any of the five gains (others stay default)."""
+    if not isinstance(raw, dict):
+        raise MixConfigurationError("MIX_PROFILE_FILE", "a gain profile must be a JSON object")
+    unknown = sorted(set(raw) - {"name", *_PROFILE_FIELDS})
+    if unknown:
+        raise MixConfigurationError("MIX_PROFILE_FILE", f"unknown gain profile field(s) {unknown}")
+    values = {k: raw[k] for k in _PROFILE_FIELDS if k in raw}
+    name = raw.get("name", "custom")
+    if not isinstance(name, str):
+        raise MixConfigurationError("MIX_PROFILE_NAME", "the profile name must be text")
+    return GainProfile(name=name, **values)
+
 
 @dataclass(frozen=True, slots=True)
 class MixSpec:

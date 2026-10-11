@@ -131,9 +131,13 @@ class OpenUtauRenderBackend:
             )
             host_result, events = result
             stems_dir = area.path / "stems"
+            if on_event is not None:
+                on_event({"event": "blt_stage", "stage": "stem_validation", "status": "started"})
             reports = validate_and_collect(
                 plan, area.path / "host-out", stems_dir, self.settings.stem_policy
             )
+            if on_event is not None:
+                on_event({"event": "blt_stage", "stage": "stem_validation", "status": "finished"})
             if token.cancelled:  # cancelled while validating: honour it before publishing
                 raise RenderCancelledError("RENDER_CANCELLED", "cancelled before publication")
             try:

@@ -19,6 +19,7 @@ def _part(
     partial_lyrics: bool,
     measures: int,
     octave: int,
+    word: str = "la",
 ) -> str:
     body = ""
     for number in range(1, measures + 1):
@@ -28,7 +29,7 @@ def _part(
         for beat in range(4):
             lyric = ""
             if lyrics and not (partial_lyrics and number == 2 and beat >= 2):
-                lyric = lyric_xml(syl("single"), text("la"))
+                lyric = lyric_xml(syl("single"), text(word))
             content += note(STEPS[index], octave, 2, lyrics=lyric)
             if chord and number == 1 and beat == 0:
                 content += note("D", octave, 2, extra="<chord/>")
@@ -45,6 +46,8 @@ def quartet_xml(
     measures: int = 2,
     names: bool = True,
     lead_octave: int | None = None,
+    all_lyrics: bool = False,
+    word: str = "la",
 ) -> str:
     """Four one-voice parts (Tenor, Lead, Baritone, Bass) of eight quarter notes each.
 
@@ -57,11 +60,12 @@ def quartet_xml(
         _part(
             i,
             tempo=tempo,
-            lyrics=i == lyric_part,
+            lyrics=all_lyrics or i == lyric_part,
             chord=i == chord_in,
             partial_lyrics=partial_lyrics,
             measures=measures,
             octave=lead_octave if (i == 1 and lead_octave is not None) else OCTAVES[i],
+            word=word,
         )
         for i in range(4)
     ]

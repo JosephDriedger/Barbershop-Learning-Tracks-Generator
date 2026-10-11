@@ -177,9 +177,16 @@ def build_learning_tracks(
     cancel: CancelToken | None = None,
     on_progress: ProgressHandler | None = None,
     replace: bool = False,
+    extras: Mapping[str, Path] | None = None,
 ) -> PackageResult:
-    """Mix ``stems`` into the standard 13 tracks and publish them to ``destination``."""
+    """Mix ``stems`` into the standard 13 tracks and publish them to ``destination``.
+
+    ``extras`` maps relative names (``stems/Tenor.wav``) to files that are copied into the package
+    as well and listed in the manifest; nothing but the 13 tracks, the manifest and these
+    explicitly requested extras is ever published.
+    """
     token = cancel or CancelToken()
+    wanted = _check_extras(extras or {})
     specs = standard_mix_specs(settings.profile)
     validate_spec_set(specs)
     if not settings.formats:
@@ -222,15 +229,21 @@ def build_learning_tracks(
         entries, files = _produce(
             specs, fitted, frames, package, work, settings, token, on_progress
         )
+        extra_entries = _copy_extras(package, wanted)
         manifest = _manifest(source, settings, specs, entries, loaded, fitted, stem_hashes, frames)
+        manifest["extras"] = extra_entries
         text = json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=True) + "\n"
         (package / MANIFEST_NAME).write_text(text, encoding="utf-8", newline="\n")
-        _verify_package(package, specs, settings.formats, frames)
+        _verify_package(package, specs, settings.formats, frames, set(wanted))
         _check_cancel(token)
+        if on_progress is not None:
+            on_progress({"event": "publish", "status": "started"})
         try:
             publish_directory(package, destination, replace=replace)
         except StagingError as error:
             raise MixConfigurationError(error.code, error.message) from error
+        if on_progress is not None:
+            on_progress({"event": "publish", "status": "finished"})
         published = tuple(
             PackagedFile(f.mix, f.format, f.name, destination / f.name, f.bytes, f.sha256)
             for f in files
@@ -290,6 +303,8 @@ def _produce(
             mp3_name = f"{spec.filename_stem}.mp3"
             mp3_path = package / mp3_name
             info = settings.mp3.encode(wav_path, mp3_path, expected_frames=frames, cancel=token)
+            if on_progress is not None:
+                on_progress({"event": "mp3", "number": spec.number, "of": len(specs)})
             digest = _sha256(mp3_path)
             files.append(
                 PackagedFile(
@@ -396,14 +411,48 @@ def _manifest(
     }
 
 
+def _check_extras(extras: Mapping[str, Path]) -> dict[str, Path]:
+    """Extras must be plain relative names under a subfolder, existing, and not collide."""
+    checked: dict[str, Path] = {}
+    for name, source in extras.items():
+        parts = name.split("/")
+        if len(parts) < 2 or any(
+            not part or part in (".", "..") or ":" in part or "\\" in part for part in parts
+        ):
+            raise MixConfigurationError(
+                "MIX_EXTRA_NAME", f"extra {name!r} must be a relative path inside a subfolder"
+            )
+        if not source.is_file():
+            raise MixConfigurationError("MIX_EXTRA_MISSING", f"extra {name!r} does not exist")
+        checked[name] = source
+    lowered = [n.lower() for n in checked]
+    if len(set(lowered)) != len(lowered):
+        raise MixConfigurationError("MIX_NAME_COLLISION", "two extras share a name")
+    return checked
+
+
+def _copy_extras(package: Path, extras: Mapping[str, Path]) -> list[dict[str, Any]]:
+    entries = []
+    for name in sorted(extras):
+        target = package / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(extras[name], target)
+        entries.append({"name": name, "bytes": target.stat().st_size, "sha256": _sha256(target)})
+    return entries
+
+
 def _verify_package(
-    package: Path, specs: tuple[MixSpec, ...], formats: frozenset[AudioFormat], frames: int
+    package: Path,
+    specs: tuple[MixSpec, ...],
+    formats: frozenset[AudioFormat],
+    frames: int,
+    extras: set[str] = frozenset(),  # type: ignore[assignment]
 ) -> None:
-    expected = {MANIFEST_NAME}
+    expected = {MANIFEST_NAME, *extras}
     for spec in specs:
         for fmt in formats:
             expected.add(f"{spec.filename_stem}.{fmt.value}")
-    actual = {p.name for p in package.iterdir()}
+    actual = {p.relative_to(package).as_posix() for p in package.rglob("*") if p.is_file()}
     if actual != expected:
         raise MixOutputError(
             "MIX_OUTPUT_SET",
