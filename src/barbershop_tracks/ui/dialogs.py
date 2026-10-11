@@ -145,7 +145,7 @@ class _Filter(QSortFilterProxyModel):
 
     def configure(self, voice: str, only_open: bool) -> None:
         self.voice, self.only_open = voice, only_open
-        self.invalidateFilter()
+        self.invalidate()
 
     def filterAcceptsRow(
         self, source_row: int, source_parent: QModelIndex | QPersistentModelIndex

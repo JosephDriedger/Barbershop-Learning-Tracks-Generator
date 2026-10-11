@@ -603,6 +603,7 @@ class ProgressSection(QGroupBox):
         self.bar.setValue(0)
         self.bar.setVisible(False)
         self.elapsed = QLabel("")
+        self.elapsed.setMinimumWidth(110)
         self.steps = QListWidget()
         self.steps.setAccessibleName("Steps")
         self.steps.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
@@ -726,6 +727,7 @@ class ProgressSection(QGroupBox):
     def finish_running(self) -> None:
         self.cancel.setEnabled(False)
         self.bar.setRange(0, 1)
+        self.bar.setValue(0)
 
     # --- results ---------------------------------------------------------------------------
 

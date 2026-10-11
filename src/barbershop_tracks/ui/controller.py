@@ -377,6 +377,7 @@ class AppController(QObject):
     # --- validation preview ----------------------------------------------------------------
 
     def schedule_validation(self) -> None:
+        self._validation_serial += 1  # whatever is still being checked is now out of date
         self.validating = True
         self._debounce.start()
         self.state_changed.emit()
@@ -393,7 +394,6 @@ class AppController(QObject):
             self.validation_changed.emit(None)
             self.state_changed.emit()
             return
-        self._validation_serial += 1
         serial = self._validation_serial
         approvals = self.approvals
         assignments = assign.to_role_assignments()
