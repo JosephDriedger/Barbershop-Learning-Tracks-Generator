@@ -91,6 +91,55 @@ def read_info(path: Path) -> WavInfo:
     return read_wav(path, decode=False).info
 
 
+def inspect_file(path: Path) -> tuple[WavInfo, int]:
+    """The header and the byte offset of the samples, reading only the chunk headers.
+
+    The data chunk's declared size must fit in the file, as in ``read_wav``; the samples
+    themselves are never read, so this is bounded whatever the file's length.
+    """
+    try:
+        with path.open("rb") as handle:
+            size_on_disk = path.stat().st_size
+            head = handle.read(12)
+            if len(head) < 12 or head[:4] != b"RIFF" or head[8:12] != b"WAVE":
+                raise WavFormatError("WAV_NOT_RIFF", "not a RIFF/WAVE file")
+            fmt: bytes | None = None
+            position = 12
+            while position + 8 <= size_on_disk:
+                handle.seek(position)
+                chunk = handle.read(8)
+                tag, size = chunk[:4], struct.unpack_from("<I", chunk, 4)[0]
+                body = position + 8
+                if tag == b"data":
+                    if fmt is None:
+                        raise WavFormatError(
+                            "WAV_NO_FMT", "the data chunk comes before any fmt chunk"
+                        )
+                    if body + size > size_on_disk:
+                        raise WavFormatError(
+                            "WAV_TRUNCATED",
+                            f"data chunk declares {size} bytes, {size_on_disk - body} are present",
+                        )
+                    tag_id, channels, rate, bits = _format(fmt)
+                    frame_bytes = channels * bits // 8
+                    if size % frame_bytes:
+                        raise WavFormatError(
+                            "WAV_TRUNCATED", f"data length {size} is not a whole number of frames"
+                        )
+                    return WavInfo(
+                        channels, rate, bits, tag_id == _FLOAT, size // frame_bytes
+                    ), body
+                if tag == b"fmt ":
+                    handle.seek(body)
+                    fmt = handle.read(size)
+                    if len(fmt) < size:
+                        raise WavFormatError("WAV_TRUNCATED", "the fmt chunk is cut off")
+                position = body + size + (size & 1)
+    except OSError as error:
+        raise WavFormatError("WAV_UNREADABLE", f"cannot read {path.name}: {error}") from error
+    raise WavFormatError("WAV_NO_DATA", "no data chunk" if fmt else "no fmt chunk and no data")
+
+
 def read_raw(path: Path) -> tuple[WavInfo, bytes]:
     """The validated header and the undecoded sample bytes (for callers that decode in bulk)."""
     try:

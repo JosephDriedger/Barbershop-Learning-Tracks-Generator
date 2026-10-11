@@ -131,16 +131,24 @@ tracks[]{id, number, label, kind, focus, voices[], gains{tenor,lead,baritone,bas
 `MixEncodingError` (launch, failure, timeout, invalid or wrongly sized MP3), `MixOutputError` (a produced
 file failed verification), `MixCancelledError`. Each has `.code`, `.message`, `.details`.
 
-## Performance (this machine, synthetic stems, WAV only)
+## Performance and memory (this machine, synthetic stems, WAV only)
 
-| Score | Frames per track | 13 WAVs | Time | Process peak memory |
-|---|---|---|---|---|
-| 30 s | 1.3 M | 33 MB | 0.4 s | 124 MB |
-| 3 min | 7.9 M | 197 MB | 1.9 s | 553 MB |
-| 8 min | 21.2 M | 525 MB | 5.6 s | 1.4 GB |
+Since M10 the mixer streams (`streaming.py`): each mix is produced in blocks of 262144 frames
+(about 6 s), reading the stems it needs from disk for that block. Output is **bit-for-bit
+identical** to the whole-array implementation (`audio.py`, kept as the reference; compared by SHA-256
+over all 13 files at 30 s, 3 min and 8 min, and by unit tests at block sizes from 1 frame up).
 
-Memory is dominated by four float64 stems held for the whole run (about 32 bytes per frame);
-streaming would reduce it if very long scores matter. MP3 time depends on FFmpeg and was not measured here.
+| Score | Whole-array (M9) time / peak memory | Streaming (M10) time / peak memory |
+|---|---|---|
+| 30 s | 0.27 s / 113 MB | 0.42 s / 44 MB |
+| 3 min | 1.6 s / 491 MB | 2.4 s / 52 MB |
+| 8 min | 4.5 s / 1248 MB | 6.6 s / 77 MB |
+
+Memory no longer grows with the song (a tracemalloc test shows the same peak for 20 s and 10 minutes);
+the figures include roughly 40 MB of the measuring script's own hashing of the output. Cost: about
+1.5 times the time, because each mix re-reads and decodes the stems it needs. Clipping is still
+checked over the whole mix and reports the global peak, count and first frame; cancellation is
+checked every block. MP3 time depends on FFmpeg and was not measured here.
 
 ## Tests
 
@@ -155,7 +163,7 @@ its MP3 test uses a real FFmpeg when one is available (CI installs one).
 ## Known limitations
 
 * Mono output only (the stems are mono); no panning, reverb, EQ or loudness matching.
-* Whole stems are held in memory; very long scores need a lot of RAM.
+* Disk space: 13 WAVs of 16-bit mono 44.1 kHz audio (about 5 MB per minute each) in staging and in the package.
 * MP3 timing is approximate by nature; MP3 validation assumes MPEG-1 Layer III mono from `libmp3lame`.
 * Real-FFmpeg behaviour was verified only where an FFmpeg was available (see CI), not on every build.
 * The tail policy trims at most 0.05 s of near-silence. Measured with the real host (generated

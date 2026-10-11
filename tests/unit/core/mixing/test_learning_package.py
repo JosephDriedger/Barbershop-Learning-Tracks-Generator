@@ -373,17 +373,17 @@ def test_cancelling_before_the_start_does_nothing(rig: Rig) -> None:
 def test_a_failure_on_the_seventh_track_publishes_none_of_the_thirteen(
     rig: Rig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from barbershop_tracks.core.mixing.audio import quantize as real
+    from barbershop_tracks.core.mixing.streaming import write_mix as real
 
     calls: list[str] = []
 
-    def failing(mixed: Any, mix_id: str) -> Any:
-        calls.append(mix_id)
+    def failing(spec: Any, *args: Any, **kwargs: Any) -> float:
+        calls.append(spec.identifier)
         if len(calls) == 7:
             raise MixClippingError("MIX_CLIPPING", "simulated")
-        return real(mixed, mix_id)
+        return real(spec, *args, **kwargs)
 
-    monkeypatch.setattr("barbershop_tracks.core.mixing.package.quantize", failing)
+    monkeypatch.setattr("barbershop_tracks.core.mixing.package.write_mix", failing)
     with pytest.raises(MixClippingError):
         rig.build()
     assert len(calls) == 7
@@ -393,11 +393,16 @@ def test_a_failure_on_the_seventh_track_publishes_none_of_the_thirteen(
 def test_a_wav_of_the_wrong_length_is_caught_by_the_final_check(
     rig: Rig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from barbershop_tracks.core.mixing.audio import wav_bytes as real
+    from barbershop_tracks.core.mixing.audio import wav_bytes
+    from barbershop_tracks.core.mixing.streaming import write_mix as real
 
-    monkeypatch.setattr(
-        "barbershop_tracks.core.mixing.package.wav_bytes", lambda pcm: real(pcm[:-1])
-    )
+    def short(spec: Any, stems: Any, frames: int, destination: Path, **kwargs: Any) -> float:
+        peak = real(spec, stems, frames, destination, **kwargs)
+        samples = np.frombuffer(destination.read_bytes()[44:], dtype="<i2")
+        destination.write_bytes(wav_bytes(samples[:-1]))
+        return peak
+
+    monkeypatch.setattr("barbershop_tracks.core.mixing.package.write_mix", short)
     with pytest.raises(MixOutputError) as error:
         rig.build()
     assert error.value.code == "MIX_OUTPUT_FRAMES"

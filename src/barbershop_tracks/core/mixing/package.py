@@ -24,16 +24,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from barbershop_tracks import __version__
-from barbershop_tracks.core.mixing.audio import (
-    SAMPLE_RATE,
-    FittedStem,
-    TailPolicy,
-    fit_stem,
-    load_stem,
-    mix_float,
-    quantize,
-    wav_bytes,
-)
+from barbershop_tracks.core.mixing.audio import SAMPLE_RATE, TailPolicy
 from barbershop_tracks.core.mixing.errors import (
     MixCancelledError,
     MixConfigurationError,
@@ -48,9 +39,10 @@ from barbershop_tracks.core.mixing.specs import (
     standard_mix_specs,
     validate_spec_set,
 )
+from barbershop_tracks.core.mixing.streaming import PlacedStem, place_stem, write_mix
 from barbershop_tracks.core.mixing.timeline import duration_frames, exact_seconds
 from barbershop_tracks.core.rendering.cancel import CancelToken
-from barbershop_tracks.core.rendering.wav import WavFormatError, read_raw
+from barbershop_tracks.core.rendering.wav import WavFormatError, inspect_file
 from barbershop_tracks.core.runtime import RuntimeLayout, StagingArea, StagingError
 from barbershop_tracks.core.runtime.staging import cleanup_stale, publish_directory, remove_staging
 from barbershop_tracks.core.synthesis import VOICE_ORDER, SourceIdentity, SynthesisPlan, TempoPoint
@@ -152,7 +144,7 @@ def _check_cancel(token: CancelToken) -> None:
 
 def _verify_wav(path: Path, frames: int, name: str) -> None:
     try:
-        info, _ = read_raw(path)
+        info, _ = inspect_file(path)
     except WavFormatError as error:
         raise MixOutputError("MIX_OUTPUT_INVALID", f"{name}: {error.message}") from error
     if (info.sample_rate, info.bit_depth, info.channels, info.is_float) != (
@@ -206,9 +198,8 @@ def build_learning_tracks(
     frames = duration_frames(source.tempo, source.length, SAMPLE_RATE)
     _check_cancel(token)
 
-    loaded = {role: load_stem(role, stems[role]) for role in VOICE_ORDER}
-    fitted: dict[VoiceRole, FittedStem] = {
-        role: fit_stem(loaded[role], frames, settings.tail) for role in VOICE_ORDER
+    placed: dict[VoiceRole, PlacedStem] = {
+        role: place_stem(role, stems[role], frames, settings.tail) for role in VOICE_ORDER
     }
     stem_hashes = {role: _sha256(stems[role]) for role in VOICE_ORDER}
 
@@ -227,10 +218,10 @@ def build_learning_tracks(
         package.mkdir()
         work.mkdir()
         entries, files = _produce(
-            specs, fitted, frames, package, work, settings, token, on_progress
+            specs, placed, frames, package, work, settings, token, on_progress
         )
         extra_entries = _copy_extras(package, wanted)
-        manifest = _manifest(source, settings, specs, entries, loaded, fitted, stem_hashes, frames)
+        manifest = _manifest(source, settings, specs, entries, placed, stem_hashes, frames)
         manifest["extras"] = extra_entries
         text = json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=True) + "\n"
         (package / MANIFEST_NAME).write_text(text, encoding="utf-8", newline="\n")
@@ -255,7 +246,7 @@ def build_learning_tracks(
 
 def _produce(
     specs: tuple[MixSpec, ...],
-    fitted: Mapping[VoiceRole, FittedStem],
+    placed: Mapping[VoiceRole, PlacedStem],
     frames: int,
     package: Path,
     work: Path,
@@ -267,12 +258,11 @@ def _produce(
     files: list[PackagedFile] = []
     for spec in specs:
         _check_cancel(token)
-        mixed = mix_float(spec, fitted)
-        pcm, peak = quantize(mixed, spec.identifier)
         wav_name = f"{spec.filename_stem}.wav"
         keep_wav = AudioFormat.WAV in settings.formats
         wav_path = (package if keep_wav else work) / wav_name
-        wav_path.write_bytes(wav_bytes(pcm))
+        peak = write_mix(spec, placed, frames, wav_path, should_stop=lambda: token.cancelled)
+        _check_cancel(token)
         entry_files: list[dict[str, Any]] = []
         if keep_wav:
             digest = _sha256(wav_path)
@@ -353,8 +343,7 @@ def _manifest(
     settings: PackageSettings,
     specs: tuple[MixSpec, ...],
     entries: list[dict[str, Any]],
-    loaded: Mapping[VoiceRole, Any],
-    fitted: Mapping[VoiceRole, FittedStem],
+    placed: Mapping[VoiceRole, PlacedStem],
     stem_hashes: Mapping[VoiceRole, str],
     frames: int,
 ) -> dict[str, Any]:
@@ -401,9 +390,9 @@ def _manifest(
             {
                 "voice": role.value,
                 "sha256": stem_hashes[role],
-                "frames": int(loaded[role].frames),
-                "padded_frames": fitted[role].padded_frames,
-                "trimmed_frames": fitted[role].trimmed_frames,
+                "frames": placed[role].frames,
+                "padded_frames": placed[role].padded_frames,
+                "trimmed_frames": placed[role].trimmed_frames,
             }
             for role in VOICE_ORDER
         ],

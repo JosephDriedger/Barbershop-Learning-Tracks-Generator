@@ -159,6 +159,11 @@ Nothing else is published: no temporary USTX, render cache or intermediates.
   host at a time per data folder) because hosts share OpenUtau's render cache and collided on cache files
   when run together; mixing, encoding and publication still overlap. Waiting is cancellable.
 
+## Memory
+
+Mixing is chunked (see `m9-mixing.md`): memory is bounded by the block size, not the song length
+(77 MB peak for an 8 minute score instead of 1.2 GB), with byte-identical output.
+
 ## Known limitations
 
 * Windows only. The voicebank must be one OpenUtau 0.1.565 can render with the chosen phonemizer;

@@ -133,24 +133,53 @@ def mix_float(spec: MixSpec, stems: Mapping[VoiceRole, FittedStem]) -> Float:
     return out
 
 
-def quantize(mixed: Float, mix_id: str) -> tuple[Int16, float]:
-    """Round once to PCM16; returns the samples and the float peak. Clipping is an error."""
+@dataclass(frozen=True, slots=True)
+class QuantizedBlock:
+    """One block rounded to PCM16, with what the clipping check found (nothing is clamped)."""
+
+    samples: Int16 | None  # None when any sample would clip
+    peak: float  # largest |float| in the block
+    clipped: int  # how many samples exceed full scale
+    first_clipped: int | None  # block-relative index of the first one
+
+
+def quantize_block(mixed: Float) -> QuantizedBlock:
     scaled = np.rint(mixed * SCALE)
     peak = float(np.max(np.abs(mixed))) if mixed.size else 0.0
     over = np.flatnonzero((scaled > 32767.0) | (scaled < -32768.0))
     if over.size:
-        raise MixClippingError(
-            "MIX_CLIPPING",
-            f"{mix_id} would clip: {over.size} sample(s) exceed full scale (peak {peak:.4f}, "
-            f"first at frame {int(over[0])}); lower the gains instead of letting it clip",
-            {"mix": mix_id, "peak": peak, "clipped_samples": int(over.size), "first": int(over[0])},
-        )
-    return scaled.astype("<i2"), peak
+        return QuantizedBlock(None, peak, int(over.size), int(over[0]))
+    return QuantizedBlock(scaled.astype("<i2"), peak, 0, None)
+
+
+def clipping_error(mix_id: str, peak: float, clipped: int, first: int) -> MixClippingError:
+    return MixClippingError(
+        "MIX_CLIPPING",
+        f"{mix_id} would clip: {clipped} sample(s) exceed full scale (peak {peak:.4f}, "
+        f"first at frame {first}); lower the gains instead of letting it clip",
+        {"mix": mix_id, "peak": peak, "clipped_samples": clipped, "first": first},
+    )
+
+
+def quantize(mixed: Float, mix_id: str) -> tuple[Int16, float]:
+    """Round once to PCM16; returns the samples and the float peak. Clipping is an error."""
+    block = quantize_block(mixed)
+    if block.samples is None:
+        assert block.first_clipped is not None
+        raise clipping_error(mix_id, block.peak, block.clipped, block.first_clipped)
+    return block.samples, block.peak
+
+
+def wav_header(frames: int, sample_rate: int = SAMPLE_RATE) -> bytes:
+    """The canonical 44-byte header of a mono PCM16 WAV holding ``frames`` frames."""
+    size = frames * 2
+    header = b"RIFF" + struct.pack("<I", 36 + size) + b"WAVEfmt "
+    header += struct.pack("<IHHIIHH", 16, 1, 1, sample_rate, sample_rate * 2, 2, 16)
+    return header + b"data" + struct.pack("<I", size)
 
 
 def wav_bytes(samples: Int16, sample_rate: int = SAMPLE_RATE) -> bytes:
-    """A canonical 44-byte-header mono PCM16 WAV: identical input gives identical bytes."""
-    data = samples.astype("<i2", copy=False).tobytes()
-    header = b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt "
-    header += struct.pack("<IHHIIHH", 16, 1, 1, sample_rate, sample_rate * 2, 2, 16)
-    return header + b"data" + struct.pack("<I", len(data)) + data
+    """A canonical mono PCM16 WAV: identical input gives identical bytes."""
+    return (
+        wav_header(int(samples.shape[0]), sample_rate) + samples.astype("<i2", copy=False).tobytes()
+    )
