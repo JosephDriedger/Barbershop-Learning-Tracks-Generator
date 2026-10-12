@@ -117,7 +117,7 @@
    "copyright": "Microsoft Corporation",
    "source": "Python 3.12.10 installation; PySide6 and NumPy wheels",
    "status": "blocker",
-   "obligations": "Microsoft permits redistributing the Visual C++ runtime files under its Distributable Code terms; the exact terms that apply to these copies were not reviewed or reproduced.",
+   "obligations": "Microsoft's REDIST list (Visual Studio 2026) says redistribution of the Visual C++ runtime files 'is limited to licensed Visual Studio users' under the Microsoft Software License Terms. The 11 copies in this package come from the Python (14.42), NumPy/delvewheel (14.40) and Qt (14.44, signed by The Qt Company) distributions; BLT's rights to pass them on were not established. Options and evidence: docs/m13-compliance.md.",
    "notes": "Needs a human decision: confirm the terms, or have the installer run Microsoft's official Visual C++ Redistributable instead of carrying app-local copies.",
    "patterns": [
     "_internal/VCRUNTIME*.dll",
@@ -369,10 +369,10 @@
    "name": "OpenUtau.Core (OpenUtau.Core.dll)",
    "version": "0.1.565 (commit a60ca5830b9064556157245d4bf8f5920d93e5f8)",
    "license": "MIT; contains code partially based on the VOICEVOX engine (LGPL-3.0), a C# port of SimpleEnunu's f0_smoother (MIT) and a Deque implementation matching Nito.Collections.Deque (MIT); embeds data of unverified provenance",
-   "copyright": "Copyright (c) 2014 StAkira and OpenUtau contributors; (c) 2023 oatsu (SimpleEnunu); (c) 2015 Stephen Cleary (Deque); the VOICEVOX engine authors; (c) 2017 Ryuichi Yamamoto and the University of Edinburgh (Merlin-derived code in Plugin.Builtin)",
+   "copyright": "Copyright (c) 2014 StAkira and OpenUtau contributors; (c) 2023 oatsu (SimpleEnunu); (c) 2015 Stephen Cleary (Deque); the VOICEVOX engine authors; (c) 2017 Ryuichi Yamamoto and the University of Edinburgh (Merlin-derived code in Plugin.Builtin); Carnegie Mellon University (CMUdict 0.07)",
    "source": "https://github.com/stakira/OpenUtau (tag 0.1.565, built unmodified from that commit)",
    "status": "blocker",
-   "obligations": "MIT notice and the upstream MIT/Apache notices of the ported code (shipped). LGPL-3.0: OpenUtau.Core.Voicevox (VoicevoxRenderer, VoicevoxUtils, VoicevoxConfig) states it is 'partially based on the VOICEVOX engine' (LGPL_LICENSE), so OpenUtau.Core.dll is distributed with the LGPL text (shipped), as a separate replaceable DLL, built unmodified from the public commit named above; the written statement is in NOTICES.txt. Embedded data: the g2p models (arpabet, arpabet-plus, de, es, fr, it, ja-mono, ko, pt, ru) were contributed to the MIT repository by named contributors (e.g. commits 22e0c887, 2d0fcbe7, 8b8104ae, ed3267b9), the Vogen models and yue.csv by the maintainer in 2022 (e6486acc, 5b698e5b); none carries a licence statement, and the training data or dictionaries they derive from (for example CMUdict for the English model) are not named. The CREPE tiny.onnx model is MIT (Jong Wook Kim; licence shipped).",
+   "obligations": "MIT notice and the upstream MIT/Apache notices of the ported code (shipped). LGPL-3.0: OpenUtau.Core.Voicevox (VoicevoxRenderer, VoicevoxUtils, VoicevoxConfig) states it is 'partially based on the VOICEVOX engine' (LGPL_LICENSE), so OpenUtau.Core.dll is distributed with the LGPL text (shipped), as a separate replaceable DLL, built unmodified from the public commit named above; the written statement is in NOTICES.txt. Embedded data: the g2p models (arpabet, arpabet-plus, de, es, fr, it, ja-mono, ko, pt, ru) were contributed to the MIT repository by named contributors (e.g. commits 22e0c887, 2d0fcbe7, 8b8104ae, ed3267b9), the Vogen models and yue.csv by the maintainer in 2022 (e6486acc, 5b698e5b); none carries a licence statement, and the training data or dictionaries they derive from (for example CMUdict for the English model) are not named. The CREPE tiny.onnx model is MIT (Jong Wook Kim; licence shipped). Added in M13: g2p-arpabet.zip carries CMUdict 0.07 verbatim (Carnegie Mellon University licence, text shipped); g2p-arpabet-plus.zip has 420,422 entries of which 299,535 are CMUdict words and 120,887 are additions of unknown origin. Exact embedded resources are listed in docs/m13-compliance.md; a prototype build without the Voicevox classes, the Vogen data and the non-English dictionaries is in research-output/m13.",
    "notes": "Release blocker until a person (1) confirms the LGPL handling of the VOICEVOX-derived classes and (2) the owner of the embedded g2p/Vogen data is asked to confirm it may be redistributed, or those features are removed from a BLT-specific build of OpenUtau.Core (which would no longer be the unmodified upstream binary).",
    "patterns": [
     "host/OpenUtau.Core.dll"
@@ -410,6 +410,10 @@
     {
      "label": "Merlin LICENSE (Apache-2.0)",
      "path": "packaging/licenses/upstream_CSTR-Edinburgh_merlin_LICENSE.txt"
+    },
+    {
+     "label": "CMUdict 0.07 licence (embedded English dictionary and g2p training data)",
+     "path": "packaging/licenses/upstream_CMUdict_0.07_licence.txt"
     }
    ],
    "bundled": "yes"
@@ -437,18 +441,52 @@
    "id": "worldline",
    "name": "worldline.dll (OpenUtau's native resampler/vocoder, prebuilt win-x64)",
    "version": "from OpenUtau 0.1.565 (runtimes/win-x64/native/worldline.dll)",
-   "license": "MIT (OpenUtau's own sources) combined with GPL-2.0 (tk::spline) and unlicensed (libpyin) code",
-   "copyright": "StAkira and contributors; Tino Kluge (spline); Masanori Morise (WORLD); Sleepwalking (libpyin, libgvps)",
+   "license": "MIT (OpenUtau's worldline sources) with statically linked: World (BSD-3-Clause, modified), PLATINUM (Morise, no licence text in file), libgvps and libpyin (BSD-3-Clause), libnpy (MIT), miniaudio (public domain or MIT-0), xxHash (BSD-2-Clause), Abseil strings (Apache-2.0) and tk::spline (GPL-2.0-or-later)",
+   "copyright": "StAkira and OpenUtau contributors; Masanori Morise (World, PLATINUM); Kanru Hua (libgvps, libpyin); Leon Merten Lohse (libnpy); David Reid (miniaudio); Yann Collet (xxHash); The Abseil Authors; Tino Kluge (tk::spline)",
    "source": "https://github.com/stakira/OpenUtau/tree/0.1.565/cpp",
    "status": "blocker",
-   "obligations": "worldline compiles third-party code: the header-only tk::spline (ttk592/spline) is GPL-2.0 and is included by worldline's effects code; libpyin (Sleepwalking/libpyin) has no licence file in its repository; libgvps is BSD-3-Clause; WORLD is modified BSD; libnpy and miniaudio are permissive. A binary containing GPL-2.0 code may be distributed only under GPL-2.0 terms (source for the whole work, no further restrictions), which does not fit an Apache-2.0/MIT bundle without that source offer; a library with no licence grants no right to redistribute.",
-   "notes": "RELEASE BLOCKER (conflict). Options: obtain written permission or clarification from upstream; rebuild worldline without spline and libpyin; or distribute under GPL-2.0 compliance. The installer can still be built for internal acceptance testing, flagged as not for release.",
+   "obligations": "Open: tk::spline (Tino Kluge, spline.h, GPL-2.0-or-later, https://github.com/ttk592/spline at 5894bea) is compiled into worldline (worldline/model/effects.cpp) and runs on every rendered frame with f0 >= 50 Hz in both PhraseSynth and Resample. A binary containing it may be conveyed only under GPL terms. Evidence and the proposed fix: docs/m13-compliance.md. Permissive notices that this DLL already requires are shipped (World, libgvps, libpyin, libnpy, miniaudio, xxHash, Abseil). Correction to the M12 audit: libpyin is BSD-3-Clause (every source file carries the licence header; the repository only lacks a LICENSE file).",
+   "notes": "RELEASE BLOCKER until worldline.dll is replaced by a BLT build without tk::spline (a two-line source change, parity-tested: research-output/m13) or upstream/the spline author grants other terms. Legal review recommended for the replacement spline. PLATINUM files state only 'Copyright 2012-2015 Masanori Morise. All Rights Reserved.'; they were extracted from World 0.1.4_3 (BSD-3-Clause); the extracted copy carries no licence text (residual risk, low).",
    "patterns": [
     "host/worldline.dll"
    ],
    "bundled": "yes",
-   "texts": [],
-   "extra_texts": []
+   "texts": [
+    "MIT",
+    "BSD-3-Clause",
+    "BSD-2-Clause",
+    "Apache-2.0"
+   ],
+   "extra_texts": [
+    {
+     "label": "World LICENSE (modified BSD)",
+     "path": "packaging/licenses/upstream_mmorise_World_LICENSE.txt"
+    },
+    {
+     "label": "libgvps LICENSE (BSD-3-Clause)",
+     "path": "packaging/licenses/upstream_Sleepwalking_libgvps_LICENSE.txt"
+    },
+    {
+     "label": "libpyin source-file licence header (BSD-3-Clause)",
+     "path": "packaging/licenses/upstream_Sleepwalking_libpyin_source_header.txt"
+    },
+    {
+     "label": "libnpy LICENSE (MIT)",
+     "path": "packaging/licenses/upstream_llohse_libnpy_LICENSE.txt"
+    },
+    {
+     "label": "miniaudio licence (public domain or MIT-0)",
+     "path": "packaging/licenses/upstream_mackron_miniaudio_licence.txt"
+    },
+    {
+     "label": "xxHash LICENSE (BSD-2-Clause, library)",
+     "path": "packaging/licenses/upstream_Cyan4973_xxHash_LICENSE.txt"
+    },
+    {
+     "label": "Abseil LICENSE (Apache-2.0)",
+     "path": "packaging/licenses/upstream_abseil-cpp_LICENSE.txt"
+    }
+   ]
   },
   {
    "id": "dotnet-runtime",

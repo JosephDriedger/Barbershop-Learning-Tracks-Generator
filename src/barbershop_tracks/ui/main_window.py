@@ -231,7 +231,10 @@ class MainWindow(QMainWindow):
         QMessageBox.about(
             self,
             f"About {TITLE}",
-            f"<b>{TITLE}</b> {__version__}<br>Four-part barbershop learning tracks from a score.",
+            f"<b>{TITLE}</b> {__version__}<br>Four-part barbershop learning tracks from a score."
+            "<br><br>Copyright 2026 Joseph Driedger. Apache License 2.0."
+            "<br>This program uses Qt and PySide6 under the GNU LGPL version 3, and other "
+            "third-party software; see Help, Third-party notices.",
         )
 
     def choose_score(self) -> None:

@@ -23,9 +23,9 @@ matches it, and a representative four-part TTBB arrangement exported from MuseSc
 copyrighted score; record only its title, source and licence).
 
 Suggested voicebank / phonemizer pairings for English in OpenUtau 0.1.565 (check the voicebank's readme):
-ARPAsing-style banks with `OpenUtau.Plugin.Builtin.ArpasingPlusPhonemizer`; English CVVC banks with
-`OpenUtau.Plugin.Builtin.EnglishCVVCPhonemizer`; VCCV English banks with
-`OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer`. The renderer is WORLDLINE-R (CLASSIC is rejected by the mix check, see KNOWN-LIMITATIONS); neural
+ARPAsing-style banks with `OpenUtau.Plugin.Builtin.ArpasingPhonemizer` (or `ArpasingPlusPhonemizer`); English C+V banks
+with `OpenUtau.Plugin.Builtin.EnglishCpVPhonemizer`; X-SAMPA banks with `EnXSampaPhonemizer`; VCCV English banks with
+`OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer` (class names checked against the 0.1.565 sources). The renderer is WORLDLINE-R (CLASSIC is rejected by the mix check, see KNOWN-LIMITATIONS); neural
 renderers are not part of this build.
 
 Score requirements: all four parts with lyrics under every note (so every voice is rendered), at least one

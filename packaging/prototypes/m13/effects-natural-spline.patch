@@ -1,0 +1,20 @@
+--- a/worldline/model/effects.cpp
++++ b/worldline/model/effects.cpp
+@@ -5,7 +5,7 @@
+ #include <numeric>
+ #include <vector>
+ 
+-#include "spline.h"
++#include "natural_spline.h"
+ 
+ namespace worldline {
+ 
+@@ -127,7 +127,7 @@
+     py.push_back(0);
+     x++;
+   }
+-  tk::spline spline(px, py);
++  blt::NaturalCubicSpline spline(px, py);
+   for (int i = 0; i < width; ++i) {
+     envelope[i] = std::exp(spline(i));
+   }
