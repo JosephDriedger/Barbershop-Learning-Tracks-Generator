@@ -1,0 +1,1616 @@
+{
+ "schema": "blt.components/1",
+ "components": [
+  {
+   "id": "blt",
+   "name": "BLT Music Generator (application code, launchers, icon, generated notices)",
+   "version": "0.1.0",
+   "license": "Apache-2.0",
+   "copyright": "UNKNOWN: the repository LICENSE is the unfilled Apache-2.0 template",
+   "source": "this repository",
+   "status": "blocker",
+   "obligations": "Name the copyright holder in LICENSE and confirm Apache-2.0 for the release.",
+   "notes": "Original artwork only (the icon is drawn by packaging/make_icon.py); no third-party fonts or images are shipped. The Python sources are frozen inside the two executables.",
+   "patterns": [
+    "BLT Music Generator.exe",
+    "blt.exe",
+    "NOTICES.txt",
+    "LICENSE.txt",
+    "licenses/**",
+    "host/blt-render-host.*"
+   ],
+   "texts": [
+    "Apache-2.0"
+   ],
+   "bundled": "yes",
+   "extra_texts": []
+  },
+  {
+   "id": "cpython",
+   "name": "CPython runtime and standard library",
+   "version": "3.12.10",
+   "license": "PSF-2.0",
+   "copyright": "Python Software Foundation and contributors",
+   "source": "https://www.python.org/downloads/release/python-31210/ (the interpreter that builds the package)",
+   "obligations": "Include the Python licence text and copyright notices.",
+   "patterns": [
+    "_internal/python3*.dll",
+    "_internal/base_library.zip",
+    "_internal/*.pyd"
+   ],
+   "texts": [
+    "PSF-2.0"
+   ],
+   "extra_texts": [
+    {
+     "label": "Python LICENSE.txt (history and terms)",
+     "path": "{python}/LICENSE.txt"
+    }
+   ],
+   "status": "ok",
+   "bundled": "yes",
+   "notes": ""
+  },
+  {
+   "id": "python-incorporated",
+   "name": "Third-party code inside CPython's extension modules (expat in pyexpat, libmpdec in _decimal, bzip2 in _bz2, liblzma in _lzma)",
+   "version": "as built into Python 3.12.10",
+   "license": "MIT (expat) AND BSD-2-Clause (libmpdec) AND bzip2-1.0.6 AND public domain (liblzma)",
+   "copyright": "expat: Expat maintainers, Thai Open Source Software Center, Clark Cooper; libmpdec: Stefan Krah; bzip2: Julian R Seward; liblzma: Lasse Collin and contributors",
+   "source": "CPython 3.12.10 Windows build (see 'Licenses and Acknowledgements for Incorporated Software' in the Python documentation)",
+   "obligations": "Reproduce the expat, libmpdec and bzip2 notices (shipped).",
+   "texts": [
+    "MIT",
+    "BSD-2-Clause",
+    "bzip2-1.0.6"
+   ],
+   "notes": "Version of each embedded library not individually read; the licences are those of every release of these libraries.",
+   "status": "ok",
+   "bundled": "yes",
+   "patterns": [],
+   "extra_texts": []
+  },
+  {
+   "id": "libffi",
+   "name": "libffi (libffi-8.dll, from the Python distribution)",
+   "version": "bundled with Python 3.12.10",
+   "license": "MIT",
+   "copyright": "Anthony Green, Red Hat and contributors",
+   "source": "https://github.com/libffi/libffi",
+   "obligations": "Reproduce the MIT notice.",
+   "patterns": [
+    "_internal/libffi-*.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "notes": "The exact libffi version inside the Python build was not read; the licence is MIT for all releases.",
+   "status": "ok",
+   "bundled": "yes",
+   "extra_texts": []
+  },
+  {
+   "id": "openssl",
+   "name": "OpenSSL libcrypto (libcrypto-3.dll, used by hashlib)",
+   "version": "3.x as bundled with Python 3.12.10",
+   "license": "Apache-2.0",
+   "copyright": "The OpenSSL Project Authors",
+   "source": "https://www.openssl.org/",
+   "obligations": "Reproduce the Apache-2.0 text (OpenSSL 3.x is Apache-2.0).",
+   "patterns": [
+    "_internal/libcrypto-*.dll"
+   ],
+   "texts": [
+    "Apache-2.0"
+   ],
+   "notes": "libssl and the _ssl module are excluded from the package; BLT makes no network connections.",
+   "status": "ok",
+   "bundled": "yes",
+   "extra_texts": []
+  },
+  {
+   "id": "msvc-runtime",
+   "name": "Microsoft Visual C++ runtime (VCRUNTIME140*.dll, MSVCP140*.dll)",
+   "version": "14.x as shipped in Python 3.12.10 and the Qt/NumPy wheels",
+   "license": "Microsoft Visual C++ redistributable terms (Distributable Code)",
+   "copyright": "Microsoft Corporation",
+   "source": "Python 3.12.10 installation; PySide6 and NumPy wheels",
+   "status": "blocker",
+   "obligations": "Microsoft permits redistributing the Visual C++ runtime files under its Distributable Code terms; the exact terms that apply to these copies were not reviewed or reproduced.",
+   "notes": "Needs a human decision: confirm the terms, or have the installer run Microsoft's official Visual C++ Redistributable instead of carrying app-local copies.",
+   "patterns": [
+    "_internal/VCRUNTIME*.dll",
+    "_internal/MSVCP*.dll",
+    "_internal/*/VCRUNTIME*.dll",
+    "_internal/*/MSVCP*.dll",
+    "_internal/*/msvcp*.dll",
+    "_internal/*/concrt*.dll"
+   ],
+   "bundled": "yes",
+   "texts": [],
+   "extra_texts": []
+  },
+  {
+   "id": "ucrt",
+   "name": "Universal C Runtime (ucrtbase.dll, api-ms-win-*.dll)",
+   "version": "10.0.x as collected by PyInstaller",
+   "license": "Microsoft Distributable Code (Universal CRT)",
+   "copyright": "Microsoft Corporation",
+   "source": "Windows SDK / Windows (copied by PyInstaller)",
+   "status": "blocker",
+   "obligations": "Redistribution terms not reviewed.",
+   "notes": "On Windows 10 and later the UCRT is an operating-system component; the app-local copies could be dropped (to be tested), which removes this item.",
+   "patterns": [
+    "_internal/ucrtbase.dll",
+    "_internal/api-ms-win-*.dll"
+   ],
+   "bundled": "yes",
+   "texts": [],
+   "extra_texts": []
+  },
+  {
+   "pypi": "pyinstaller",
+   "id": "pyinstaller",
+   "name": "PyInstaller bootloader and runtime hooks (inside the two executables)",
+   "version": "6.22.3",
+   "license": "GPL-2.0-or-later WITH Bootloader-exception",
+   "copyright": "PyInstaller Development Team (Hartmut Goebel, Giovanni Bajo, David Vierra, David Cortesi, Martin Zibricky)",
+   "source": "https://pyinstaller.org/",
+   "obligations": "The bootloader exception allows distributing the frozen program under any licence; ship PyInstaller's COPYING.txt.",
+   "bundled": "yes (linked into the executables)",
+   "extra_texts": [
+    {
+     "label": "PyInstaller COPYING.txt (GPL-2.0 text and the bootloader exception)",
+     "path": "{site}/pyinstaller-6.22.3.dist-info/licenses/COPYING.txt"
+    }
+   ],
+   "status": "ok",
+   "patterns": [],
+   "texts": [],
+   "notes": ""
+  },
+  {
+   "pypi": "PySide6",
+   "id": "pyside6",
+   "name": "PySide6 and shiboken6 (Qt for Python bindings)",
+   "version": "6.11.2",
+   "license": "LGPL-3.0-only (elected from LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only)",
+   "copyright": "The Qt Company Ltd. and the Qt for Python team",
+   "source": "https://code.qt.io/cgit/pyside/pyside-setup.git (tag v6.11.2); wheels from PyPI",
+   "status": "blocker",
+   "obligations": "LGPL-3.0: ship the LGPL and GPL texts (done); keep the libraries as separate replaceable DLLs/PYDs (done: one-folder layout); state that the application uses PySide6/Qt under the LGPL; offer the corresponding source and any modifications (none made). A source offer is drafted in NOTICES.txt but has not been reviewed by a person.",
+   "notes": "Blocker until a person confirms the LGPL-3.0 compliance statement. If commercial licensing is preferred instead, this entry changes.",
+   "patterns": [
+    "_internal/PySide6/*.pyd",
+    "_internal/PySide6/pyside6*.dll",
+    "_internal/shiboken6/*"
+   ],
+   "texts": [
+    "LGPL-3.0-only",
+    "GPL-3.0-only"
+   ],
+   "bundled": "yes",
+   "extra_texts": []
+  },
+  {
+   "id": "qt",
+   "name": "Qt libraries and plugins (Qt6Core, Qt6Gui, Qt6Widgets, platform and image plugins)",
+   "version": "6.11.2",
+   "license": "LGPL-3.0-only (with third-party components under their own licences)",
+   "copyright": "The Qt Company Ltd. and others",
+   "source": "https://download.qt.io/official_releases/qt/6.11/6.11.2/",
+   "status": "blocker",
+   "obligations": "LGPL-3.0 as for PySide6. The Qt libraries also contain third-party code (for example PCRE2, double-conversion, zlib, libpng, FreeType, HarfBuzz, md4c) whose notices must accompany a binary distribution; Qt documents them on its Licenses Used in Qt and per-module attribution pages.",
+   "notes": "Release blocker: the third-party attribution texts for the shipped Qt6Core/Qt6Gui/Qt6Widgets and plugins (qwindows, qico, qoffscreen) have not been collected or verified against this Qt build.",
+   "patterns": [
+    "_internal/PySide6/**"
+   ],
+   "texts": [
+    "LGPL-3.0-only"
+   ],
+   "bundled": "yes",
+   "extra_texts": []
+  },
+  {
+   "pypi": "numpy",
+   "id": "numpy",
+   "name": "NumPy (numpy package)",
+   "version": "2.5.4",
+   "license": "BSD-3-Clause (with bundled sub-components: 0BSD, MIT, Zlib, CC0-1.0, Apache-2.0)",
+   "copyright": "NumPy Developers",
+   "source": "https://numpy.org/ (PyPI wheel)",
+   "obligations": "Reproduce the NumPy licence and the licences of its bundled sub-components (shipped from the wheel's dist-info).",
+   "patterns": [
+    "_internal/numpy/**",
+    "_internal/numpy-*/**"
+   ],
+   "texts": [
+    "BSD-3-Clause"
+   ],
+   "extra_texts": [
+    {
+     "label": "NumPy licence files (LICENSE.txt and sub-components)",
+     "path": "{site}/numpy-2.5.4.dist-info/licenses",
+     "tree": true
+    }
+   ],
+   "status": "ok",
+   "bundled": "yes",
+   "notes": ""
+  },
+  {
+   "id": "openblas",
+   "name": "OpenBLAS (numpy.libs/libscipy_openblas64_*.dll) and its runtime libraries",
+   "version": "as bundled in the NumPy 2.5.4 wheel",
+   "license": "BSD-3-Clause (OpenBLAS); runtime libraries as listed in NumPy's licence files",
+   "copyright": "The OpenBLAS authors; others as listed",
+   "source": "NumPy wheel (scipy-openblas64)",
+   "status": "blocker",
+   "obligations": "The wheel's licence file names the licences of what it bundles; whether this DLL contains a GCC/MinGW runtime under GPL-with-exception terms, and whether its notices are reproduced, was not verified.",
+   "notes": "Needs verification; if a GPL-with-exception runtime is linked, its exception text must be included.",
+   "patterns": [
+    "_internal/numpy.libs/*"
+   ],
+   "bundled": "yes",
+   "texts": [],
+   "extra_texts": []
+  },
+  {
+   "pypi": "mido",
+   "id": "mido",
+   "name": "mido",
+   "version": "1.3.3",
+   "license": "MIT",
+   "copyright": "Ole Martin Bjorndalen",
+   "source": "https://github.com/mido/mido",
+   "patterns": [
+    "_internal/mido-*/*"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "mido LICENSE",
+     "path": "{site}/mido-1.3.3.dist-info/LICENSE"
+    }
+   ],
+   "status": "ok",
+   "bundled": "yes",
+   "notes": "",
+   "obligations": "Reproduce the copyright notice and licence text (shipped)."
+  },
+  {
+   "pypi": "defusedxml",
+   "id": "defusedxml",
+   "name": "defusedxml",
+   "version": "0.7.1",
+   "license": "PSF-2.0",
+   "copyright": "Christian Heimes",
+   "source": "https://github.com/tiran/defusedxml",
+   "texts": [
+    "PSF-2.0"
+   ],
+   "extra_texts": [
+    {
+     "label": "defusedxml LICENSE",
+     "path": "{site}/defusedxml-0.7.1.dist-info/LICENSE"
+    }
+   ],
+   "bundled": "yes (frozen inside the executables)",
+   "status": "ok",
+   "patterns": [],
+   "notes": "",
+   "obligations": "Reproduce the copyright notice and licence text (shipped)."
+  },
+  {
+   "pypi": "platformdirs",
+   "id": "platformdirs",
+   "name": "platformdirs",
+   "version": "4.12.3",
+   "license": "MIT",
+   "copyright": "platformdirs contributors",
+   "source": "https://github.com/tox-dev/platformdirs",
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "platformdirs LICENSE",
+     "path": "{site}/platformdirs-4.12.3.dist-info/licenses/LICENSE"
+    }
+   ],
+   "bundled": "yes (frozen inside the executables)",
+   "status": "ok",
+   "patterns": [],
+   "notes": "",
+   "obligations": "Reproduce the copyright notice and licence text (shipped)."
+  },
+  {
+   "pypi": "packaging",
+   "id": "packaging",
+   "name": "packaging",
+   "version": "26.3",
+   "license": "Apache-2.0 OR BSD-2-Clause (BSD-2-Clause elected)",
+   "copyright": "Donald Stufft and individual contributors",
+   "source": "https://github.com/pypa/packaging",
+   "texts": [
+    "BSD-2-Clause"
+   ],
+   "extra_texts": [
+    {
+     "label": "packaging LICENSE.BSD",
+     "path": "{site}/packaging-26.3.dist-info/licenses/LICENSE.BSD"
+    }
+   ],
+   "bundled": "yes (frozen inside the executables)",
+   "status": "ok",
+   "patterns": [],
+   "notes": "",
+   "obligations": "Reproduce the copyright notice and licence text (shipped)."
+  },
+  {
+   "pypi": "typing_extensions",
+   "id": "typing-extensions",
+   "name": "typing_extensions",
+   "version": "4.16.0",
+   "license": "PSF-2.0",
+   "copyright": "Python Software Foundation and contributors",
+   "source": "https://github.com/python/typing_extensions",
+   "texts": [
+    "PSF-2.0"
+   ],
+   "extra_texts": [
+    {
+     "label": "typing_extensions LICENSE",
+     "path": "{site}/typing_extensions-4.16.0.dist-info/licenses/LICENSE"
+    }
+   ],
+   "bundled": "yes (frozen inside the executables)",
+   "status": "ok",
+   "patterns": [],
+   "notes": "",
+   "obligations": "Reproduce the copyright notice and licence text (shipped)."
+  },
+  {
+   "id": "openutau-core",
+   "name": "OpenUtau.Core (OpenUtau.Core.dll)",
+   "version": "0.1.565 (commit a60ca5830b9064556157245d4bf8f5920d93e5f8)",
+   "license": "MIT",
+   "copyright": "Copyright (c) 2014 StAkira",
+   "source": "https://github.com/stakira/OpenUtau (tag 0.1.565, built unmodified from that commit)",
+   "status": "blocker",
+   "obligations": "MIT notice (shipped). The assembly embeds data whose own licences were not verified: g2p models (arpabet, arpabet-plus, de, es, fr, it, ja, ko, pt, ru), Vogen models, yue.csv. The CREPE tiny.onnx model is MIT (Jong Wook Kim; licence shipped). F0Smoother is a C# port of SimpleEnunu's f0_smoother.py, and Deque.cs comes from a third party; both licences are unverified.",
+   "notes": "Release blocker until the embedded g2p/Vogen data and the two third-party sources have verified licences.",
+   "patterns": [
+    "host/OpenUtau.Core.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "OpenUtau LICENSE.txt (MIT)",
+     "path": "{openutau}/LICENSE.txt"
+    },
+    {
+     "label": "CREPE licence (embedded tiny.onnx model)",
+     "path": "{openutau}/OpenUtau.Core/Analysis/Crepe/LICENSE.txt"
+    }
+   ],
+   "bundled": "yes"
+  },
+  {
+   "id": "openutau-plugin-builtin",
+   "name": "OpenUtau.Plugin.Builtin (phonemizers)",
+   "version": "0.1.565 (same commit)",
+   "license": "MIT",
+   "copyright": "Copyright (c) 2014 StAkira and OpenUtau contributors",
+   "source": "https://github.com/stakira/OpenUtau",
+   "status": "blocker",
+   "obligations": "MIT notice (shipped). Several phonemizers carry their own copyright statements that were not individually audited.",
+   "notes": "Release blocker until the per-file notices have been read.",
+   "patterns": [
+    "host/OpenUtau.Plugin.Builtin.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "bundled": "yes",
+   "extra_texts": []
+  },
+  {
+   "id": "worldline",
+   "name": "worldline.dll (OpenUtau's native resampler/vocoder, prebuilt win-x64)",
+   "version": "from OpenUtau 0.1.565 (runtimes/win-x64/native/worldline.dll)",
+   "license": "MIT (OpenUtau's own sources) combined with GPL-2.0 (tk::spline) and unlicensed (libpyin) code",
+   "copyright": "StAkira and contributors; Tino Kluge (spline); Masanori Morise (WORLD); Sleepwalking (libpyin, libgvps)",
+   "source": "https://github.com/stakira/OpenUtau/tree/0.1.565/cpp",
+   "status": "blocker",
+   "obligations": "worldline compiles third-party code: the header-only tk::spline (ttk592/spline) is GPL-2.0 and is included by worldline's effects code; libpyin (Sleepwalking/libpyin) has no licence file in its repository; libgvps is BSD-3-Clause; WORLD is modified BSD; libnpy and miniaudio are permissive. A binary containing GPL-2.0 code may be distributed only under GPL-2.0 terms (source for the whole work, no further restrictions), which does not fit an Apache-2.0/MIT bundle without that source offer; a library with no licence grants no right to redistribute.",
+   "notes": "RELEASE BLOCKER (conflict). Options: obtain written permission or clarification from upstream; rebuild worldline without spline and libpyin; or distribute under GPL-2.0 compliance. The installer can still be built for internal acceptance testing, flagged as not for release.",
+   "patterns": [
+    "host/worldline.dll"
+   ],
+   "bundled": "yes",
+   "texts": [],
+   "extra_texts": []
+  },
+  {
+   "id": "dotnet-runtime",
+   "name": ".NET runtime and base class library (self-contained: coreclr, clrjit, hostfxr, hostpolicy, System.*.dll, msquic, ...)",
+   "version": "8.0.31 (Microsoft.NETCore.App.Runtime.win-x64)",
+   "license": "MIT",
+   "copyright": ".NET Foundation and Contributors; Microsoft Corporation",
+   "source": "https://dotnet.microsoft.com/ (the runtime pack restored by dotnet publish)",
+   "obligations": "Ship the runtime's LICENSE.TXT and THIRD-PARTY-NOTICES.TXT (done, copied verbatim from the runtime pack).",
+   "match_runtime_pack": true,
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": ".NET runtime LICENSE.TXT",
+     "path": "{nuget}/microsoft.netcore.app.runtime.win-x64/8.0.31/LICENSE.TXT"
+    },
+    {
+     "label": ".NET runtime THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/microsoft.netcore.app.runtime.win-x64/8.0.31/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "status": "ok",
+   "bundled": "yes",
+   "patterns": [],
+   "notes": ""
+  },
+  {
+   "id": "nuget-bunlabs.naudio.flac",
+   "name": "BunLabs.NAudio.Flac (NuGet package)",
+   "version": "2.0.1",
+   "license": "MS-PL",
+   "copyright": "Vivelin",
+   "source": "https://www.nuget.org/packages/BunLabs.NAudio.Flac/2.0.1",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "BunLabs.NAudio.Flac",
+   "patterns": [
+    "host/NAudio.Flac.dll"
+   ],
+   "texts": [
+    "MS-PL"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-concentus",
+   "name": "Concentus (NuGet package)",
+   "version": "2.2.1",
+   "license": "BSD-3-Clause (Xiph/Opus text shipped with the package)",
+   "copyright": "Copyright (c) Xiph.Org Foundation, Skype Limited, CSIRO, Microsoft Corp.; Logan Stromberg",
+   "source": "https://www.nuget.org/packages/Concentus/2.2.1",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Concentus",
+   "patterns": [
+    "host/Concentus.dll"
+   ],
+   "texts": [
+    "BSD-3-Clause"
+   ],
+   "extra_texts": [
+    {
+     "label": "Concentus licence file",
+     "path": "{nuget}/concentus/2.2.1/LICENSE"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-concentus.oggfile",
+   "name": "Concentus.Oggfile (NuGet package)",
+   "version": "1.0.6",
+   "license": "MS-PL",
+   "copyright": "Copyright (c) Logan Stromberg, Andrew Ward",
+   "source": "https://www.nuget.org/packages/Concentus.Oggfile/1.0.6",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Concentus.Oggfile",
+   "patterns": [
+    "host/Concentus.Oggfile.dll"
+   ],
+   "texts": [
+    "MS-PL"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-csharp-kana",
+   "name": "csharp-kana (NuGet package)",
+   "version": "1.0.2",
+   "license": "Apache-2.0",
+   "copyright": "wolfgitpr",
+   "source": "https://www.nuget.org/packages/csharp-kana/1.0.2",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "csharp-kana",
+   "patterns": [
+    "host/Kana.dll"
+   ],
+   "texts": [
+    "Apache-2.0"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-csharp-pinyin",
+   "name": "csharp-pinyin (NuGet package)",
+   "version": "1.0.0",
+   "license": "Apache-2.0",
+   "copyright": "wolfgitpr",
+   "source": "https://www.nuget.org/packages/csharp-pinyin/1.0.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "csharp-pinyin",
+   "patterns": [
+    "host/Pinyin.dll"
+   ],
+   "texts": [
+    "Apache-2.0"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-ignore",
+   "name": "Ignore (NuGet package)",
+   "version": "0.1.50",
+   "license": "MIT (repository licence; the package declares none)",
+   "copyright": "Copyright (c) 2020 Hardik Goel",
+   "source": "https://www.nuget.org/packages/Ignore/0.1.50",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Ignore",
+   "patterns": [
+    "host/Ignore.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "Ignore licence file",
+     "path": "packaging/licenses/upstream_goelhardik_ignore.txt"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-k4os.hash.xxhash",
+   "name": "K4os.Hash.xxHash (NuGet package)",
+   "version": "1.0.8",
+   "license": "MIT (repository licence; the package gives a URL)",
+   "copyright": "Copyright (c) 2017 Milosz Krajewski",
+   "source": "https://www.nuget.org/packages/K4os.Hash.xxHash/1.0.8",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "K4os.Hash.xxHash",
+   "patterns": [
+    "host/K4os.Hash.xxHash.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "K4os.Hash.xxHash licence file",
+     "path": "packaging/licenses/upstream_MiloszKrajewski_K4os.Hash.xxHash.txt"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-melanchall.drywetmidi",
+   "name": "Melanchall.DryWetMidi (NuGet package)",
+   "version": "7.2.0",
+   "license": "MIT",
+   "copyright": "Copyright © Melanchall 2024",
+   "source": "https://www.nuget.org/packages/Melanchall.DryWetMidi/7.2.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Melanchall.DryWetMidi",
+   "patterns": [
+    "host/Melanchall.DryWetMidi.dll",
+    "host/Melanchall_DryWetMidi_Native64.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-microsoft.bcl.asyncinterfaces",
+   "name": "Microsoft.Bcl.AsyncInterfaces (NuGet package)",
+   "version": "5.0.0",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/Microsoft.Bcl.AsyncInterfaces/5.0.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Microsoft.Bcl.AsyncInterfaces",
+   "patterns": [
+    "host/Microsoft.Bcl.AsyncInterfaces.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "Microsoft.Bcl.AsyncInterfaces THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/microsoft.bcl.asyncinterfaces/5.0.0/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-microsoft.extensions.objectpool",
+   "name": "Microsoft.Extensions.ObjectPool (NuGet package)",
+   "version": "5.0.10",
+   "license": "Apache-2.0",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/Microsoft.Extensions.ObjectPool/5.0.10",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Microsoft.Extensions.ObjectPool",
+   "patterns": [
+    "host/Microsoft.Extensions.ObjectPool.dll"
+   ],
+   "texts": [
+    "Apache-2.0"
+   ],
+   "extra_texts": [
+    {
+     "label": "Microsoft.Extensions.ObjectPool THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/microsoft.extensions.objectpool/5.0.10/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-microsoft.ml.onnxruntime.managed",
+   "name": "Microsoft.ML.OnnxRuntime.Managed (NuGet package)",
+   "version": "1.16.3",
+   "license": "MIT",
+   "copyright": "Copyright (c) Microsoft Corporation",
+   "source": "https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Managed/1.16.3",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Microsoft.ML.OnnxRuntime.Managed",
+   "patterns": [
+    "host/Microsoft.ML.OnnxRuntime.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "Microsoft.ML.OnnxRuntime.Managed licence file",
+     "path": "{nuget}/microsoft.ml.onnxruntime.managed/1.16.3/LICENSE.txt"
+    }
+   ],
+   "notes": "The managed wrapper only: the native onnxruntime.dll is pruned (host/prune.txt), so ONNX-based renderers are unavailable in this build.",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-microsoft.win32.systemevents",
+   "name": "Microsoft.Win32.SystemEvents (NuGet package)",
+   "version": "5.0.0",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/Microsoft.Win32.SystemEvents/5.0.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Microsoft.Win32.SystemEvents",
+   "patterns": [
+    "host/Microsoft.Win32.SystemEvents.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "Microsoft.Win32.SystemEvents THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/microsoft.win32.systemevents/5.0.0/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-naudio",
+   "name": "NAudio (NuGet package)",
+   "version": "2.2.1",
+   "license": "MIT",
+   "copyright": "Copyright (c) Mark Heath 2023",
+   "source": "https://www.nuget.org/packages/NAudio/2.2.1",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NAudio",
+   "patterns": [
+    "host/NAudio.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "NAudio licence file",
+     "path": "{nuget}/naudio/2.2.1/license.txt"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-naudio.asio",
+   "name": "NAudio.Asio (NuGet package)",
+   "version": "2.2.1",
+   "license": "MIT",
+   "copyright": "© Mark Heath 2023",
+   "source": "https://www.nuget.org/packages/NAudio.Asio/2.2.1",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NAudio.Asio",
+   "patterns": [
+    "host/NAudio.Asio.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-naudio.core",
+   "name": "NAudio.Core (NuGet package)",
+   "version": "2.2.1",
+   "license": "MIT",
+   "copyright": "© Mark Heath 2023",
+   "source": "https://www.nuget.org/packages/NAudio.Core/2.2.1",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NAudio.Core",
+   "patterns": [
+    "host/NAudio.Core.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-naudio.midi",
+   "name": "NAudio.Midi (NuGet package)",
+   "version": "2.2.1",
+   "license": "MIT",
+   "copyright": "© Mark Heath 2023",
+   "source": "https://www.nuget.org/packages/NAudio.Midi/2.2.1",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NAudio.Midi",
+   "patterns": [
+    "host/NAudio.Midi.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-naudio.vorbis",
+   "name": "NAudio.Vorbis (NuGet package)",
+   "version": "1.5.0",
+   "license": "MIT",
+   "copyright": "Copyright © Andrew Ward 2021",
+   "source": "https://www.nuget.org/packages/NAudio.Vorbis/1.5.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NAudio.Vorbis",
+   "patterns": [
+    "host/NAudio.Vorbis.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-naudio.wasapi",
+   "name": "NAudio.Wasapi (NuGet package)",
+   "version": "2.2.1",
+   "license": "MIT",
+   "copyright": "© Mark Heath 2023",
+   "source": "https://www.nuget.org/packages/NAudio.Wasapi/2.2.1",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NAudio.Wasapi",
+   "patterns": [
+    "host/NAudio.Wasapi.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-naudio.winmm",
+   "name": "NAudio.WinMM (NuGet package)",
+   "version": "2.2.1",
+   "license": "MIT",
+   "copyright": "© Mark Heath 2023",
+   "source": "https://www.nuget.org/packages/NAudio.WinMM/2.2.1",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NAudio.WinMM",
+   "patterns": [
+    "host/NAudio.WinMM.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-newtonsoft.json",
+   "name": "Newtonsoft.Json (NuGet package)",
+   "version": "13.0.3",
+   "license": "MIT",
+   "copyright": "Copyright © James Newton-King 2008",
+   "source": "https://www.nuget.org/packages/Newtonsoft.Json/13.0.3",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Newtonsoft.Json",
+   "patterns": [
+    "host/Newtonsoft.Json.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-nlayer",
+   "name": "NLayer (NuGet package)",
+   "version": "1.15.0",
+   "license": "MIT",
+   "copyright": "Mark Heath, Andrew Ward",
+   "source": "https://www.nuget.org/packages/NLayer/1.15.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NLayer",
+   "patterns": [
+    "host/NLayer.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-nlayer.naudiosupport",
+   "name": "NLayer.NAudioSupport (NuGet package)",
+   "version": "1.4.0",
+   "license": "MIT",
+   "copyright": "Mark Heath",
+   "source": "https://www.nuget.org/packages/NLayer.NAudioSupport/1.4.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NLayer.NAudioSupport",
+   "patterns": [
+    "host/NLayer.NAudioSupport.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-numsharp",
+   "name": "NumSharp (NuGet package)",
+   "version": "0.30.0",
+   "license": "Apache-2.0",
+   "copyright": "Copyright (c) 2021 SciSharp STACK Team",
+   "source": "https://www.nuget.org/packages/NumSharp/0.30.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NumSharp",
+   "patterns": [
+    "host/NumSharp.dll"
+   ],
+   "texts": [
+    "Apache-2.0"
+   ],
+   "extra_texts": [
+    {
+     "label": "NumSharp licence file",
+     "path": "{nuget}/numsharp/0.30.0/LICENSE"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-nvorbis",
+   "name": "NVorbis (NuGet package)",
+   "version": "0.10.4",
+   "license": "MIT",
+   "copyright": "Copyright (c) Andrew Ward 2021",
+   "source": "https://www.nuget.org/packages/NVorbis/0.10.4",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NVorbis",
+   "patterns": [
+    "host/NVorbis.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "NVorbis licence file",
+     "path": "{nuget}/nvorbis/0.10.4/LICENSE"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-nwaves",
+   "name": "NWaves (NuGet package)",
+   "version": "0.9.6",
+   "license": "MIT",
+   "copyright": "ar1st0crat",
+   "source": "https://www.nuget.org/packages/NWaves/0.9.6",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "NWaves",
+   "patterns": [
+    "host/NWaves.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-serilog",
+   "name": "Serilog (NuGet package)",
+   "version": "4.1.0",
+   "license": "Apache-2.0",
+   "copyright": "Copyright © Serilog Contributors",
+   "source": "https://www.nuget.org/packages/Serilog/4.1.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Serilog",
+   "patterns": [
+    "host/Serilog.dll"
+   ],
+   "texts": [
+    "Apache-2.0"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-sharpcompress",
+   "name": "SharpCompress (NuGet package)",
+   "version": "0.38.0",
+   "license": "MIT",
+   "copyright": "Copyright (c) 2014  Adam Hathcock",
+   "source": "https://www.nuget.org/packages/SharpCompress/0.38.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "SharpCompress",
+   "patterns": [
+    "host/SharpCompress.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-sharpgen.runtime",
+   "name": "SharpGen.Runtime (NuGet package)",
+   "version": "2.0.0-beta.13",
+   "license": "MIT",
+   "copyright": "(c) 2010-2017 Alexandre Mutel, 2017-2018 Jeremy Koritzinsky",
+   "source": "https://www.nuget.org/packages/SharpGen.Runtime/2.0.0-beta.13",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "SharpGen.Runtime",
+   "patterns": [
+    "host/SharpGen.Runtime.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-sharpgen.runtime.com",
+   "name": "SharpGen.Runtime.COM (NuGet package)",
+   "version": "2.0.0-beta.13",
+   "license": "MIT",
+   "copyright": "(c) 2010-2017 Alexandre Mutel, 2017-2018 Jeremy Koritzinsky",
+   "source": "https://www.nuget.org/packages/SharpGen.Runtime.COM/2.0.0-beta.13",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "SharpGen.Runtime.COM",
+   "patterns": [
+    "host/SharpGen.Runtime.COM.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-system.drawing.common",
+   "name": "System.Drawing.Common (NuGet package)",
+   "version": "5.0.0",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/System.Drawing.Common/5.0.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "System.Drawing.Common",
+   "patterns": [
+    "host/System.Drawing.Common.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "System.Drawing.Common THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/system.drawing.common/5.0.0/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-system.io.packaging",
+   "name": "System.IO.Packaging (NuGet package)",
+   "version": "9.0.2",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/System.IO.Packaging/9.0.2",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "System.IO.Packaging",
+   "patterns": [
+    "host/System.IO.Packaging.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "System.IO.Packaging THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/system.io.packaging/9.0.2/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-system.io.pipelines",
+   "name": "System.IO.Pipelines (NuGet package)",
+   "version": "9.0.2",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/System.IO.Pipelines/9.0.2",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "System.IO.Pipelines",
+   "patterns": [
+    "host/System.IO.Pipelines.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "System.IO.Pipelines THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/system.io.pipelines/9.0.2/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-system.private.servicemodel",
+   "name": "System.Private.ServiceModel (NuGet package)",
+   "version": "4.9.0",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/System.Private.ServiceModel/4.9.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "System.Private.ServiceModel",
+   "patterns": [
+    "host/System.Private.ServiceModel.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "System.Private.ServiceModel THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/system.private.servicemodel/4.9.0/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-system.security.cryptography.pkcs",
+   "name": "System.Security.Cryptography.Pkcs (NuGet package)",
+   "version": "5.0.0",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/System.Security.Cryptography.Pkcs/5.0.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "System.Security.Cryptography.Pkcs",
+   "patterns": [
+    "host/System.Security.Cryptography.Pkcs.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "System.Security.Cryptography.Pkcs THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/system.security.cryptography.pkcs/5.0.0/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-system.security.cryptography.xml",
+   "name": "System.Security.Cryptography.Xml (NuGet package)",
+   "version": "5.0.0",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/System.Security.Cryptography.Xml/5.0.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "System.Security.Cryptography.Xml",
+   "patterns": [
+    "host/System.Security.Cryptography.Xml.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "System.Security.Cryptography.Xml THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/system.security.cryptography.xml/5.0.0/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-system.security.permissions",
+   "name": "System.Security.Permissions (NuGet package)",
+   "version": "5.0.0",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/System.Security.Permissions/5.0.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "System.Security.Permissions",
+   "patterns": [
+    "host/System.Security.Permissions.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "System.Security.Permissions THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/system.security.permissions/5.0.0/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-system.servicemodel.primitives",
+   "name": "System.ServiceModel.Primitives (NuGet package)",
+   "version": "4.9.0",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/System.ServiceModel.Primitives/4.9.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "System.ServiceModel.Primitives",
+   "patterns": [
+    "host/System.ServiceModel.Primitives.dll",
+    "host/System.ServiceModel.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "System.ServiceModel.Primitives THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/system.servicemodel.primitives/4.9.0/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-system.text.encodings.web",
+   "name": "System.Text.Encodings.Web (NuGet package)",
+   "version": "9.0.2",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/System.Text.Encodings.Web/9.0.2",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "System.Text.Encodings.Web",
+   "patterns": [
+    "host/System.Text.Encodings.Web.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "System.Text.Encodings.Web THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/system.text.encodings.web/9.0.2/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-system.text.json",
+   "name": "System.Text.Json (NuGet package)",
+   "version": "9.0.2",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/System.Text.Json/9.0.2",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "System.Text.Json",
+   "patterns": [
+    "host/System.Text.Json.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "System.Text.Json THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/system.text.json/9.0.2/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-system.windows.extensions",
+   "name": "System.Windows.Extensions (NuGet package)",
+   "version": "5.0.0",
+   "license": "MIT",
+   "copyright": "© Microsoft Corporation. All rights reserved.",
+   "source": "https://www.nuget.org/packages/System.Windows.Extensions/5.0.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "System.Windows.Extensions",
+   "patterns": [
+    "host/System.Windows.Extensions.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "System.Windows.Extensions THIRD-PARTY-NOTICES.TXT",
+     "path": "{nuget}/system.windows.extensions/5.0.0/THIRD-PARTY-NOTICES.TXT"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-utf.unknown",
+   "name": "UTF.Unknown (NuGet package)",
+   "version": "2.5.1",
+   "license": "MPL-1.1 (elected from MPL-1.1 / GPL-2.0+ / LGPL-2.1+)",
+   "copyright": "Julian Verdurmen, Rustam Zinnatullin and contributors (derived from Mozilla's universalchardet)",
+   "source": "https://www.nuget.org/packages/UTF.Unknown/2.5.1",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "UTF.Unknown",
+   "patterns": [
+    "host/UtfUnknown.dll"
+   ],
+   "texts": [
+    "MPL-1.1"
+   ],
+   "extra_texts": [
+    {
+     "label": "UTF.Unknown licence file",
+     "path": "packaging/licenses/upstream_UTF-unknown_MPL-1.1.txt"
+    }
+   ],
+   "notes": "MPL-1.1: keep the notice; file-level copyleft applies only to modified UTF.Unknown files (none made).",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-vortice.directx",
+   "name": "Vortice.DirectX (NuGet package)",
+   "version": "2.4.2",
+   "license": "MIT",
+   "copyright": "Copyright © Amer Koleci and Contributors",
+   "source": "https://www.nuget.org/packages/Vortice.DirectX/2.4.2",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Vortice.DirectX",
+   "patterns": [
+    "host/Vortice.DirectX.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-vortice.dxgi",
+   "name": "Vortice.DXGI (NuGet package)",
+   "version": "2.4.2",
+   "license": "MIT",
+   "copyright": "Copyright © Amer Koleci and Contributors",
+   "source": "https://www.nuget.org/packages/Vortice.DXGI/2.4.2",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Vortice.DXGI",
+   "patterns": [
+    "host/Vortice.DXGI.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-vortice.mathematics",
+   "name": "Vortice.Mathematics (NuGet package)",
+   "version": "1.4.25",
+   "license": "MIT",
+   "copyright": "Copyright © Amer Koleci and Contributors",
+   "source": "https://www.nuget.org/packages/Vortice.Mathematics/1.4.25",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "Vortice.Mathematics",
+   "patterns": [
+    "host/Vortice.Mathematics.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-wanakana-net",
+   "name": "WanaKana-net (NuGet package)",
+   "version": "1.0.0",
+   "license": "MIT",
+   "copyright": "Copyright Martin Zikmund 2020",
+   "source": "https://www.nuget.org/packages/WanaKana-net/1.0.0",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "WanaKana-net",
+   "patterns": [
+    "host/WanaKanaNet.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-yamldotnet",
+   "name": "YamlDotNet (NuGet package)",
+   "version": "15.1.2",
+   "license": "MIT",
+   "copyright": "Copyright (c) 2008-2014 Antoine Aubry and contributors",
+   "source": "https://www.nuget.org/packages/YamlDotNet/15.1.2",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "YamlDotNet",
+   "patterns": [
+    "host/YamlDotNet.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "YamlDotNet licence file",
+     "path": "{nuget}/yamldotnet/15.1.2/LICENSE.txt"
+    }
+   ],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  },
+  {
+   "id": "nuget-zstdsharp.port",
+   "name": "ZstdSharp.Port (NuGet package)",
+   "version": "0.8.1",
+   "license": "MIT",
+   "copyright": "Copyright Oleg Stepanischev 2024",
+   "source": "https://www.nuget.org/packages/ZstdSharp.Port/0.8.1",
+   "obligations": "Reproduce the copyright notice and licence text (shipped).",
+   "package": "ZstdSharp.Port",
+   "patterns": [
+    "host/ZstdSharp.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [],
+   "notes": "",
+   "status": "ok",
+   "bundled": "yes"
+  }
+ ],
+ "excluded": [
+  {
+   "name": "NetMQ 4.0.1.13 (NetMQ.dll)",
+   "license": "LGPL-3.0 (COPYING.LESSER in its repository)",
+   "why": "OpenUtau's DAW-bridge messaging; unused by the headless host. The LGPL replaceability duties are avoided by not shipping it.",
+   "how": "host/prune.txt; the host and backend tests and `blt selftest` pass without it."
+  },
+  {
+   "name": "AsyncIO 0.1.69 (AsyncIO.dll)",
+   "license": "unspecified in the package",
+   "why": "Transitive dependency of NetMQ.",
+   "how": "host/prune.txt"
+  },
+  {
+   "name": "NaCl.Net 0.1.13 (NaCl.dll)",
+   "license": "MPL-2.0",
+   "why": "Transitive dependency of NetMQ.",
+   "how": "host/prune.txt"
+  },
+  {
+   "name": "ONNX Runtime native (onnxruntime.dll, onnxruntime.lib)",
+   "license": "MIT, with bundled third-party notices that were not read",
+   "why": "Only the neural renderers (DiffSinger, ENUNU, Vogen, CREPE) need it; BLT supports the classic and WORLDLINE-R renderers.",
+   "how": "host/prune.txt. Consequence: neural renderers are unavailable in this build."
+  },
+  {
+   "name": "DirectML (Microsoft.AI.DirectML)",
+   "license": "Microsoft proprietary terms (not analysed)",
+   "why": "Not part of the published host output at all (checked against the file list).",
+   "how": "not present"
+  },
+  {
+   "name": "DryWetMidi natives for other platforms (Native32.dll, Native64.dylib)",
+   "license": "MIT",
+   "why": "Wrong platform.",
+   "how": "host/prune.txt"
+  },
+  {
+   "name": "createdump.exe",
+   "license": "MIT (.NET)",
+   "why": "Crash-dump tool, not needed to run.",
+   "how": "host/prune.txt"
+  },
+  {
+   "name": "Debug symbols (*.pdb)",
+   "license": "n/a",
+   "why": "Not needed to run.",
+   "how": "dotnet publish -p:DebugType=none"
+  },
+  {
+   "name": "libssl and the _ssl module of Python",
+   "license": "Apache-2.0 (OpenSSL 3)",
+   "why": "BLT never opens network connections.",
+   "how": "excluded in packaging/blt.spec"
+  },
+  {
+   "name": "Qt modules, plugins and translations other than Core/Gui/Widgets, qwindows, qoffscreen, qico",
+   "license": "LGPL-3.0 / GPL-3.0 / commercial per module",
+   "why": "Unused; keeps GPL-only and commercial-only Qt modules out.",
+   "how": "DROP_PATTERNS in packaging/blt.spec"
+  }
+ ],
+ "external": [
+  {
+   "name": "FFmpeg",
+   "license": "LGPL-2.1+ or GPL-2+ depending on the build",
+   "decision": "NOT bundled. MP3 output uses an ffmpeg the user installs and points BLT at (Preferences, BLT_FFMPEG or PATH). WAV output needs nothing.",
+   "reason": "The licence depends on the build chosen; there is no audited build and redistribution strategy to approve."
+  },
+  {
+   "name": "Voicebanks (ALYS DB002 FRA and every other)",
+   "license": "per voicebank",
+   "decision": "NOT bundled, never copied into the repository or the installer. Users install their own.",
+   "reason": "Not authorised for redistribution."
+  },
+  {
+   "name": ".NET SDK, Visual Studio, Inno Setup, PyInstaller (as tools)",
+   "license": "various",
+   "decision": "Build-time only; not needed on the user's machine (the .NET runtime itself is bundled, self-contained).",
+   "reason": "The Inno Setup stub inside Setup.exe is listed under 'installer'."
+  }
+ ],
+ "installer": [
+  {
+   "id": "inno-setup",
+   "name": "Inno Setup (compiled setup stub embedded in the installer)",
+   "license": "Inno Setup License (permissive; keep the copyright notice)",
+   "copyright": "Copyright (C) 1997-2026 Jordan Russell; portions Copyright (C) 2000-2026 Martijn Laan",
+   "obligation": "The stub is embedded unmodified, which keeps its notices; the licence text is reproduced in NOTICES.txt.",
+   "text": "packaging/licenses/upstream_InnoSetup.txt"
+  }
+ ]
+}

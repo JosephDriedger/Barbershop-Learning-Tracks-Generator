@@ -53,7 +53,7 @@ markers = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["src", "tests", "scripts"]
+src = ["src", "tests", "scripts", "packaging"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "C4", "PT", "PTH", "RUF"]
@@ -64,8 +64,8 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "C4", "PT", "PTH", "RUF"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src", "tests", "scripts"]
-mypy_path = ["tests", "scripts/research/openutau"]
+files = ["src", "tests", "scripts", "packaging"]
+mypy_path = ["tests", "scripts/research/openutau", "packaging"]
 exclude = ["^research-output/"]  # downloaded research material (git-ignored), never our code
 warn_unreachable = true
 
