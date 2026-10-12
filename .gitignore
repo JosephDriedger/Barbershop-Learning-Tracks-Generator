@@ -264,3 +264,6 @@ spikes/**/obj/
 # --- M8 render host build output ---
 host/**/bin/
 host/**/obj/
+
+# The one spec that is source: BLT's own PyInstaller recipe
+!packaging/blt.spec

@@ -102,3 +102,28 @@ def test_concurrent_first_installs_all_end_with_one_complete_copy(tmp_path: Path
     assert (directory / COMPLETE_MARKER).is_file()
     assert (directory / "sub" / "filler39.dll").is_file()
     assert [p.name for p in (tmp_path / "rt").iterdir()] == [directory.name]  # no leftovers
+
+
+def test_old_idle_host_copies_are_pruned_after_an_upgrade(tmp_path: Path) -> None:
+    import os
+    import time
+
+    from barbershop_tracks.core.runtime.host_install import STALE_AFTER_SECONDS
+
+    old = ensure_host_runtime(fake_build(tmp_path / "a"), tmp_path / "rt")
+    recent = ensure_host_runtime(fake_build(tmp_path / "b", payload=b"core-v2"), tmp_path / "rt")
+    abandoned = tmp_path / "rt" / ".install-abc"
+    abandoned.mkdir()
+    (abandoned / "half.dll").write_bytes(b"x")
+    user_folder = tmp_path / "rt" / "not-ours"
+    user_folder.mkdir()
+    long_ago = time.time() - STALE_AFTER_SECONDS - 3600
+    for folder in (old.directory, abandoned, user_folder):
+        for path in [*folder.rglob("*"), folder]:
+            os.utime(path, (long_ago, long_ago))
+    newest = ensure_host_runtime(fake_build(tmp_path / "c", payload=b"core-v3"), tmp_path / "rt")
+    assert not old.directory.exists()  # idle for more than a day: pruned
+    assert not abandoned.exists()
+    assert recent.directory.is_dir()  # a copy a run may still be using is kept
+    assert newest.directory.is_dir()
+    assert user_folder.is_dir()  # only BLT's own folders are ever touched

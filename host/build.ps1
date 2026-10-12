@@ -8,14 +8,22 @@
 # present, else `dotnet` on PATH. Output and the OpenUtau checkout live under research-output\ (git-ignored).
 param(
     [string]$OpenUtauSrc = "",
-    [string]$Out = ""
+    [string]$Out = "",
+    # -Publish: the shipped form. Self-contained win-x64 (needs no .NET on the user's PC), then pruned
+    # with host\prune.txt. Without it: the framework-dependent development build.
+    [switch]$Publish
 )
 $ErrorActionPreference = "Stop"
 $Tag = "0.1.565"
 $Commit = "a60ca5830b9064556157245d4bf8f5920d93e5f8"
+# The .NET runtime bundled into the self-contained host. Pinned so that a newer SDK cannot silently bundle
+# a different runtime than the one packaging/components.json audits (the build fails on a mismatch).
+$RuntimeVersion = "8.0.31"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 if (-not $OpenUtauSrc) { $OpenUtauSrc = Join-Path $root "research-output\openutau-src" }
-if (-not $Out) { $Out = Join-Path $root "research-output\host\build" }
+if (-not $Out) {
+    $Out = Join-Path $root ("research-output\host\" + $(if ($Publish) { "publish" } else { "build" }))
+}
 
 if (-not (Test-Path (Join-Path $OpenUtauSrc "OpenUtau.sln"))) {
     git clone --branch $Tag --depth 1 https://github.com/stakira/OpenUtau.git $OpenUtauSrc
@@ -36,8 +44,19 @@ if (-not $env:NUGET_PACKAGES -and (Test-Path $nuget)) { $env:NUGET_PACKAGES = $n
 New-Item -ItemType Directory -Force $Out | Out-Null
 $Out = (Resolve-Path $Out).Path
 $project = Join-Path $PSScriptRoot "BltRenderHost\BltRenderHost.csproj"
-dotnet build $project -c Release -o $Out "-p:OpenUtauSrc=$OpenUtauSrc" "-p:OpenUtauCommit=$Commit" 2>&1 |
-    Select-String -Pattern "error|warn.*BltRenderHost|Build succeeded|Elapsed"
-if ($LASTEXITCODE -ne 0) { throw "build failed" }
+if ($Publish) {
+    if (Test-Path $Out) { Remove-Item -Recurse -Force $Out }
+    dotnet publish $project -c Release -r win-x64 --self-contained true -o $Out "-p:OpenUtauSrc=$OpenUtauSrc" "-p:OpenUtauCommit=$Commit" -p:DebugType=none -p:DebugSymbols=false "-p:RuntimeFrameworkVersion=$RuntimeVersion" 2>&1 |
+        Select-String -Pattern "error|Build succeeded|Elapsed"
+    if ($LASTEXITCODE -ne 0) { throw "publish failed" }
+    foreach ($line in Get-Content (Join-Path $PSScriptRoot "prune.txt")) {
+        $name = $line.Trim()
+        if ($name -and -not $name.StartsWith("#")) { Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $Out $name) }
+    }
+} else {
+    dotnet build $project -c Release -o $Out "-p:OpenUtauSrc=$OpenUtauSrc" "-p:OpenUtauCommit=$Commit" 2>&1 |
+        Select-String -Pattern "error|warn.*BltRenderHost|Build succeeded|Elapsed"
+    if ($LASTEXITCODE -ne 0) { throw "build failed" }
+}
 if (-not (Test-Path (Join-Path $Out "blt-render-host.exe"))) { throw "no host produced in $Out" }
 Write-Output "host: $(Join-Path $Out 'blt-render-host.exe')"

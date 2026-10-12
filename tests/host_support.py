@@ -29,6 +29,9 @@ def build_dir() -> Path | None:
 
 def host_environment() -> dict[str, str]:
     environment = dict(os.environ)
+    if os.environ.get("BLT_HOST_SELF_CONTAINED"):  # a self-contained host needs no .NET at all
+        environment.pop("DOTNET_ROOT", None)
+        return environment
     if "DOTNET_ROOT" not in environment and LOCAL_SDK.is_dir():
         environment["DOTNET_ROOT"] = str(LOCAL_SDK)
     return environment

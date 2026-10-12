@@ -40,6 +40,9 @@ from barbershop_tracks.core.runtime.layout import APP_NAME
 
 DEFAULT_PHONEMIZER = "OpenUtau.Core.DefaultPhonemizer"
 DEFAULT_RENDERER = "WORLDLINE-R"
+# The renderers the shipped render host can run. The packaged host leaves out the ONNX runtime that
+# the neural renderers (ENUNU, VOGEN, DIFFSINGER, VOICEVOX) need.
+SHIPPED_RENDERERS = ("WORLDLINE-R", "CLASSIC")
 
 _KEYS = (
     "singers_dir",

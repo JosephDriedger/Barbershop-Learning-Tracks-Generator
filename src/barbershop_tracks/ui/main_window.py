@@ -6,13 +6,22 @@ window stays responsive and widgets are only ever touched from the GUI thread.
 """
 
 import json
+import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QEvent, QMimeData, Qt, QTimer, QUrl
-from PySide6.QtGui import QAction, QCloseEvent, QDragEnterEvent, QDropEvent, QKeySequence
+from PySide6.QtGui import (
+    QAction,
+    QCloseEvent,
+    QDesktopServices,
+    QDragEnterEvent,
+    QDropEvent,
+    QGuiApplication,
+    QKeySequence,
+)
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -28,6 +37,7 @@ from PySide6.QtWidgets import (
 
 from barbershop_tracks import __version__
 from barbershop_tracks.core.pipeline import STAGES, GenerateResult, PipelineError
+from barbershop_tracks.diagnostics import collect
 from barbershop_tracks.ui.controller import AppController, LoadedScore, ValidationView
 from barbershop_tracks.ui.dialogs import AdvancedDialog, LyricReviewDialog
 from barbershop_tracks.ui.explain import explain
@@ -173,7 +183,30 @@ class MainWindow(QMainWindow):
         help_menu = self.menuBar().addMenu("&Help")
         about = QAction("&About", self)
         about.triggered.connect(self._about)
+        copy_diagnostics = QAction("&Copy diagnostics", self)
+        copy_diagnostics.triggered.connect(self._copy_diagnostics)
+        notices = QAction("&Third-party notices", self)
+        notices.triggered.connect(self._open_notices)
+        help_menu.addAction(copy_diagnostics)
+        help_menu.addAction(notices)
+        help_menu.addSeparator()
         help_menu.addAction(about)
+
+    def _copy_diagnostics(self) -> None:
+        text = chr(10).join(collect(self.controller.config()))
+        clipboard = QGuiApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(text)
+        self.prompts.inform(self, TITLE, "Copied: paste it into a message to support.")
+
+    def _open_notices(self) -> None:
+        notices = Path(sys.executable).resolve().parent / "NOTICES.txt"
+        if not notices.is_file():
+            self.prompts.inform(
+                self, TITLE, "The third-party notices are installed with BLT (NOTICES.txt)."
+            )
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(notices)))
 
     def _about(self) -> None:
         QMessageBox.about(

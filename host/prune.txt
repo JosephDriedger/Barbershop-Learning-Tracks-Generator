@@ -1,0 +1,17 @@
+# Files removed from the published (shipped) host. Each is not needed for the supported rendering
+# path (the classic / WORLDLINE-R renderers) and removing it avoids redistributing code whose
+# licence terms are heavier than the benefit. The host's tests run against the pruned output
+# (BLT_HOST_SELF_CONTAINED=1 BLT_HOST_DIR=<pruned dir>), so a removal that breaks rendering fails CI.
+#
+# NetMQ.dll / AsyncIO.dll / NaCl.dll : messaging for OpenUtau's DAW bridge (LGPL-3.0 / unspecified / MPL-2.0)
+# onnxruntime.dll / onnxruntime.lib  : native runtime for neural renderers (DiffSinger, ENUNU, Vogen...)
+# Melanchall_DryWetMidi_Native32.dll, Melanchall_DryWetMidi_Native64.dylib : other platforms' MIDI natives
+# createdump.exe                     : .NET crash dump tool, not needed to run
+NetMQ.dll
+AsyncIO.dll
+NaCl.dll
+onnxruntime.dll
+onnxruntime.lib
+Melanchall_DryWetMidi_Native32.dll
+Melanchall_DryWetMidi_Native64.dylib
+createdump.exe

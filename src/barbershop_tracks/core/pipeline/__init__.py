@@ -3,6 +3,7 @@
 from barbershop_tracks.core.pipeline.config import (
     DEFAULT_PHONEMIZER,
     DEFAULT_RENDERER,
+    SHIPPED_RENDERERS,
     ResolvedConfig,
     config_path,
     discover_singers,
@@ -34,6 +35,7 @@ __all__ = [
     "DEFAULT_PHONEMIZER",
     "DEFAULT_RENDERER",
     "REVIEW_SCHEMA",
+    "SHIPPED_RENDERERS",
     "STAGES",
     "STAGE_LABELS",
     "EngineChoice",

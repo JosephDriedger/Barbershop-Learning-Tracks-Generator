@@ -33,12 +33,12 @@ from PySide6.QtWidgets import (
 from barbershop_tracks.core.pipeline import (
     DEFAULT_PHONEMIZER,
     DEFAULT_RENDERER,
+    SHIPPED_RENDERERS,
     PipelineError,
     approvals_document,
     review_report,
 )
 from barbershop_tracks.core.synthesis import SynthesisPlan
-from barbershop_tracks.core.synthesis.openutau import TARGET_0_1_565
 from barbershop_tracks.ui.lyric_review import LyricReviewState, RowState
 from barbershop_tracks.ui.preferences import Preferences
 from barbershop_tracks.ui.prompts import Prompts
@@ -431,7 +431,7 @@ class AdvancedDialog(QDialog):
         self.engine = QComboBox()
         self.engine.setEditable(True)
         self.engine.addItem("")
-        self.engine.addItems(sorted(TARGET_0_1_565.renderers))
+        self.engine.addItems(SHIPPED_RENDERERS)
         self.engine.setCurrentText(prefs.renderer)
         engine_edit = self.engine.lineEdit()
         assert engine_edit is not None
@@ -441,7 +441,7 @@ class AdvancedDialog(QDialog):
         self.host.setPlaceholderText("Found automatically next to BLT")
         self.host.setAccessibleName("Singing engine folder")
         self.runtime = QLineEdit(prefs.dotnet_root)
-        self.runtime.setPlaceholderText("Use the one installed on this PC")
+        self.runtime.setPlaceholderText("Not needed: BLT includes its own")
         self.runtime.setAccessibleName(".NET runtime folder")
         self.timeout = QSpinBox()
         self.timeout.setRange(1, 240)

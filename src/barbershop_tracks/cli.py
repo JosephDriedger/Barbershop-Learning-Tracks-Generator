@@ -168,6 +168,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export.add_argument("--format", choices=("text", "json"), default="text")
     add_generate_parsers(commands)
+    selftest = commands.add_parser(
+        "selftest",
+        help="check the installation by generating the 13 tracks from a built-in score",
+        description=(
+            "Generate the 13 learning tracks from a tiny built-in score and a generated "
+            "voicebank, then verify the files. Proves the installation works; it says nothing "
+            "about how real voices sound. Exit 0 passed, 1 failed."
+        ),
+    )
+    selftest.add_argument("--host-dir", metavar="DIR", help="the folder with blt-render-host.exe")
+    selftest.add_argument("--data-dir", metavar="DIR", help="BLT's working data folder")
+    selftest.add_argument("--keep", metavar="DIR", help="keep the generated files in DIR")
+    commands.add_parser(
+        "diagnostics",
+        help="show where BLT finds its engine, voices and settings (for support)",
+    )
     return parser
 
 
@@ -259,7 +275,20 @@ def _run_export(args: argparse.Namespace) -> int:
     return EXIT_READY if handoff is not None else EXIT_NOT_READY
 
 
+def _tolerate_unencodable_output() -> None:
+    """Never crash because a path or title has characters the output encoding lacks.
+
+    Redirected output on Windows uses the legacy code page (cp1252), which cannot encode e.g. a
+    user name in Japanese; print a replacement character instead of raising.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="replace")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
+    _tolerate_unencodable_output()
     parser = build_parser()
     args = parser.parse_args(argv)  # a usage error exits with status 2
     if args.command == "check":
@@ -268,6 +297,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_lines(args)
     if args.command == "export":
         return _run_export(args)
+    if args.command == "diagnostics":
+        from barbershop_tracks.diagnostics import report
+
+        print(report(), end="")
+        return EXIT_READY
+    if args.command == "selftest":
+        from barbershop_tracks.selftest import run_selftest
+
+        return run_selftest(
+            print,
+            work_dir=Path(args.keep) if args.keep else None,
+            data_dir=Path(args.data_dir) if args.data_dir else None,
+            host_dir=Path(args.host_dir) if args.host_dir else None,
+        )
     code = dispatch_generate(args)
     if code is not None:
         return code

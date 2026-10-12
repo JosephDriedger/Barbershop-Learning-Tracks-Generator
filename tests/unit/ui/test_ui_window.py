@@ -408,6 +408,19 @@ def test_advanced_settings_are_saved(rig: Rig) -> None:
     assert rig.prefs.timeout_minutes == 30
 
 
+def test_advanced_settings_offer_only_the_renderers_the_shipped_host_can_run(rig: Rig) -> None:
+    offered: list[str] = []
+
+    def look(dialog: QDialog) -> bool:
+        assert isinstance(dialog, AdvancedDialog)
+        offered.extend(dialog.engine.itemText(i) for i in range(dialog.engine.count()))
+        return False
+
+    rig.window.run_dialog = look
+    rig.window.open_advanced()
+    assert offered == ["", "WORLDLINE-R", "CLASSIC"]
+
+
 # --- generating ---
 
 

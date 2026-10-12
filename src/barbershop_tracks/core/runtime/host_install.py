@@ -16,6 +16,7 @@ import contextlib
 import hashlib
 import json
 import shutil
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,6 +25,7 @@ HOST_EXE = "blt-render-host.exe"
 COMPLETE_MARKER = "blt-runtime-complete.json"
 RUNTIME_PREFIX = "host-"
 _FINGERPRINT_FILES = ("blt-render-host.dll", "OpenUtau.Core.dll", "worldline.dll")
+STALE_AFTER_SECONDS = 24 * 3600  # an older host copy this long idle is not in use by any run
 
 
 class HostInstallError(RuntimeError):
@@ -58,6 +60,25 @@ def fingerprint(binaries: Path) -> str:
 
 def _complete(target: Path) -> bool:
     return (target / COMPLETE_MARKER).is_file() and (target / HOST_EXE).is_file()
+
+
+def prune_stale(runtime_root: Path, keep: Path, *, now: float | None = None) -> None:
+    """Remove other versions' host copies and abandoned installs that nothing touched for a day.
+
+    Every upgrade installs a new ~100 MB copy; without this they would pile up. A copy that a run
+    is still using was written to recently (OpenUtau's cache and logs live inside it) or is younger
+    than the cut-off, so it is left alone; anything that cannot be removed is skipped.
+    """
+    cutoff = (time.time() if now is None else now) - STALE_AFTER_SECONDS
+    for child in runtime_root.iterdir():
+        if child == keep or not child.is_dir():
+            continue
+        if not child.name.startswith((RUNTIME_PREFIX, ".install-", ".discard-")):
+            continue
+        with contextlib.suppress(OSError):
+            newest = max((p.stat().st_mtime for p in child.rglob("*")), default=0.0)
+            if max(newest, child.stat().st_mtime) < cutoff:
+                shutil.rmtree(child, ignore_errors=True)
 
 
 def ensure_host_runtime(binaries: Path, runtime_root: Path) -> HostRuntime:
@@ -95,4 +116,5 @@ def ensure_host_runtime(binaries: Path, runtime_root: Path) -> HostRuntime:
         raise HostInstallError(
             "HOST_INSTALL_FAILED", f"cannot install the render host under {runtime_root}: {error}"
         ) from error
+    prune_stale(runtime_root, keep=target)
     return HostRuntime(target, target / HOST_EXE, identity, freshly_installed=True)
