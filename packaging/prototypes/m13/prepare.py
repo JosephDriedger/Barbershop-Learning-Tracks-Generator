@@ -130,7 +130,11 @@ def main() -> int:
 
     shutil.copy(HERE / "CMakeLists.txt", work / "CMakeLists.txt")
     shutil.copytree(HERE / "patched", work / "patched", dirs_exist_ok=True)
-    shutil.copy(HERE / "effects-natural-spline.patch", patches / "effects-natural-spline.patch")
+    crlf, lf = bytes([13, 10]), bytes([10])
+    own_patch = (HERE / "effects-natural-spline.patch").read_bytes().replace(crlf, lf)
+    (patches / "effects-natural-spline.patch").write_bytes(
+        own_patch
+    )  # LF whatever the checkout did
     # patched/effects.cpp = upstream effects.cpp + the BLT patch
     original = cpp / "cpp" / "worldline" / "model" / "effects.cpp"
     shutil.copy(original, work / "patched" / "effects.cpp")
