@@ -330,8 +330,8 @@ def _generate(
         raise PipelineError(
             ErrorCategory.CONFIGURATION,
             "SINGERS_DIR_MISSING",
-            "no singers folder is configured; pass --singers-dir, set BLT_SINGERS_DIR, or "
-            "install voicebanks in OpenUtau's Singers folder",
+            "no voices folder is configured; pass --singers-dir, set BLT_SINGERS_DIR, or put your "
+            "voicebanks in Documents/OpenUtau/Singers (OpenUtau itself is not needed)",
         )
     available = discover_singers(singers_dir)
     wanted = sorted({ref.singer for ref in refs.values()})

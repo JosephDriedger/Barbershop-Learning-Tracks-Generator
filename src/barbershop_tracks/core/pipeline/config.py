@@ -42,7 +42,9 @@ DEFAULT_PHONEMIZER = "OpenUtau.Core.DefaultPhonemizer"
 DEFAULT_RENDERER = "WORLDLINE-R"
 # The renderers the shipped render host can run. The packaged host leaves out the ONNX runtime that
 # the neural renderers (ENUNU, VOGEN, DIFFSINGER, VOICEVOX) need.
-SHIPPED_RENDERERS = ("WORLDLINE-R", "CLASSIC")
+# CLASSIC runs but its stems end a few tens of milliseconds past the performed length, which the mix
+# validation rejects (MIX_STEM_TOO_LONG, seen with a real voicebank), so it is not offered.
+SHIPPED_RENDERERS = ("WORLDLINE-R",)
 
 _KEYS = (
     "singers_dir",

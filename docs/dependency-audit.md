@@ -49,8 +49,8 @@ declares no licence, the upstream repository's licence was read and is cited as 
   person confirms it.
 * **NetMQ (LGPL-3.0), AsyncIO and NaCl are removed from the host** instead of complying with the
   LGPL for code BLT never runs. The host tests and `blt selftest` run against the pruned host.
-* **onnxruntime is removed**, which also removes the neural renderers; the supported renderers are
-  CLASSIC and WORLDLINE-R.
+* **onnxruntime is removed**, which also removes the neural renderers; the supported renderer is
+  WORLDLINE-R.
 * **The .NET runtime is bundled** (self-contained publish), so no .NET installation is needed on the
   user's machine.
 
@@ -77,13 +77,12 @@ shipped).
 
 <!-- BEGIN GENERATED: python packaging/notices.py audit -->
 
-67 components are shipped in the package; **5 are release blockers** (unverified or conflicting licence obligations). A person must resolve each one before a public release; this table is regenerated from `packaging/components.json`.
+67 components are shipped in the package; **4 are release blockers** (unverified or conflicting licence obligations). A person must resolve each one before a public release; this table is regenerated from `packaging/components.json`.
 
 ### Release blockers
 
 | Component | Version | Licence | What is unresolved |
 |---|---|---|---|
-| BLT Music Generator (application code, launchers, icon, generated notices) | 0.1.0 | Apache-2.0 | Name the copyright holder in LICENSE and confirm Apache-2.0 for the release. Original artwork only (the icon is drawn by packaging/make_icon.py); no third-party fonts or images are shipped. The Python sources are frozen inside the two executables. |
 | Microsoft Visual C++ runtime (VCRUNTIME140*.dll, MSVCP140*.dll) | 14.x as shipped in Python 3.12.10 and the Qt/NumPy wheels | Microsoft Visual C++ redistributable terms (Distributable Code) | Microsoft permits redistributing the Visual C++ runtime files under its Distributable Code terms; the exact terms that apply to these copies were not reviewed or reproduced. Needs a human decision: confirm the terms, or have the installer run Microsoft's official Visual C++ Redistributable instead of carrying app-local copies. |
 | PySide6 and shiboken6 (Qt for Python bindings) | 6.11.2 | LGPL-3.0-only (elected from LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only) | LGPL-3.0: ship the LGPL and GPL texts (done); keep the libraries as separate replaceable DLLs/PYDs (done: one-folder layout); state that the application uses PySide6/Qt under the LGPL; offer the corresponding source and any modifications (none made). A source offer is drafted in NOTICES.txt but has not been reviewed by a person. Blocker until a person confirms the LGPL-3.0 compliance statement. If commercial licensing is preferred instead, this entry changes. |
 | OpenUtau.Core (OpenUtau.Core.dll) | 0.1.565 (commit a60ca5830b9064556157245d4bf8f5920d93e5f8) | MIT; contains code partially based on the VOICEVOX engine (LGPL-3.0), a C# port of SimpleEnunu's f0_smoother (MIT) and a Deque implementation matching Nito.Collections.Deque (MIT); embeds data of unverified provenance | MIT notice and the upstream MIT/Apache notices of the ported code (shipped). LGPL-3.0: OpenUtau.Core.Voicevox (VoicevoxRenderer, VoicevoxUtils, VoicevoxConfig) states it is 'partially based on the VOICEVOX engine' (LGPL_LICENSE), so OpenUtau.Core.dll is distributed with the LGPL text (shipped), as a separate replaceable DLL, built unmodified from the public commit named above; the written statement is in NOTICES.txt. Embedded data: the g2p models (arpabet, arpabet-plus, de, es, fr, it, ja-mono, ko, pt, ru) were contributed to the MIT repository by named contributors (e.g. commits 22e0c887, 2d0fcbe7, 8b8104ae, ed3267b9), the Vogen models and yue.csv by the maintainer in 2022 (e6486acc, 5b698e5b); none carries a licence statement, and the training data or dictionaries they derive from (for example CMUdict for the English model) are not named. The CREPE tiny.onnx model is MIT (Jong Wook Kim; licence shipped). Release blocker until a person (1) confirms the LGPL handling of the VOICEVOX-derived classes and (2) the owner of the embedded g2p/Vogen data is asked to confirm it may be redistributed, or those features are removed from a BLT-specific build of OpenUtau.Core (which would no longer be the unmodified upstream binary). |
@@ -93,7 +92,7 @@ shipped).
 
 | Component | Version | Licence | Copyright holder | Status |
 |---|---|---|---|---|
-| BLT Music Generator (application code, launchers, icon, generated notices) | 0.1.0 | Apache-2.0 | UNKNOWN: the repository LICENSE is the unfilled Apache-2.0 template | **blocker** |
+| BLT Music Generator (application code, launchers, icon, generated notices) | 0.1.0 | Apache-2.0 | Copyright 2026 Joseph Driedger | ok |
 | CPython runtime and standard library | 3.12.10 | PSF-2.0 | Python Software Foundation and contributors | ok |
 | Third-party code inside CPython's extension modules (expat in pyexpat, libmpdec in _decimal, bzip2 in _bz2, liblzma in _lzma) | as built into Python 3.12.10 | MIT (expat) AND BSD-2-Clause (libmpdec) AND bzip2-1.0.6 AND public domain (liblzma) | expat: Expat maintainers, Thai Open Source Software Center, Clark Cooper; libmpdec: Stefan Krah; bzip2: Julian R Seward; liblzma: Lasse Collin and contributors | ok |
 | libffi (libffi-8.dll, from the Python distribution) | bundled with Python 3.12.10 | MIT | Anthony Green, Red Hat and contributors | ok |
@@ -165,7 +164,7 @@ shipped).
 
 | Component | Source | Obligations / notes |
 |---|---|---|
-| BLT Music Generator (application code, launchers, icon, generated notices) | this repository | Name the copyright holder in LICENSE and confirm Apache-2.0 for the release. Original artwork only (the icon is drawn by packaging/make_icon.py); no third-party fonts or images are shipped. The Python sources are frozen inside the two executables. |
+| BLT Music Generator (application code, launchers, icon, generated notices) | this repository | Keep LICENSE (Apache-2.0, copyright line filled in) and NOTICE in the package; retain third-party attribution (NOTICES.txt). Evidence: the owner's written declaration (M13 instruction, 2026-10-12) that Joseph Driedger owns the original code and chooses Apache-2.0; git history has a single author (Joseph Driedger, 108 commits plus one GitHub web commit) and the repository holds no third-party source files. Original artwork only (the icon is drawn by packaging/make_icon.py); no third-party fonts or images. Frozen Python sources are inside the two executables. Rests on the owner's declaration; a lawyer may still want to review the ownership of AI-assisted code. |
 | CPython runtime and standard library | https://www.python.org/downloads/release/python-31210/ (the interpreter that builds the package) | Include the Python licence text and copyright notices. |
 | Third-party code inside CPython's extension modules (expat in pyexpat, libmpdec in _decimal, bzip2 in _bz2, liblzma in _lzma) | CPython 3.12.10 Windows build (see 'Licenses and Acknowledgements for Incorporated Software' in the Python documentation) | Reproduce the expat, libmpdec and bzip2 notices (shipped). Version of each embedded library not individually read; the licences are those of every release of these libraries. |
 | libffi (libffi-8.dll, from the Python distribution) | https://github.com/libffi/libffi | Reproduce the MIT notice. The exact libffi version inside the Python build was not read; the licence is MIT for all releases. |

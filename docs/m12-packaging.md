@@ -63,11 +63,11 @@ test, which compares the copy's timestamps).
   reflection-heavy phonemizer and plugin loading; **ReadyToRun** adds size for a start-up gain that is
   small next to rendering. None is worth the risk to rendering behaviour; the layout stays a plain
   folder of DLLs.
-* **Pruning** removes only what the supported renderers (CLASSIC, WORLDLINE-R) never load: NetMQ and its
+* **Pruning** removes only what the supported renderer (WORLDLINE-R) never loads: NetMQ and its
   dependencies (LGPL / unlicensed / MPL, OpenUtau's DAW bridge), the native ONNX Runtime (neural renderers),
   other platforms' natives and `createdump.exe`. The host and backend tests and `blt selftest` run
   against the pruned output, so a removal that breaks rendering fails. The Advanced settings list only
-  the renderers this host can run.
+  the renderer this host can run and BLT accepts.
 
 Publishes of the pinned source for the same BLT commit are byte-identical (235 of 235 files, checked here with a
 different output folder and a fresh restore); across commits only `blt-render-host.dll` and `.exe` differ, because

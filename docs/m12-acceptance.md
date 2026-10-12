@@ -25,7 +25,7 @@ copyrighted score; record only its title, source and licence).
 Suggested voicebank / phonemizer pairings for English in OpenUtau 0.1.565 (check the voicebank's readme):
 ARPAsing-style banks with `OpenUtau.Plugin.Builtin.ArpasingPlusPhonemizer`; English CVVC banks with
 `OpenUtau.Plugin.Builtin.EnglishCVVCPhonemizer`; VCCV English banks with
-`OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer`. The renderer is WORLDLINE-R (default) or CLASSIC; neural
+`OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer`. The renderer is WORLDLINE-R (CLASSIC is rejected by the mix check, see KNOWN-LIMITATIONS); neural
 renderers are not part of this build.
 
 Score requirements: all four parts with lyrics under every note (so every voice is rendered), at least one
@@ -64,6 +64,6 @@ Verdict: accepted / accepted with known issues / rejected
 ```
 
 Known open questions this protocol must answer, because the synthetic bank cannot: how well the default
-phonemizer handles English consonant clusters with the chosen bank; whether WORLDLINE-R or CLASSIC sounds
-better for the bank; whether the predominant gain preset gives enough clarity for a learner; whether
+phonemizer handles English consonant clusters with the chosen bank; whether the default renderer sounds
+good enough for the bank; whether the predominant gain preset gives enough clarity for a learner; whether
 note-length handling at fast tempi is acceptable.

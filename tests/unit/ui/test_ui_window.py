@@ -418,7 +418,7 @@ def test_advanced_settings_offer_only_the_renderers_the_shipped_host_can_run(rig
 
     rig.window.run_dialog = look
     rig.window.open_advanced()
-    assert offered == ["", "WORLDLINE-R", "CLASSIC"]
+    assert offered == ["", "WORLDLINE-R"]
 
 
 # --- generating ---

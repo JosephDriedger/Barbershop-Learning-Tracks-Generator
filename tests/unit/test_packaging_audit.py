@@ -31,7 +31,7 @@ def test_component_ids_are_unique_and_complete() -> None:
 
 def test_blockers_say_what_is_unresolved() -> None:
     blockers = [c for c in _components() if c["status"] == "blocker"]
-    assert {"worldline", "pyside6", "openutau-core", "msvc-runtime", "blt"} == {
+    assert {"worldline", "pyside6", "openutau-core", "msvc-runtime"} == {
         str(c["id"]) for c in blockers
     }
     for component in blockers:

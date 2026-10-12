@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPANY = "The BLT Music Generator authors"
+COMPANY = "Joseph Driedger"
 
 
 def version() -> str:
@@ -22,7 +22,7 @@ def render(number: str) -> str:
         "FileDescription": "BLT Music Generator",
         "FileVersion": number,
         "InternalName": "blt",
-        "LegalCopyright": f"(c) {COMPANY}. Apache-2.0. Third-party notices: NOTICES.txt.",
+        "LegalCopyright": f"Copyright 2026 {COMPANY}. Apache-2.0; see NOTICES.txt.",
         "OriginalFilename": "BLT Music Generator.exe",
         "ProductName": "BLT Music Generator",
         "ProductVersion": number,

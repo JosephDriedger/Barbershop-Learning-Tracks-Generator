@@ -6,18 +6,19 @@
    "name": "BLT Music Generator (application code, launchers, icon, generated notices)",
    "version": "0.1.0",
    "license": "Apache-2.0",
-   "copyright": "UNKNOWN: the repository LICENSE is the unfilled Apache-2.0 template",
+   "copyright": "Copyright 2026 Joseph Driedger",
    "source": "this repository",
-   "status": "blocker",
-   "obligations": "Name the copyright holder in LICENSE and confirm Apache-2.0 for the release.",
-   "notes": "Original artwork only (the icon is drawn by packaging/make_icon.py); no third-party fonts or images are shipped. The Python sources are frozen inside the two executables.",
+   "status": "ok",
+   "obligations": "Keep LICENSE (Apache-2.0, copyright line filled in) and NOTICE in the package; retain third-party attribution (NOTICES.txt). Evidence: the owner's written declaration (M13 instruction, 2026-10-12) that Joseph Driedger owns the original code and chooses Apache-2.0; git history has a single author (Joseph Driedger, 108 commits plus one GitHub web commit) and the repository holds no third-party source files.",
+   "notes": "Original artwork only (the icon is drawn by packaging/make_icon.py); no third-party fonts or images. Frozen Python sources are inside the two executables. Rests on the owner's declaration; a lawyer may still want to review the ownership of AI-assisted code.",
    "patterns": [
     "BLT Music Generator.exe",
-    "blt.exe",
-    "NOTICES.txt",
     "LICENSE.txt",
-    "licenses/**",
-    "host/blt-render-host.*"
+    "NOTICE",
+    "NOTICES.txt",
+    "blt.exe",
+    "host/blt-render-host.*",
+    "licenses/**"
    ],
    "texts": [
     "Apache-2.0"

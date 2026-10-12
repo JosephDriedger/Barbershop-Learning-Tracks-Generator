@@ -26,7 +26,8 @@ Things that are not done, not verified, or deliberately restricted. Nothing here
 
 ## Features
 
-* **Renderers:** WORLDLINE-R (default) and CLASSIC only. The neural renderers (ENUNU, Vogen, DiffSinger, VOICEVOX) are
+* **Renderer:** WORLDLINE-R only. CLASSIC renders but its audio runs a few tens of milliseconds past the performed length
+  and the mix check rejects it (`MIX_STEM_TOO_LONG`, seen with a real voicebank), so it is not offered. The neural renderers (ENUNU, Vogen, DiffSinger, VOICEVOX) are
   not in this build because their native runtime is not included.
 * **MP3 needs an FFmpeg you install**; none is bundled. WAV needs nothing.
 * **No playback or preview** inside the app yet (tracked separately). You open the output folder and play the files elsewhere.

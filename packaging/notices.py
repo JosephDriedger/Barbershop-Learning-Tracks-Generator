@@ -143,7 +143,8 @@ def bundle(out: Path, where: dict[str, Path]) -> list[str]:
         f"{PRODUCT}: third-party notices",
         RULE,
         "",
-        f"{PRODUCT} is licensed under the Apache License 2.0 (licenses\\Apache-2.0.txt).",
+        f"{PRODUCT}, Copyright 2026 Joseph Driedger, is licensed under the Apache License 2.0",
+        "(LICENSE.txt; the NOTICE file is installed beside it).",
         "It includes the third-party software listed below, each under its own licence. The",
         "licence texts are in the 'licenses' folder next to this file; per-component texts that",
         "were copied from the original packages are in licenses\\third-party\\<component>\\.",
@@ -193,6 +194,7 @@ def bundle(out: Path, where: dict[str, Path]) -> list[str]:
     (out / "NOTICES.txt").write_text("\n".join(lines), encoding="utf-8")
     shutil.copyfile(LICENSES / "Apache-2.0.txt", out / "licenses" / "Apache-2.0.txt")
     shutil.copyfile(REPO / "LICENSE", out / "LICENSE.txt")
+    shutil.copyfile(REPO / "NOTICE", out / "NOTICE")
     shutil.copyfile(LICENSES / "upstream_InnoSetup.txt", out / "licenses" / "InnoSetup.txt")
     return problems
 
