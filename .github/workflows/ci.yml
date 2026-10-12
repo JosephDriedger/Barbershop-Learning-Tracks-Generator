@@ -26,6 +26,8 @@ jobs:
         run: ruff format --check .
       - name: Mypy
         run: mypy
+      - name: Licence audit tables are current
+        run: python packaging/notices.py audit --check
       - name: Tests
         run: pytest
       - name: CLI entry point
@@ -56,3 +58,51 @@ jobs:
           ffmpeg -version | Select-Object -First 1
       - name: Host and rendering tests
         run: pytest -m integration tests/integration
+
+  package:
+    # Builds the Windows package and installer from pinned inputs, audits every file in it against
+    # packaging/components.json, smoke-tests it in a stripped environment, then installs, upgrades and
+    # uninstalls it. The installer is NOT uploaded anywhere: only text metadata is kept, and nothing is
+    # published (that is a manual decision once the licensing blockers in docs/dependency-audit.md and
+    # the acceptance gates are cleared).
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install the pinned build environment
+        run: |
+          python -m pip install -r packaging/requirements-build.txt
+          python -m pip install -e . --no-deps
+      - name: Inno Setup
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Build the package and installer (smoke tests included)
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File packaging/build.ps1
+      - name: Host tests against the shipped (pruned, self-contained) host
+        env:
+          BLT_HOST_DIR: ${{ github.workspace }}/research-output/release/host
+          BLT_HOST_SELF_CONTAINED: "1"
+        run: |
+          python -m pip install -e ".[dev]"
+          pytest -m integration tests/integration
+      - name: Install, upgrade and uninstall the installer
+        run: >
+          powershell -NoProfile -ExecutionPolicy Bypass -File packaging/installer-test.ps1
+          -Installer research-output/release/artifacts/BLT-Music-Generator-*-Setup.exe
+          -App "research-output/release/app/BLT Music Generator" -NoGui
+      - name: Keep the text metadata (not the installer)
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-metadata
+          path: |
+            research-output/release/artifacts/SHA256SUMS.txt
+            research-output/release/artifacts/RELEASE-STATUS.txt
+            research-output/release/artifacts/release-info.json
+            research-output/release/artifacts/inventory.json
+            research-output/release/artifacts/NOTICES.txt
