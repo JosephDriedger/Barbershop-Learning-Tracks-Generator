@@ -7,7 +7,7 @@ itself without emitting user-change signals, so refreshing can never change a ch
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QStandardItemModel
+from PySide6.QtGui import QColor, QStandardItemModel
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -581,7 +581,7 @@ class OutputSection(QGroupBox):
             self.status.setText("")
 
 
-STATUS_MARK = {"pending": "○", "active": "▶", "done": "✔"}
+STATUS_MARK = {"pending": "○", "active": "▶", "done": "✔", "failed": "✖", "stopped": "■"}
 
 
 class ProgressSection(QGroupBox):
@@ -694,6 +694,9 @@ class ProgressSection(QGroupBox):
         for key, state in self.states.items():
             item = QListWidgetItem(f"{STATUS_MARK[state]}  {STAGE_LABELS.get(key, key)}")
             item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            if state == "failed":
+                item.setForeground(QColor("#b00020"))
+                item.setToolTip("This step is where it stopped.")
             self.steps.addItem(item)
 
     def stage_started(self, key: str) -> None:
@@ -748,6 +751,10 @@ class ProgressSection(QGroupBox):
 
     def show_failure(self, explanation: Explanation) -> None:
         self.finish_running()
+        for key, state in self.states.items():
+            if state == "active":  # the step it stopped in
+                self.states[key] = "stopped" if explanation.cancelled else "failed"
+        self._draw_steps()
         self.stage.setText("Cancelled" if explanation.cancelled else "Stopped")
         self.result_title.setText(explanation.title)
         self.result_title.setObjectName("hint" if explanation.cancelled else "error")

@@ -131,24 +131,6 @@
    "extra_texts": []
   },
   {
-   "id": "ucrt",
-   "name": "Universal C Runtime (ucrtbase.dll, api-ms-win-*.dll)",
-   "version": "10.0.x as collected by PyInstaller",
-   "license": "Microsoft Distributable Code (Universal CRT)",
-   "copyright": "Microsoft Corporation",
-   "source": "Windows SDK / Windows (copied by PyInstaller)",
-   "status": "blocker",
-   "obligations": "Redistribution terms not reviewed.",
-   "notes": "On Windows 10 and later the UCRT is an operating-system component; the app-local copies could be dropped (to be tested), which removes this item.",
-   "patterns": [
-    "_internal/ucrtbase.dll",
-    "_internal/api-ms-win-*.dll"
-   ],
-   "bundled": "yes",
-   "texts": [],
-   "extra_texts": []
-  },
-  {
    "pypi": "pyinstaller",
    "id": "pyinstaller",
    "name": "PyInstaller bootloader and runtime hooks (inside the two executables)",
@@ -196,12 +178,12 @@
    "id": "qt",
    "name": "Qt libraries and plugins (Qt6Core, Qt6Gui, Qt6Widgets, platform and image plugins)",
    "version": "6.11.2",
-   "license": "LGPL-3.0-only (with third-party components under their own licences)",
+   "license": "LGPL-3.0-only (with the third-party components listed in the Qt attribution index under their own licences)",
    "copyright": "The Qt Company Ltd. and others",
    "source": "https://download.qt.io/official_releases/qt/6.11/6.11.2/",
-   "status": "blocker",
-   "obligations": "LGPL-3.0 as for PySide6. The Qt libraries also contain third-party code (for example PCRE2, double-conversion, zlib, libpng, FreeType, HarfBuzz, md4c) whose notices must accompany a binary distribution; Qt documents them on its Licenses Used in Qt and per-module attribution pages.",
-   "notes": "Release blocker: the third-party attribution texts for the shipped Qt6Core/Qt6Gui/Qt6Widgets and plugins (qwindows, qico, qoffscreen) have not been collected or verified against this Qt build.",
+   "status": "ok",
+   "obligations": "LGPL-3.0 as for PySide6 (statement in NOTICES.txt). Qt's third-party attributions are reproduced: the verbatim qt_attribution.json files and licence texts of qtbase at tag v6.11.2 for every bundled component that can be part of Qt6Core, Qt6Gui, Qt6Widgets and the windows/offscreen/ico plugins (PCRE2, FreeType, HarfBuzz, libpng, zlib, TinyCBOR, double-conversion, the Unicode data and more).",
+   "notes": "A deliberate superset (it includes entries for code that may not be compiled into the Windows binaries), produced by packaging/qt_attribution.py. A string search of the shipped DLLs confirmed that PCRE2, FreeType, HarfBuzz, libpng, zlib, TinyCBOR and the Unicode tables are in them. The LGPL statement itself is tracked under 'pyside6'.",
    "patterns": [
     "_internal/PySide6/**"
    ],
@@ -209,7 +191,13 @@
     "LGPL-3.0-only"
    ],
    "bundled": "yes",
-   "extra_texts": []
+   "extra_texts": [
+    {
+     "label": "Qt 6.11.2 third-party attributions and licence texts",
+     "path": "packaging/licenses/qt-6.11.2",
+     "tree": true
+    }
+   ]
   },
   {
    "pypi": "numpy",
@@ -242,17 +230,20 @@
    "id": "openblas",
    "name": "OpenBLAS (numpy.libs/libscipy_openblas64_*.dll) and its runtime libraries",
    "version": "as bundled in the NumPy 2.5.4 wheel",
-   "license": "BSD-3-Clause (OpenBLAS); runtime libraries as listed in NumPy's licence files",
-   "copyright": "The OpenBLAS authors; others as listed",
+   "license": "BSD-3-Clause (OpenBLAS and the LAPACK it bundles); GPL-3.0-or-later WITH GCC-exception-3.1 (libgfortran runtime statically linked)",
+   "copyright": "Copyright (c) 2011-2014 The OpenBLAS Project; LAPACK authors (see the NumPy licence file); Free Software Foundation (libgfortran)",
    "source": "NumPy wheel (scipy-openblas64)",
-   "status": "blocker",
-   "obligations": "The wheel's licence file names the licences of what it bundles; whether this DLL contains a GCC/MinGW runtime under GPL-with-exception terms, and whether its notices are reproduced, was not verified.",
-   "notes": "Needs verification; if a GPL-with-exception runtime is linked, its exception text must be included.",
+   "status": "ok",
+   "obligations": "Reproduce the notices: NumPy's licence file for this wheel names exactly this DLL (numpy.libs\\libscipy_openblas*.dll) for OpenBLAS, LAPACK and the GCC runtime library (GCC Runtime Library Exception 3.1) and is shipped verbatim (licenses\third-party\numpy\\LICENSE.txt), together with the GPL-3.0 text.",
+   "notes": "Relies on the NumPy project's published licence inventory for its wheel; it was not re-derived from the binary.",
    "patterns": [
     "_internal/numpy.libs/*"
    ],
    "bundled": "yes",
-   "texts": [],
+   "texts": [
+    "BSD-3-Clause",
+    "GPL-3.0-only"
+   ],
    "extra_texts": []
   },
   {
@@ -376,17 +367,19 @@
    "id": "openutau-core",
    "name": "OpenUtau.Core (OpenUtau.Core.dll)",
    "version": "0.1.565 (commit a60ca5830b9064556157245d4bf8f5920d93e5f8)",
-   "license": "MIT",
-   "copyright": "Copyright (c) 2014 StAkira",
+   "license": "MIT; contains code partially based on the VOICEVOX engine (LGPL-3.0), a C# port of SimpleEnunu's f0_smoother (MIT) and a Deque implementation matching Nito.Collections.Deque (MIT); embeds data of unverified provenance",
+   "copyright": "Copyright (c) 2014 StAkira and OpenUtau contributors; (c) 2023 oatsu (SimpleEnunu); (c) 2015 Stephen Cleary (Deque); the VOICEVOX engine authors; (c) 2017 Ryuichi Yamamoto and the University of Edinburgh (Merlin-derived code in Plugin.Builtin)",
    "source": "https://github.com/stakira/OpenUtau (tag 0.1.565, built unmodified from that commit)",
    "status": "blocker",
-   "obligations": "MIT notice (shipped). The assembly embeds data whose own licences were not verified: g2p models (arpabet, arpabet-plus, de, es, fr, it, ja, ko, pt, ru), Vogen models, yue.csv. The CREPE tiny.onnx model is MIT (Jong Wook Kim; licence shipped). F0Smoother is a C# port of SimpleEnunu's f0_smoother.py, and Deque.cs comes from a third party; both licences are unverified.",
-   "notes": "Release blocker until the embedded g2p/Vogen data and the two third-party sources have verified licences.",
+   "obligations": "MIT notice and the upstream MIT/Apache notices of the ported code (shipped). LGPL-3.0: OpenUtau.Core.Voicevox (VoicevoxRenderer, VoicevoxUtils, VoicevoxConfig) states it is 'partially based on the VOICEVOX engine' (LGPL_LICENSE), so OpenUtau.Core.dll is distributed with the LGPL text (shipped), as a separate replaceable DLL, built unmodified from the public commit named above; the written statement is in NOTICES.txt. Embedded data: the g2p models (arpabet, arpabet-plus, de, es, fr, it, ja-mono, ko, pt, ru) were contributed to the MIT repository by named contributors (e.g. commits 22e0c887, 2d0fcbe7, 8b8104ae, ed3267b9), the Vogen models and yue.csv by the maintainer in 2022 (e6486acc, 5b698e5b); none carries a licence statement, and the training data or dictionaries they derive from (for example CMUdict for the English model) are not named. The CREPE tiny.onnx model is MIT (Jong Wook Kim; licence shipped).",
+   "notes": "Release blocker until a person (1) confirms the LGPL handling of the VOICEVOX-derived classes and (2) the owner of the embedded g2p/Vogen data is asked to confirm it may be redistributed, or those features are removed from a BLT-specific build of OpenUtau.Core (which would no longer be the unmodified upstream binary).",
    "patterns": [
     "host/OpenUtau.Core.dll"
    ],
    "texts": [
-    "MIT"
+    "MIT",
+    "LGPL-3.0-only",
+    "Apache-2.0"
    ],
    "extra_texts": [
     {
@@ -396,6 +389,26 @@
     {
      "label": "CREPE licence (embedded tiny.onnx model)",
      "path": "{openutau}/OpenUtau.Core/Analysis/Crepe/LICENSE.txt"
+    },
+    {
+     "label": "VOICEVOX engine LICENSE (dual LGPL-3.0 / commercial)",
+     "path": "packaging/licenses/upstream_VOICEVOX_engine_LICENSE.txt"
+    },
+    {
+     "label": "SimpleEnunu LICENSE (MIT)",
+     "path": "packaging/licenses/upstream_oatsu-gh_SimpleEnunu_LICENSE.txt"
+    },
+    {
+     "label": "Nito.Collections.Deque LICENSE (MIT)",
+     "path": "packaging/licenses/upstream_StephenCleary_Deque_LICENSE.txt"
+    },
+    {
+     "label": "nnmnkwii LICENSE (MIT)",
+     "path": "packaging/licenses/upstream_r9y9_nnmnkwii_LICENSE.txt"
+    },
+    {
+     "label": "Merlin LICENSE (Apache-2.0)",
+     "path": "packaging/licenses/upstream_CSTR-Edinburgh_merlin_LICENSE.txt"
     }
    ],
    "bundled": "yes"
@@ -407,9 +420,9 @@
    "license": "MIT",
    "copyright": "Copyright (c) 2014 StAkira and OpenUtau contributors",
    "source": "https://github.com/stakira/OpenUtau",
-   "status": "blocker",
-   "obligations": "MIT notice (shipped). Several phonemizers carry their own copyright statements that were not individually audited.",
-   "notes": "Release blocker until the per-file notices have been read.",
+   "status": "ok",
+   "obligations": "MIT notice (shipped). The sources were searched for licence, copyright and derived-from statements. Found: EnunuOnnx/Merlin.cs is adapted from nnmnkwii (MIT), itself from Merlin (Apache-2.0) - both notices shipped under 'openutau-core'; GermanDiphonePhonemizer is based on the German CMUSphinx dictionary (named in the source; the dictionary is not embedded as a file); several phonemizers say they are 'based on' another phonemizer or reclist from the same community (no licence terms stated). The Data\\*.template.yaml files are contributor-authored within the MIT repository.",
+   "notes": "Residual risk: the in-repository authorship statements are not independently verified.",
    "patterns": [
     "host/OpenUtau.Plugin.Builtin.dll"
    ],
@@ -1581,6 +1594,12 @@
    "license": "LGPL-3.0 / GPL-3.0 / commercial per module",
    "why": "Unused; keeps GPL-only and commercial-only Qt modules out.",
    "how": "DROP_PATTERNS in packaging/blt.spec"
+  },
+  {
+   "name": "Universal C Runtime (ucrtbase.dll, api-ms-win-*.dll)",
+   "license": "Microsoft Distributable Code",
+   "why": "An operating-system component of Windows 10 and later, which the installer requires; PyInstaller copies it from the build machine only for Windows 7/8.",
+   "how": "filtered out in packaging/blt.spec; the installer sets MinVersion=10.0"
   }
  ],
  "external": [

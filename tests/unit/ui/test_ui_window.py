@@ -641,3 +641,35 @@ def test_ordinary_choices_come_back_on_the_next_launch(qtbot: QtBot, tmp_path: P
     assert prefs.last_score_dir == str(tmp_path)
     assert controller.score is None  # no score, assignments or approvals are carried over
     assert controller.approvals == ()
+
+
+def test_window_sizes_fit_a_scaled_screen() -> None:
+    from PySide6.QtCore import QSize
+
+    from barbershop_tracks.ui.main_window import fitted_sizes
+
+    assert fitted_sizes(None) == (QSize(780, 540), QSize(1200, 780))
+    assert fitted_sizes(QSize(1920, 1040)) == (QSize(780, 540), QSize(1200, 780))
+    smallest, first = fitted_sizes(QSize(1280, 680))  # 1080p at 150 % display scaling
+    assert first.height() <= 680
+    assert first.width() <= 1280
+    assert smallest.height() <= 680
+    smallest, first = fitted_sizes(QSize(640, 340))  # 1080p at 300 %
+    assert smallest == first == QSize(608, 323)
+
+
+def test_the_step_where_it_stopped_is_marked(rig: Rig) -> None:
+    from barbershop_tracks.ui.explain import Explanation
+
+    progress = rig.window.progress_section
+    progress.start(["reading", "rendering", "mixing"])
+    progress.stage_started("reading")
+    progress.stage_finished("reading")
+    progress.stage_started("rendering")
+    progress.show_failure(Explanation("audio_failed", "Stopped", "A voice came out wrong."))
+    marks = [progress.steps.item(i).text()[0] for i in range(progress.steps.count())]
+    assert marks == ["✔", "✖", "○"]
+    progress.start(["reading", "rendering"])
+    progress.stage_started("rendering")
+    progress.show_failure(Explanation("cancelled", "Cancelled", "", cancelled=True))
+    assert [progress.steps.item(i).text()[0] for i in range(2)] == ["○", "■"]

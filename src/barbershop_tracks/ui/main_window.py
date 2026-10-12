@@ -12,7 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QEvent, QMimeData, Qt, QTimer, QUrl
+from PySide6.QtCore import QEvent, QMimeData, QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
@@ -66,6 +66,24 @@ def _scrolling(widget: QWidget) -> QScrollArea:
     return area
 
 
+PREFERRED_SIZE = QSize(1200, 780)
+SMALLEST_SIZE = QSize(780, 540)
+
+
+def fitted_sizes(available: QSize | None) -> tuple[QSize, QSize]:
+    """(smallest, first-run) window sizes that fit the usable screen area.
+
+    With Windows display scaling at 150 % or more a 1080p screen has fewer than 780 usable logical
+    pixels of height, so a fixed 1200x780 window would have its bottom (the Generate button)
+    off screen.
+    """
+    if available is None:
+        return SMALLEST_SIZE, PREFERRED_SIZE
+    room = QSize(int(available.width() * 0.95), int(available.height() * 0.95))
+    smallest = SMALLEST_SIZE.boundedTo(room)
+    return smallest, PREFERRED_SIZE.boundedTo(room)
+
+
 class MainWindow(QMainWindow):
     def __init__(
         self,
@@ -83,7 +101,8 @@ class MainWindow(QMainWindow):
         self.opener = opener
         self.setWindowTitle(TITLE)
         self.setAcceptDrops(True)
-        self.setMinimumSize(780, 540)
+        minimum, self._first_size = fitted_sizes(self._available_size())
+        self.setMinimumSize(minimum)
         self._review_state: LyricReviewState | None = None
         self._last_location: Path | None = None
         self._last_error: PipelineError | None = None
@@ -462,11 +481,16 @@ class MainWindow(QMainWindow):
 
     # --- closing and geometry --------------------------------------------------------------
 
+    @staticmethod
+    def _available_size() -> QSize | None:
+        screen = QGuiApplication.primaryScreen()
+        return screen.availableGeometry().size() if screen is not None else None
+
     def _restore_geometry(self) -> None:
         if not self.prefs.geometry.isEmpty():
             self.restoreGeometry(self.prefs.geometry)
         else:
-            self.resize(1200, 780)
+            self.resize(self._first_size)
         if not self.prefs.splitter.isEmpty():
             self.splitter.restoreState(self.prefs.splitter)
 

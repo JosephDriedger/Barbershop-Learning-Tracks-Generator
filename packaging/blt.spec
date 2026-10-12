@@ -2,7 +2,7 @@
 #
 #   pyinstaller --noconfirm --distpath research-output/dist --workpath research-output/work packaging/blt.spec
 #
-# The result (research-output/dist/BLT Music Generator/) is completed by packaging/build.ps1, which
+# (packaging/build.ps1 uses research-output/release/app instead.) The result (the folder 'BLT Music Generator') is completed by packaging/build.ps1, which
 # adds the published render host (host/), the notices and the licence texts, then runs
 # packaging/inventory.py: every file must belong to a component listed in the dependency audit.
 import os
@@ -35,6 +35,11 @@ def wanted(name: str) -> bool:
     base = os.path.basename(name)
     if base in KEEP_ALWAYS:
         return True
+    # The Universal C Runtime is part of Windows 10 and later, which the installer requires; PyInstaller
+    # copies it from the build machine only for Windows 7/8. Not shipping it also keeps a Microsoft
+    # redistributable out of the package (see docs/dependency-audit.md).
+    if base.lower().startswith("api-ms-win-") or base.lower() == "ucrtbase.dll":
+        return False
     return not any(pattern.lower() in base.lower() for pattern in DROP_PATTERNS)
 
 

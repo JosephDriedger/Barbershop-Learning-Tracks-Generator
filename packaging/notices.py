@@ -47,6 +47,20 @@ The source of this program is available from its project page; on request to the
 in the installer, the same sources are provided for as long as this version is distributed.
 """
 
+VOICEVOX_STATEMENT = """\
+OpenUtau.Core and the VOICEVOX engine (LGPL-3.0)
+------------------------------------------------
+Part of OpenUtau.Core.dll (the OpenUtau.Core.Voicevox classes) is, in the words of its source code,
+"partially based on the VOICEVOX engine", which is licensed under the GNU Lesser General Public
+License version 3 (licenses\\LGPL-3.0-only.txt; the VOICEVOX statement of its dual licensing is in
+licenses\\third-party\\openutau-core\\).
+OpenUtau.Core.dll is a separate file (host\\OpenUtau.Core.dll), built unmodified from OpenUtau
+release 0.1.565 (commit a60ca5830b9064556157245d4bf8f5920d93e5f8); you may replace it with another
+build of that version. Corresponding source code:
+  OpenUtau:         https://github.com/stakira/OpenUtau/tree/a60ca5830b9064556157245d4bf8f5920d93e5f8
+  VOICEVOX engine:  https://github.com/VOICEVOX/voicevox_engine
+"""
+
 PYINSTALLER_STATEMENT = """\
 PyInstaller bootloader (GPL-2.0-or-later with the bootloader exception)
 ------------------------------------------------------------------------
@@ -138,6 +152,7 @@ def bundle(out: Path, where: dict[str, Path]) -> list[str]:
         "own licences; MP3 output uses an FFmpeg the user installs.",
         "",
         QT_STATEMENT,
+        VOICEVOX_STATEMENT,
         PYINSTALLER_STATEMENT,
         RULE,
         "Components",

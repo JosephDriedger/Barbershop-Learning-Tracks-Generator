@@ -31,7 +31,9 @@ def test_component_ids_are_unique_and_complete() -> None:
 
 def test_blockers_say_what_is_unresolved() -> None:
     blockers = [c for c in _components() if c["status"] == "blocker"]
-    assert {"worldline", "pyside6", "qt", "openutau-core"} <= {str(c["id"]) for c in blockers}
+    assert {"worldline", "pyside6", "openutau-core", "msvc-runtime", "blt"} == {
+        str(c["id"]) for c in blockers
+    }
     for component in blockers:
         assert str(component["notes"]).strip() or str(component["obligations"]).strip()
 
@@ -43,7 +45,7 @@ def test_every_referenced_spdx_and_upstream_text_exists() -> None:
         for extra in component["extra_texts"]:  # type: ignore[attr-defined]
             path = str(extra["path"])
             if path.startswith("packaging/"):
-                assert (PACKAGING.parent / path).is_file(), path
+                assert (PACKAGING.parent / path).exists(), path
 
 
 def test_lgpl_and_gpl_texts_are_shipped_with_the_qt_entries() -> None:
