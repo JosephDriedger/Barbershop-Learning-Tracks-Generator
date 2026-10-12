@@ -224,7 +224,12 @@ def _profile(name: str | None, file: Path | None) -> GainProfile:
 
 
 def discover_singers(singers_dir: Path, *, depth: int = 3) -> set[str]:
-    """Names of folders that look like voicebanks (they hold character.txt/yaml or an oto.ini)."""
+    """Names of folders that look like voicebanks (they hold character.txt/yaml or an oto.ini).
+
+    A folder with a character file is a voicebank *root*: what lies below it (the pitch sets A3, C4,
+    ... or the breaths of a multi-pitch bank, each with its own oto.ini) belongs to that one
+    voicebank and is not listed as further voices.
+    """
     found: set[str] = set()
 
     def walk(folder: Path, remaining: int) -> None:
@@ -233,7 +238,10 @@ def discover_singers(singers_dir: Path, *, depth: int = 3) -> set[str]:
         except OSError:
             return
         for child in children:
-            if any((child / m).is_file() for m in ("character.txt", "character.yaml", "oto.ini")):
+            if any((child / m).is_file() for m in ("character.txt", "character.yaml")):
+                found.add(child.name)
+                continue  # a voicebank root: its subfolders are its own parts
+            if (child / "oto.ini").is_file():
                 found.add(child.name)
             if remaining > 1:
                 walk(child, remaining - 1)

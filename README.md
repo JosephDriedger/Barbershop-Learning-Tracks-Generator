@@ -3,11 +3,12 @@
 Desktop app that generates four-part barbershop learning tracks (Tenor, Lead, Baritone,
 Bass) from a MusicXML file exported from MuseScore.
 
-Status: **in development.** MusicXML loading, the performed score model, readiness checks
-(`check`, `lines`) and the deterministic quartet MIDI handoff (`export`) work from the command line;
-OpenUtau interoperability is being researched (M6) and there is no synthesis or mixing yet. See
-[docs/architecture.md](docs/architecture.md) and
-[docs/openutau-integration.md](docs/openutau-integration.md).
+Status: **pre-release (0.1.0), not cleared for public release.** The whole pipeline works: score loading,
+readiness checks, quartet MIDI, headless OpenUtau rendering, deterministic mixing into the 13 tracks, a
+command line and a GUI, and a per-user Windows installer. Open before any release: licensing blockers in
+[docs/dependency-audit.md](docs/dependency-audit.md) and musical acceptance with a real English voicebank
+([docs/m12-acceptance.md](docs/m12-acceptance.md)). See [docs/INSTALL.md](docs/INSTALL.md) to install and
+[docs/KNOWN-LIMITATIONS.md](docs/KNOWN-LIMITATIONS.md) for what is not done.
 
 ## Names: product versus technical identifiers
 
@@ -19,9 +20,8 @@ Renaming them would break installs and make existing packages unrecognisable to 
 
 ## Requirements
 
-- Windows, Python 3.12
-- FFmpeg installed separately (needed from milestone M5 onward)
-- OpenUtau and an English voicebank (needed from milestone M6 onward)
+To use the installed app: Windows 10/11 x64 and a voicebank of your own (nothing else; MP3 also needs an FFmpeg
+you install). To develop: Windows, Python 3.12, a .NET 8 SDK (render host), Inno Setup 6 (installer).
 
 ## Development setup (PowerShell)
 
@@ -49,6 +49,16 @@ barbershop-tracks --version      # CLI
 barbershop-tracks-gui            # GUI (add --smoke-test to open and close immediately)
 python -m barbershop_tracks      # GUI
 ```
+
+## Build the Windows package
+
+```powershell
+python -m pip install -r packaging/requirements-build.txt
+python -m pip install -e . --no-deps
+powershell -NoProfile -ExecutionPolicy Bypass -File packaging/build.ps1
+```
+
+See [docs/m12-packaging.md](docs/m12-packaging.md). Nothing is uploaded or published by the build.
 
 ## Repository rules
 

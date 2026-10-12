@@ -51,7 +51,7 @@ function Run {
 $version = (Select-String -Path (Join-Path $root "src\barbershop_tracks\__init__.py") -Pattern '__version__\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
 $python = if ($env:BLT_PYTHON) { $env:BLT_PYTHON } elseif (Test-Path (Join-Path $root ".venv\Scripts\python.exe")) { Join-Path $root ".venv\Scripts\python.exe" } else { "python" }
 $commit = (git -C $root rev-parse HEAD).Trim()
-$dirty = [bool](git -C $root status --porcelain)
+$dirty = [bool](git -C $root status --porcelain --untracked-files=no)   # tracked files only
 $env:SOURCE_DATE_EPOCH = (git -C $root log -1 --format=%ct).Trim()   # PyInstaller honours it for its archives
 $localNuget = Join-Path $root "research-output\spike\nuget"
 if (-not $env:NUGET_PACKAGES -and (Test-Path $localNuget)) { $env:NUGET_PACKAGES = $localNuget }

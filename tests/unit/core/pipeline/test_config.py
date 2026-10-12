@@ -113,3 +113,13 @@ def test_singers_are_found_by_their_folders_not_by_guessing(tmp_path: Path) -> N
     (tmp_path / "docs" / "readme.txt").write_text("not a voicebank", encoding="utf-8")
     assert discover_singers(tmp_path) == {"A", "B"}
     assert discover_singers(tmp_path / "missing") == set()
+
+
+def test_the_pitch_sets_of_a_multi_pitch_voicebank_are_not_listed_as_voices(tmp_path: Path) -> None:
+    root = tmp_path / "alys-like"
+    root.mkdir()
+    (root / "character.txt").write_text("name=ALYS", encoding="utf-8")
+    for part in ("A3", "C4", "E4", "breaths"):
+        (root / part).mkdir()
+        (root / part / "oto.ini").write_text("", encoding="utf-8")
+    assert discover_singers(tmp_path) == {"alys-like"}
