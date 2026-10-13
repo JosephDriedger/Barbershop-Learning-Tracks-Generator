@@ -101,6 +101,39 @@ namespace Blt.RenderHost {
             }
         }
 
+        /// <summary>Why the project needs the tension effect this build leaves out, or null if it does not.</summary>
+        static string TensionRequested(UProject project) {
+            if (project.expressions.TryGetValue(Ustx.TENC, out var descriptor) && descriptor.defaultValue != 0) {
+                return $"the project sets the default of the tension curve to {descriptor.defaultValue}, but this build has no tension effect";
+            }
+            foreach (var part in project.parts.OfType<UVoicePart>()) {
+                foreach (var curve in part.curves) {
+                    if (curve.abbr == Ustx.TENC && !curve.IsEmpty) {
+                        return $"part '{part.name}' has a tension curve, but this build has no tension effect";
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>Deletes the phrases WORLDLINE-R rendered in earlier runs (wdl-*.wav in the cache); returns how many.</summary>
+        static int DiscardRenderedPhrases() {
+            int removed = 0;
+            try {
+                string cache = PathManager.Inst.CachePath;
+                if (!Directory.Exists(cache)) return 0;
+                foreach (var file in Directory.EnumerateFiles(cache, "wdl-*.wav")) {
+                    File.Delete(file);
+                    removed++;
+                }
+            } catch (Exception e) when (e is IOException || e is UnauthorizedAccessException) {
+                Events.Emit("warning", new Dictionary<string, object> {
+                    ["message"] = "could not remove cached phrases; a reused phrase can differ from a fresh render by one bit: " + e.Message,
+                });
+            }
+            return removed;
+        }
+
         static int Run(string[] args) {
             for (int i = 0; i < args.Length; i++) {
                 if (args[i].StartsWith("--") && !known.Contains(args[i])) return Finish(Exit.Usage, "usage", "unknown option " + args[i]);
@@ -203,6 +236,13 @@ namespace Blt.RenderHost {
                 result["problems"] = problems;
                 return Finish(Exit.Unresolved, "unresolved_singer_phonemizer_or_renderer", string.Join("; ", problems));
             }
+            // BLT's worldline.dll has no tension effect (docs/worldline-provenance.md): a project that asks for one is
+            // refused instead of being rendered silently without it. BLT's own projects never ask for it.
+            string tensionProblem = TensionRequested(project);
+            if (tensionProblem != null) {
+                result["problems"] = new List<string> { tensionProblem };
+                return Finish(Exit.ProjectLoad, "unsupported_tension", tensionProblem);
+            }
             Phase("validate");
 
             // 5. let OpenUtau phonemize (asynchronous in its own pipeline)
@@ -213,6 +253,11 @@ namespace Blt.RenderHost {
                 return Finish(Exit.PhonemizeTimeout, "phonemize_timeout", $"{collector.Phonemized} of {voiceParts} parts phonemized");
             }
             Phase("phonemize");
+
+            // 5b. never reuse a phrase rendered earlier. OpenUtau keeps every rendered phrase in its cache as a 16-bit file and
+            //     reuses it; a reused phrase differs from a fresh render by one least-significant bit, so the same score gave
+            //     different bytes on its first run and on every later one. BLT promises reproducible tracks.
+            result["rendered_phrases_discarded"] = DiscardRenderedPhrases();
 
             // 6. render through the public PlaybackManager.RenderToFiles straight into --out. It reports
             //    failures as notifications instead of throwing, so the collector decides success; there is

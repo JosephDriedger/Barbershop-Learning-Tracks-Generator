@@ -39,10 +39,12 @@ OpenUtau.Core (MIT; modified build)
 The render host contains OpenUtau.Core.dll and OpenUtau.Plugin.Builtin.dll built from OpenUtau
 release 0.1.565 (commit a60ca5830b9064556157245d4bf8f5920d93e5f8, MIT licence), MODIFIED by this
 project: the OpenUtau.Core.Voicevox classes (which derive from the LGPL-3.0 VOICEVOX engine), the
-Vogen data files and the non-English dictionaries are deleted, so no VOICEVOX code is distributed.
+Vogen data files, the non-English dictionaries and the English "plus" dictionary (with the
+phonemizers that need it) are deleted, so no VOICEVOX code is distributed.
 host\\patch_openutau.py makes the change; the revision the host reports ends in "+blt-patched".
 The native worldline.dll is built by this project from the pinned World / libpyin / libgvps sources
-with its own natural cubic spline in place of the GPL-licensed tk::spline (host\\native).
+without the tension effect, the only part that used the GPL-licensed tk::spline library; no spline
+code of any kind is in it (host\\native).
 Source:
   OpenUtau:         https://github.com/stakira/OpenUtau/tree/a60ca5830b9064556157245d4bf8f5920d93e5f8
   The changes:      the project source (host\\), included in the corresponding-source bundle.

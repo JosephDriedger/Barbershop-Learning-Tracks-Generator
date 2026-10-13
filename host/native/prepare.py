@@ -1,15 +1,17 @@
 """Prepare the sources of BLT's own ``worldline.dll`` (OpenUtau's native resampler, rebuilt by us).
 
 OpenUtau ships a prebuilt ``worldline.dll`` that statically contains ``tk::spline``
-(GPL-2.0-or-later). BLT builds the DLL itself from the same pinned sources with that one component
-replaced by ``patched/natural_spline.h`` (see docs/worldline-provenance.md). This script downloads
-the exact third-party archives OpenUtau's own build pins (SHA-256 checked), applies OpenUtau's three
-upstream patches and BLT's patch, and lays out a work folder that CMakeLists.txt builds with MSVC.
+(GPL-2.0-or-later), used by one effect (tension) that BLT never uses. BLT builds the DLL itself from
+the same pinned sources without it: ``effects-no-tension-spline.patch`` turns that effect into the
+neutral envelope, and the spline library is neither downloaded nor on any include path (see
+docs/worldline-provenance.md). This script downloads the exact third-party archives OpenUtau's own
+build pins (SHA-256 checked), applies OpenUtau's upstream patches and BLT's patch, and lays out a
+work folder that CMakeLists.txt builds with MSVC.
 
     python host/native/prepare.py WORKDIR --openutau-src SRC
 
 ``SRC`` is the pinned OpenUtau checkout (``host/build.ps1`` creates it). Needs git and network
-access to github.com. ``-DPATCH_SPLINE=OFF`` builds what upstream compiles (comparison only).
+access to github.com.
 """
 
 import argparse
@@ -40,10 +42,6 @@ ARCHIVES = {
         "https://github.com/Sleepwalking/libpyin/archive/b38135390b335c3e8cea6ef35cf5093789b36dac.zip",
         "0510a68a09ceaa2282022a1d2e84e9d37d73e93e0e74d8d28956a2d370f6520a",
     ),
-    "spline": (
-        "https://github.com/ttk592/spline/archive/5894beaf91e9adbfdbe5c6c9a1c60770e380e8e8.zip",
-        "0d42b77d0f398c9ad2b7290587b625c49c39a2337f6cfa88b6a7930207d91a33",
-    ),
     "libnpy": (
         "https://github.com/llohse/libnpy/archive/refs/tags/v1.0.1.zip",
         "3c9864c1bf7af08c88f2056478a2c6d2539674673bab9f9b4a0042a84a857f19",
@@ -61,7 +59,7 @@ ARCHIVES = {
         "edc6a93163af5b2a186d468717f6fe23653a5cb31a1e6932f0aba05af7d762e9",
     ),
 }
-UPSTREAM_PATCHES = {"world": "world.patch", "libpyin": "libpyin.patch", "spline": "spline.patch"}
+UPSTREAM_PATCHES = {"world": "world.patch", "libpyin": "libpyin.patch"}
 TEXT_SUFFIXES = {".c", ".h", ".cpp", ".hpp", ".hc", ".cc", ".txt", ".cmake"}
 
 
@@ -151,20 +149,18 @@ def main() -> int:
         apply_patch(patches / patch, sources / name)
 
     shutil.copy(HERE / "CMakeLists.txt", work / "CMakeLists.txt")
-    shutil.copytree(HERE / "patched", work / "patched", dirs_exist_ok=True)
-    own_patch = (HERE / "effects-natural-spline.patch").read_bytes().replace(CRLF, LF)
-    (patches / "effects-natural-spline.patch").write_bytes(
-        own_patch
-    )  # LF whatever the checkout did
+    own_patch = (HERE / "effects-no-tension-spline.patch").read_bytes().replace(CRLF, LF)
+    # LF whatever the checkout did
+    (patches / "effects-no-tension-spline.patch").write_bytes(own_patch)
     # patched/worldline/model/effects.cpp = upstream effects.cpp + BLT's patch
     target = work / "patched" / "worldline" / "model"
     target.mkdir(parents=True, exist_ok=True)
     original = cpp / "cpp" / "worldline" / "model" / "effects.cpp"
     (target / "effects.cpp").write_bytes(original.read_bytes().replace(CRLF, LF))
-    apply_patch(patches / "effects-natural-spline.patch", work / "patched")
+    apply_patch(patches / "effects-no-tension-spline.patch", work / "patched")
     print(
         f"prepared {work}",
-        f"build: cmake -S {work} -B {work}/build -G Ninja -DPATCH_SPLINE=ON",
+        f"build: cmake -S {work} -B {work}/build -G Ninja",
         sep="\n",
     )
     return 0

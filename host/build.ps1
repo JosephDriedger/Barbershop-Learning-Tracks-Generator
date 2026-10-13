@@ -7,7 +7,7 @@
 # build stops. The host is NOT built from the pinned tree itself but from a copy that host\patch_openutau.py
 # changes in a documented way: no Voicevox classes (LGPL-derived), no Vogen data, no non-English
 # dictionaries (see docs\m13-compliance.md). The native worldline.dll is BLT's own build
-# (host\native\build.ps1: the same sources without the GPL tk::spline) unless -SkipNative, which keeps
+# (host\native\build.ps1: the same sources without any spline) unless -SkipNative, which keeps
 # OpenUtau's stock DLL for quick local runs only (never for a package).
 # Requires a .NET 8 (or newer) SDK: DOTNET_ROOT if set, else the local research SDK if present, else
 # `dotnet` on PATH. Output and the OpenUtau checkout live under research-output\ (git-ignored).
@@ -83,12 +83,13 @@ if (-not $SkipNative) {
     powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "native\build.ps1") -OpenUtauSrc $OpenUtauSrc -Out $nativeOut
     if ($LASTEXITCODE -ne 0) { throw "the native worldline build failed" }
     Copy-Item (Join-Path $nativeOut "worldline.dll") (Join-Path $Out "worldline.dll") -Force
-    $native = "BLT build without tk::spline"
+    $native = "BLT build without any spline"
 }
 $info = [ordered]@{
     schema = "blt.host-build/1"
     openutau = [ordered]@{ tag = $Tag; commit = $Commit; patched = $true; patch_script = "host/patch_openutau.py" }
     worldline = $native
+    worldline_spline_free = ($native -like "BLT build*")   # native\verify_dll.py passed: no spline in the link map or the DLL
     worldline_sha256 = (Get-FileHash (Join-Path $Out "worldline.dll") -Algorithm SHA256).Hash.ToLower()
     dotnet_runtime = $RuntimeVersion
 }

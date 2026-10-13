@@ -5,6 +5,7 @@ about the host contract: structured events, stable exit codes, and no silent fal
 """
 
 import array
+import hashlib
 import shutil
 from pathlib import Path
 
@@ -220,3 +221,85 @@ def test_the_cmudict_based_english_phonemizers_still_render(
     assert run.returncode == 0, run.result
     assert run.result["status"] == "ok"
     assert len(stems(tmp_path / "out")) == 4
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def edited_project(tmp_path: Path, old: str, new: str) -> Path:
+    path = project(tmp_path)
+    text = path.read_text(encoding="utf-8")
+    assert old in text, old
+    path.write_text(text.replace(old, new, 1), encoding="utf-8")
+    return path
+
+
+TENSION_CURVE = "  curves:\n  - abbr: tenc\n    xs: [0, 480]\n    ys: [{y}, {y}]"
+
+
+def test_a_project_with_a_tension_curve_is_refused_not_rendered_without_it(
+    exe: Path, singers: Path, tmp_path: Path
+) -> None:
+    """BLT's worldline has no tension effect (docs/worldline-provenance.md): asking is refused."""
+    path = edited_project(tmp_path, "  curves: []", TENSION_CURVE.format(y=40))
+    run = run_host(exe, path, tmp_path / "out", singers_dir=singers)
+    assert run.returncode == 3
+    assert run.result["status"] == "unsupported_tension"
+    assert "tension curve" in run.result["error"]
+    assert stems(tmp_path / "out") == {}
+
+
+def test_a_changed_default_of_the_tension_curve_is_refused_too(
+    exe: Path, singers: Path, tmp_path: Path
+) -> None:
+    old = "    abbr: tenc\n    type: Curve\n    min: -100\n    max: 100\n    default_value: 0"
+    path = edited_project(tmp_path, old, old.replace("default_value: 0", "default_value: 20"))
+    run = run_host(exe, path, tmp_path / "out", singers_dir=singers)
+    assert run.returncode == 3
+    assert run.result["status"] == "unsupported_tension"
+    assert "default" in run.result["error"]
+
+
+def test_a_tension_curve_that_changes_nothing_is_accepted(
+    exe: Path, singers: Path, tmp_path: Path
+) -> None:
+    """An all-zero curve is the neutral tension: it renders as a project without the curve does."""
+    # each run needs its own host copy: OpenUtau caches rendered phrases (as 16-bit files, so a
+    # cache hit differs
+    # by one least-significant bit from a fresh render) beside the exe, and a hit never reaches
+    # the native code
+    base = tmp_path / "base"
+    base.mkdir()
+    plain = run_host(install_host(base), project(base), base / "out", singers_dir=singers)
+    assert plain.returncode == 0, plain.result
+    path = edited_project(tmp_path, "  curves: []", TENSION_CURVE.format(y=0))
+    run = run_host(exe, path, tmp_path / "out", singers_dir=singers)
+    assert run.returncode == 0, run.result
+    assert len(stems(tmp_path / "out")) == 4
+    # the same audio, byte for byte: the neutral curve takes the same native path as no curve at all
+    assert {n: digest(base / "out" / n) for n in stems(base / "out")} == {
+        n: digest(tmp_path / "out" / n) for n in stems(tmp_path / "out")
+    }
+
+
+def test_the_same_project_renders_to_the_same_bytes_every_time(
+    exe: Path, singers: Path, tmp_path: Path
+) -> None:
+    """OpenUtau reuses rendered phrases from a 16-bit cache; a reused one differs by one bit.
+
+    The host discards them first, so a second generation of the same score in the same host copy is
+    byte-identical to the first (it used to differ).
+    """
+    first = run_host(exe, project(tmp_path), tmp_path / "out1", singers_dir=singers)
+    assert first.returncode == 0, first.result
+    assert first.result["rendered_phrases_discarded"] == 0
+    second_dir = tmp_path / "again"
+    second_dir.mkdir()
+    second = run_host(exe, project(second_dir), second_dir / "out", singers_dir=singers)
+    assert second.returncode == 0, second.result
+    # the first run's phrases were in the cache
+    assert second.result["rendered_phrases_discarded"] > 0
+    assert {n: digest(tmp_path / "out1" / n) for n in stems(tmp_path / "out1")} == {
+        n: digest(second_dir / "out" / n) for n in stems(second_dir / "out")
+    }

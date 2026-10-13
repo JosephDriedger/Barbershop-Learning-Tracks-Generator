@@ -1,0 +1,69 @@
+--- a/worldline/model/effects.cpp
++++ b/worldline/model/effects.cpp
+@@ -1,11 +1,10 @@
+ #include "effects.h"
+ 
++#include <algorithm>
+ #include <cmath>
+ #include <iostream>
+ #include <numeric>
+ #include <vector>
+-
+-#include "spline.h"
+ 
+ namespace worldline {
+ 
+@@ -95,43 +94,18 @@
+   return envelope;
+ }
+ 
++// BLT build: the tension effect is not part of this build. OpenUtau computes it as exp() of a spline
++// through control points that depend on f0, the sample rate and the tension value, and the spline
++// came from a GPL-licensed library. BLT never asks for the effect: its projects carry no tension
++// curve, so `value` is always 0 and the envelope is exactly 1 (checked against every render of the
++// test suite, docs/worldline-provenance.md), and the host refuses a project that does ask for it.
++// Every call therefore returns the neutral envelope, which is also what the original returns for 0.
+ std::vector<double> GetTensionCoefficients(double f0, int fs, int value,
+                                            int width) {
+-  std::vector<double> envelope(width, 1);
+-  if (f0 < 50) {
+-    return envelope;
+-  }
+-  double v = value * 0.01;
+-  double s0 = -1.5 * v;
+-  double s1 = v < 0 ? 4 * v : 2 * v;
+-  std::vector<double> px;
+-  std::vector<double> py;
+-  double f0_bins = f0 / (fs / 2) * width;
+-  int x = 0;
+-  px.push_back(x * f0_bins);
+-  py.push_back(s0);
+-  x++;
+-  px.push_back(x * f0_bins);
+-  py.push_back(s0);
+-  x += 3;
+-  while (x * f0_bins < 250) {
+-    px.push_back(x * f0_bins);
+-    py.push_back(s1);
+-    x++;
+-  }
+-  while (x * f0_bins < 350) {
+-    x++;
+-  }
+-  while (x * f0_bins < width + f0_bins) {
+-    px.push_back(x * f0_bins);
+-    py.push_back(0);
+-    x++;
+-  }
+-  tk::spline spline(px, py);
+-  for (int i = 0; i < width; ++i) {
+-    envelope[i] = std::exp(spline(i));
+-  }
+-  return envelope;
++  (void)f0;
++  (void)fs;
++  (void)value;
++  return std::vector<double>(width, 1);
+ }
+ 
+ void AutoGain(std::vector<double>& samples, double src_max, double out_max,
