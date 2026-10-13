@@ -3,6 +3,8 @@
 Status: **done and verified locally; every artifact is still NOT FOR RELEASE.** Nothing was posted, signed, uploaded or published. Two licensing
 reviews, two person-run acceptance tests and two owner decisions remain open, and the new release gate keeps them open.
 
+> **Update (M16, [m16-report.md](m16-report.md)):** the replacement spline described here was removed instead of reviewed (the tension effect, its only user, is gone from the native build and the binary is proven spline-free), so its gate item is retired and `worldline` is no longer a licensing blocker; the upstream inquiry now also covers the plain pack's `g2p.onnx` and is still **not submitted**.
+
 ## What was asked, what was done
 
 | # | Task | Result |
