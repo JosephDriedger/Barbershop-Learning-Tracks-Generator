@@ -98,6 +98,13 @@ def ensure_host_runtime(binaries: Path, runtime_root: Path) -> HostRuntime:
             shutil.rmtree(partial, ignore_errors=True)
             return HostRuntime(target, target / HOST_EXE, identity, freshly_installed=False)
         if target.exists():
+            # A complete copy never becomes incomplete, but it can become complete between the
+            # check above and this one (a concurrent installer renamed its copy into place): look
+            # again, or that finished copy would be taken for an abandoned attempt and moved away
+            # from under its user.
+            if _complete(target):
+                shutil.rmtree(partial, ignore_errors=True)
+                return HostRuntime(target, target / HOST_EXE, identity, freshly_installed=False)
             # an earlier, incomplete attempt: never reuse it. It is moved aside (atomically)
             # rather than deleted in place, so a concurrent installer's rename cannot be undone.
             aside = runtime_root / f".discard-{uuid.uuid4().hex}"

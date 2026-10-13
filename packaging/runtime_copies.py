@@ -11,10 +11,12 @@ from the user's PC:
 
     python packaging/runtime_copies.py DIST                    # prints the hashed names
     python packaging/runtime_copies.py DIST --check NAME...   # fails unless exactly these
+    python packaging/runtime_copies.py DIST --write-manifest  # lets the program remake the copies itself
 
 The check also fails if the package contains any Visual C++ runtime file itself.
 """
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -61,8 +63,30 @@ def system_source(hashed_name: str) -> str:
     return match.group("base") + ".dll"
 
 
+def write_manifest(dist: Path) -> int:
+    """``_internal/blt-runtime-copies.json``: where each renamed copy belongs and which system file it copies.
+
+    Wheels that rename a runtime DLL keep it in their ``<package>.libs`` folder and put that folder on the
+    DLL search path (that is where the installer puts the copy too), so the copy belongs there.
+    """
+    hashed, _plain, _present = scan(dist)
+    internal = dist / "_internal"
+    libs = sorted(d.name for d in internal.iterdir() if d.is_dir() and d.name.endswith(".libs"))
+    if hashed and len(libs) != 1:
+        print(f"FAIL: expected exactly one *.libs folder for {sorted(hashed)}, found {libs}")
+        return 1
+    wanted = {f"{libs[0]}/{name}": system_source(name) for name in sorted(hashed)}
+    (internal / "blt-runtime-copies.json").write_text(
+        json.dumps(wanted, indent=1) + chr(10), encoding="utf-8"
+    )
+    print(f"wrote {internal / 'blt-runtime-copies.json'}: {wanted}")
+    return 0
+
+
 def main() -> int:
     dist = Path(sys.argv[1])
+    if "--write-manifest" in sys.argv:
+        return write_manifest(dist)
     hashed, _plain, present = scan(dist)
     if "--check" not in sys.argv:
         for name in sorted(hashed):

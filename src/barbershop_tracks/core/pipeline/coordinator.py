@@ -38,7 +38,12 @@ from barbershop_tracks.core.mixing import (
     stems_from_render,
 )
 from barbershop_tracks.core.musicxml import ParseResult, parse_musicxml
-from barbershop_tracks.core.pipeline.config import ResolvedConfig, discover_singers
+from barbershop_tracks.core.pipeline.config import (
+    ENGLISH_PHONEMIZERS,
+    ResolvedConfig,
+    discover_singers,
+    removed_phonemizer,
+)
 from barbershop_tracks.core.pipeline.errors import ErrorCategory, PipelineError
 from barbershop_tracks.core.pipeline.events import EventHandler, Stage, ignore
 from barbershop_tracks.core.pipeline.preparation import blocking_details, prepare
@@ -106,6 +111,17 @@ class EngineChoice:
     per_voice: Mapping[VoiceRole, str] = field(default_factory=dict)
 
     def refs(self) -> dict[VoiceRole, VoiceEngineRef]:
+        removed = removed_phonemizer(self.phonemizer)
+        if removed:
+            raise PipelineError(
+                ErrorCategory.CONFIGURATION,
+                "PHONEMIZER_REMOVED",
+                f"the pronunciation engine {self.phonemizer} ({removed}) is not part of this "
+                "version "
+                "of BLT (it needs a dictionary whose origin could not be verified); use the "
+                "default, "
+                f"or one of: {', '.join(ENGLISH_PHONEMIZERS)}",
+            )
         refs = {}
         for role in VOICE_ORDER:
             singer = self.per_voice.get(role, self.singer)

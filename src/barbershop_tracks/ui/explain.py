@@ -115,6 +115,19 @@ def _configuration(error: PipelineError) -> Explanation:
             ),
             text,
         )
+    if code == "PHONEMIZER_REMOVED":
+        return Explanation(
+            "engine_setting",
+            "That pronunciation engine is not in this version of BLT",
+            "Arpasing+ and English C+V need an English dictionary whose origin could not be "
+            "verified, so BLT does not include them.",
+            (
+                "Open Advanced settings and clear the pronunciation engine to use the default, or",
+                "type OpenUtau.Plugin.Builtin.ArpasingPhonemizer for a voicebank built for "
+                "ARPAsing.",
+            ),
+            text,
+        )
     if code in ("HOST_UNRESOLVED", "USTX_PHONEMIZER_REF", "USTX_RENDERER_UNKNOWN"):
         return Explanation(
             "engine_setting",

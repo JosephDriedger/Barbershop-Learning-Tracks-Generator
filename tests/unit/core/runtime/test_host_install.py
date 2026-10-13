@@ -127,3 +127,33 @@ def test_old_idle_host_copies_are_pruned_after_an_upgrade(tmp_path: Path) -> Non
     assert recent.directory.is_dir()  # a copy a run may still be using is kept
     assert newest.directory.is_dir()
     assert user_folder.is_dir()  # only BLT's own folders are ever touched
+
+
+def test_a_copy_that_a_concurrent_installer_just_finished_is_not_moved_away(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The interleaving that broke concurrent first starts: our two "is it complete?" checks (before
+    before another installer renames its finished copy into place, and the next line then finds
+    the target present. That finished copy must be used, not taken for an abandoned attempt."""
+    from barbershop_tracks.core.runtime import host_install
+
+    binaries = fake_build(tmp_path / "bin")
+    runtime_root = tmp_path / "rt"
+    first = ensure_host_runtime(binaries, runtime_root)  # the "other" installer's finished copy
+    assert first.freshly_installed
+    marker = first.directory / COMPLETE_MARKER
+
+    real_complete = host_install._complete
+    calls = {"n": 0}
+
+    def late_complete(target: Path) -> bool:
+        calls["n"] += 1
+        # the two looks before the target is examined both come "too early"; later looks are real
+        return False if calls["n"] <= 2 else real_complete(target)
+
+    monkeypatch.setattr(host_install, "_complete", late_complete)
+    second = ensure_host_runtime(binaries, runtime_root)
+    assert second.directory == first.directory
+    assert not second.freshly_installed
+    assert marker.is_file()  # the finished copy was not moved aside or removed
+    assert not [p for p in runtime_root.iterdir() if p.name.startswith((".discard-", ".install-"))]

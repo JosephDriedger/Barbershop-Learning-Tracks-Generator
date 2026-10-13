@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QSpinBox,
     QTableView,
@@ -37,6 +38,7 @@ from barbershop_tracks.core.pipeline import (
     SHIPPED_RENDERERS,
     PipelineError,
     approvals_document,
+    removed_phonemizer,
     review_report,
 )
 from barbershop_tracks.core.synthesis import SynthesisPlan
@@ -504,6 +506,17 @@ class AdvancedDialog(QDialog):
 
     def accept(self) -> None:
         prefs = self.prefs
+        removed = removed_phonemizer(self.pronunciation.text())
+        if removed:
+            QMessageBox.warning(
+                self,
+                "Pronunciation engine",
+                f"{removed} is not part of this version of BLT: it needs an English dictionary "
+                "whose origin could not be verified."
+                "\n\nLeave the box empty for the default, or use "
+                "OpenUtau.Plugin.Builtin.ArpasingPhonemizer for a voicebank built for ARPAsing.",
+            )
+            return
         prefs.phonemizer = self.pronunciation.text().strip()
         prefs.renderer = self.engine.currentText().strip()
         prefs.host_dir = self.host.text().strip()

@@ -586,3 +586,38 @@ def test_a_missing_microsoft_runtime_is_explained_before_anything_is_rendered(
     assert "Visual C++" in error.message
     assert rig.renderer.calls == []
     assert rig.staging() == []
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "OpenUtau.Plugin.Builtin.ArpasingPlusPhonemizer",
+        "OpenUtau.Plugin.Builtin.EnglishCpVPhonemizer",
+        "OpenUtau.Core.DiffSinger.DiffSingerARPAPlusEnglishPhonemizer",
+        "ArpasingPlusPhonemizer",
+    ],
+)
+def test_a_pronunciation_engine_this_version_does_not_contain_is_refused_before_any_work(
+    rig: Rig, name: str
+) -> None:
+    request = rig.request(engine=EngineChoice("my-singer", name, "WORLDLINE-R"))
+    error = error_of(rig, request)
+    assert error.code == "PHONEMIZER_REMOVED"
+    assert error.category is ErrorCategory.CONFIGURATION
+    assert "ArpasingPhonemizer" in error.message  # it says what to use instead
+    assert rig.renderer.calls == []
+    assert rig.staging() == []
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "OpenUtau.Core.DefaultPhonemizer",
+        "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+        "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer",
+        "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer",
+    ],
+)
+def test_the_supported_pronunciation_engines_are_not_refused(rig: Rig, name: str) -> None:
+    result = rig.run(rig.request(engine=EngineChoice("my-singer", name, "WORLDLINE-R")))
+    assert result.destination.is_dir()

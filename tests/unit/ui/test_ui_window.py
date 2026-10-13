@@ -408,6 +408,30 @@ def test_advanced_settings_are_saved(rig: Rig) -> None:
     assert rig.prefs.timeout_minutes == 30
 
 
+def test_advanced_settings_refuse_a_pronunciation_engine_this_version_lacks(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from PySide6.QtWidgets import QMessageBox
+
+    shown: list[str] = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *args: shown.append(str(args[2])))
+    rig.prefs.phonemizer = ""
+
+    def try_removed(dialog: QDialog) -> bool:
+        assert isinstance(dialog, AdvancedDialog)
+        dialog.pronunciation.setText("OpenUtau.Plugin.Builtin.EnglishCpVPhonemizer")
+        dialog.accept()
+        assert dialog.result() != QDialog.DialogCode.Accepted  # the dialog stays open
+        return False
+
+    rig.window.run_dialog = try_removed
+    rig.window.open_advanced()
+    assert rig.prefs.phonemizer == ""
+    assert shown
+    assert "English C+V" in shown[0]
+    assert "ArpasingPhonemizer" in shown[0]
+
+
 def test_advanced_settings_offer_only_the_renderers_the_shipped_host_can_run(rig: Rig) -> None:
     offered: list[str] = []
 

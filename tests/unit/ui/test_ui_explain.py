@@ -92,3 +92,15 @@ def test_a_missing_microsoft_runtime_tells_the_user_what_to_install() -> None:
     assert explanation.kind == "vc_runtime"
     assert any("Redistributable" in step for step in explanation.steps)
     assert any("Without internet" in step for step in explanation.steps)
+
+
+def test_a_removed_pronunciation_engine_is_explained_with_what_to_use_instead() -> None:
+    from barbershop_tracks.core.pipeline import ErrorCategory, PipelineError
+    from barbershop_tracks.ui.explain import explain
+
+    error = PipelineError(ErrorCategory.CONFIGURATION, "PHONEMIZER_REMOVED", "not in this version")
+    explanation = explain(error)
+    assert explanation.kind == "engine_setting"
+    assert "Arpasing+" in explanation.summary
+    assert any("ArpasingPhonemizer" in step for step in explanation.steps)
+    assert any("default" in step for step in explanation.steps)

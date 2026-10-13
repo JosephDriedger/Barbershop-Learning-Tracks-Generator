@@ -3,11 +3,14 @@
 from barbershop_tracks.core.pipeline.config import (
     DEFAULT_PHONEMIZER,
     DEFAULT_RENDERER,
+    ENGLISH_PHONEMIZERS,
+    REMOVED_PHONEMIZERS,
     SHIPPED_RENDERERS,
     ResolvedConfig,
     config_path,
     discover_singers,
     load_config_file,
+    removed_phonemizer,
     resolve_config,
 )
 from barbershop_tracks.core.pipeline.coordinator import (
@@ -39,6 +42,8 @@ __all__ = [
     "APPROVALS_SCHEMA",
     "DEFAULT_PHONEMIZER",
     "DEFAULT_RENDERER",
+    "ENGLISH_PHONEMIZERS",
+    "REMOVED_PHONEMIZERS",
     "REVIEW_SCHEMA",
     "SHIPPED_RENDERERS",
     "STAGES",
@@ -63,6 +68,7 @@ __all__ = [
     "package_dirname",
     "prepare",
     "read_approvals",
+    "removed_phonemizer",
     "render_review_text",
     "resolve_config",
     "review_report",

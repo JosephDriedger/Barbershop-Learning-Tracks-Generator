@@ -160,6 +160,26 @@ try {
     $global:LASTEXITCODE = 0
     Add-RuntimeCopies $oddApp
     Scenario "spaces and non-ASCII in every path" $oddApp (Join-Path $oddRoot "Users\$odd") (Join-Path $oddRoot "Users\$odd\AppData\Local\BarbershopLearningTracks")
+
+    # a package whose renamed copy of the PC's MSVCP140 is missing (the installer normally makes it) repairs itself
+    $healApp = Join-Path $base "heal\BLT Music Generator"
+    robocopy $App $healApp /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "robocopy failed" }
+    $global:LASTEXITCODE = 0
+    $manifestFile = Join-Path $healApp "_internal/blt-runtime-copies.json"
+    Write-Output ""
+    Write-Output "[self-repair of the renamed runtime copy]"
+    if ($RuntimeCopies -and (Test-Path $manifestFile)) {
+        $copies = @((Get-Content $manifestFile -Raw | ConvertFrom-Json).PSObject.Properties.Name)
+        $copyPath = Join-Path $healApp ("_internal/" + $copies[0])
+        Check ($copies.Count -ge 1 -and -not (Test-Path -LiteralPath $copyPath)) "the renamed copy is absent before the first start"
+        $healProfile = Join-Path $base "heal-profile"
+        $healed = Invoke-Clean (Join-Path $healApp "blt.exe") @("--version") (Clean-Environment $healProfile (Join-Path $healProfile "data"))
+        Check ($healed.ExitCode -eq 0 -and $healed.Out -match "\d+\.\d+") "blt starts without it (NumPy imports)"
+        Check (Test-Path -LiteralPath $copyPath) "and has made the copy from the PC's own msvcp140.dll"
+    } else {
+        Write-Output "  skipped: no renamed runtime copy in this package"
+    }
 }
 finally {
     if (-not $Keep) { cmd /c rmdir /s /q "$base" 2>$null | Out-Null } else { Write-Output "kept: $base" }

@@ -40,11 +40,33 @@ from barbershop_tracks.core.runtime.layout import APP_NAME
 
 DEFAULT_PHONEMIZER = "OpenUtau.Core.DefaultPhonemizer"
 DEFAULT_RENDERER = "WORLDLINE-R"
-# The renderers the shipped render host can run. The packaged host leaves out the ONNX runtime that
-# the neural renderers (ENUNU, VOGEN, DIFFSINGER, VOICEVOX) need.
+# The renderers the shipped render host can run. The neural renderers (ENUNU, VOGEN, DIFFSINGER,
+# VOICEVOX) are not offered: VOGEN and VOICEVOX are not in BLT's host at all, and the others have
+# never been tested with BLT.
 # CLASSIC runs but its stems end a few tens of milliseconds past the performed length, which the mix
 # validation rejects (MIX_STEM_TOO_LONG, seen with a real voicebank), so it is not offered.
 SHIPPED_RENDERERS = ("WORLDLINE-R",)
+
+# OpenUtau phonemizers that BLT's host leaves out because they need the English "plus" dictionary,
+# whose origin is unknown (docs/g2p-plus-provenance.md). Naming one could only end in the host's
+# "did not resolve", so it is refused up front with an explanation (class name -> its usual name).
+REMOVED_PHONEMIZERS = {
+    "ArpasingPlusPhonemizer": "Arpasing+ (EN ARPA+)",
+    "EnglishCpVPhonemizer": "English C+V (EN C+V)",
+    "DiffSingerARPAPlusEnglishPhonemizer": "DiffSinger English+",
+}
+# Phonemizers that BLT's host has and that work from the CMUdict English dictionary.
+ENGLISH_PHONEMIZERS = (
+    "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+    "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer",
+)
+
+
+def removed_phonemizer(name: str) -> str | None:
+    """What the user calls ``name`` if it is a phonemizer this version of BLT does not contain."""
+    return REMOVED_PHONEMIZERS.get(name.strip().rsplit(".", 1)[-1])
+
 
 _KEYS = (
     "singers_dir",
