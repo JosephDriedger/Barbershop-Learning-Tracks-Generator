@@ -62,7 +62,8 @@ if ($vogen) { foreach ($key in $vogen.Keys) { if ($vogen[$key].Length -gt 0) { $
 $crepe = Resource-Sizes $core "OpenUtau.Core.Analysis.Crepe.Resources.resources"
 if (-not $crepe -or -not $crepe.ContainsKey("tiny")) { $problems.Add("the CREPE model is missing") }
 
-if (-not (Test-Path (Join-Path $HostDir "onnxruntime.dll"))) { $problems.Add("onnxruntime.dll is missing: the English g2p fallback needs it (blt-render-host --g2p-check)") }
+# published host: beside the exe; a plain `dotnet build` (CI's dev host) keeps it under runtimes/win-x64/native
+if (-not ((Test-Path (Join-Path $HostDir "onnxruntime.dll")) -or (Test-Path (Join-Path $HostDir "runtimes/win-x64/native/onnxruntime.dll")))) { $problems.Add("onnxruntime.dll is missing: the English g2p fallback needs it (blt-render-host --g2p-check)") }
 
 $infoPath = Join-Path $HostDir "blt-host-build.json"
 if (-not (Test-Path $infoPath)) { $problems.Add("blt-host-build.json is missing") } else {
