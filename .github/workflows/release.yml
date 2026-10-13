@@ -1,0 +1,30 @@
+name: Release gate
+
+# Runs when a version tag is pushed (or by hand). It checks the release gate (docs/release-gate.md) and FAILS while
+# any required review, acceptance result or owner decision is open, however green CI is. There is deliberately no
+# publishing step here: nothing in this repository publishes, signs or uploads a release. Any publishing job that is
+# added later must `needs: gate`, and must also run `release_gate.py check --release --package-dir <artifacts>`
+# on the build it publishes.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Show the gate
+        run: python packaging/release_gate.py status
+      - name: Refuse while anything required is open
+        run: python packaging/release_gate.py check

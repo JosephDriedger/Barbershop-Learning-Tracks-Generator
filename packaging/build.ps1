@@ -19,13 +19,16 @@
 #   -NoSmoke           skip the packaged-app smoke tests
 #   -NoInstaller       stop after the package folder (no Inno Setup needed)
 #   -FailOnBlockers    exit non-zero when the licence audit has open release blockers
+#   -ForRelease        refuse to build unless the release gate is open (docs/release-gate.md), and check the finished
+#                      build against it. Without it the artifacts are always marked NOT FOR RELEASE
 param(
     [string]$OpenUtauSrc = "",
     [string]$OutDir = "",
     [switch]$SkipHost,
     [switch]$NoSmoke,
     [switch]$NoInstaller,
-    [switch]$FailOnBlockers
+    [switch]$FailOnBlockers,
+    [switch]$ForRelease
 )
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -38,6 +41,7 @@ $hostOut = Join-Path $OutDir "host"
 $distRoot = Join-Path $OutDir "app"
 $artifacts = Join-Path $OutDir "artifacts"
 $app = Join-Path $distRoot "BLT Music Generator"
+$evidence = Join-Path $OutDir "evidence"
 
 function Step($text) { Write-Output ""; Write-Output "== $text" }
 function Run {
@@ -45,6 +49,17 @@ function Run {
     $previous = $ErrorActionPreference
     $ErrorActionPreference = "Continue"   # PyInstaller and others log to stderr; only the exit code matters
     try { & $Exe @Arguments } finally { $ErrorActionPreference = $previous }
+    if ($LASTEXITCODE -ne 0) { throw "$Exe failed with exit code $LASTEXITCODE" }
+}
+
+# like Run, and keeps the output as a UTF-8 log (evidence for the review packets)
+function RunLogged {
+    param([string]$Log, [string]$Exe, [string[]]$Arguments)
+    New-Item -ItemType Directory -Force (Split-Path $Log) | Out-Null
+    Set-Content -Path $Log -Value "" -Encoding UTF8
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try { & $Exe @Arguments 2>&1 | ForEach-Object { "$_" } | ForEach-Object { $_; Add-Content -Path $Log -Value $_ -Encoding UTF8 } } finally { $ErrorActionPreference = $previous }
     if ($LASTEXITCODE -ne 0) { throw "$Exe failed with exit code $LASTEXITCODE" }
 }
 
@@ -57,13 +72,17 @@ $localNuget = Join-Path $root "research-output\spike\nuget"
 if (-not $env:NUGET_PACKAGES -and (Test-Path $localNuget)) { $env:NUGET_PACKAGES = $localNuget }
 $nuget = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path $HOME ".nuget\packages" }
 Write-Output "BLT Music Generator $version, commit $commit$(if ($dirty) { ' (working tree has uncommitted changes)' })"
+if ($ForRelease) {
+    Step "Release gate (-ForRelease)"
+    Run $python @("packaging/release_gate.py", "check")
+}
 
 # 1. the render host --------------------------------------------------------------------------
 if (-not $SkipHost) {
     Step "Publishing the self-contained render host"
     $hostArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "host\build.ps1"), "-Publish", "-Out", $hostOut)
     if ($OpenUtauSrc) { $hostArgs += @("-OpenUtauSrc", $OpenUtauSrc) }
-    Run "powershell" $hostArgs
+    RunLogged (Join-Path $evidence "worldline-host-build.log") "powershell" $hostArgs
 }
 if (-not (Test-Path (Join-Path $hostOut "blt-render-host.exe"))) { throw "no published host in $hostOut (run without -SkipHost)" }
 Step "Verifying what the host contains"
@@ -81,6 +100,10 @@ Step "Adding the render host"
 robocopy $hostOut (Join-Path $app "host") /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE)" }
 $global:LASTEXITCODE = 0
+
+# 3a. data that was decided against must not be anywhere in the package, whatever its name ---------------------
+Step "Searching the whole package for the removed data (English plus dictionary, C+V template, other packs)"
+Run $python @("-I", "packaging/verify_absent_data.py", $app, "--openutau-src", $pinnedSource)
 
 # 3b. the Microsoft runtime is required of the user's PC, never shipped ---------------------------------
 Step "Checking that no Microsoft runtime files are in the package"
@@ -111,12 +134,14 @@ if (-not $NoSmoke) {
     Step "Smoke-testing the package"
     Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "packaging\smoke.ps1"), "-App", $app, "-RuntimeCopies", ($hashedCopies -join ";"))
     Step "Checking that the Qt libraries are replaceable (LGPL)"
-    Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "packaging/replaceability-test.ps1"), "-App", $app, "-RuntimeCopies", ($hashedCopies -join ";"))
+    RunLogged (Join-Path $evidence "qt-replaceability-test.log") "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "packaging/replaceability-test.ps1"), "-App", $app, "-RuntimeCopies", ($hashedCopies -join ";"))
 }
 
 # 5b. the Qt/PySide6 corresponding-source bundle (prepared only; attaching it to the GitHub release is manual) ----
 Step "Preparing the corresponding-source bundle (not uploaded)"
 Run $python @("packaging/compliance.py", "--out", (Join-Path $OutDir "compliance"), "--version", $version)
+Step "Assembling the review packets for the licensing reviewers (not signed, not uploaded)"
+Run $python @("packaging/review_packets.py", "--out", (Join-Path $OutDir "review"), "--package", $app, "--compliance", (Join-Path $OutDir "compliance"), "--evidence", $evidence)
 
 # 6. the installer ----------------------------------------------------------------------------------------
 $installer = $null
@@ -154,6 +179,15 @@ $info = [ordered]@{
 }
 [System.IO.File]::WriteAllText((Join-Path $artifacts "release-info.json"), ($info | ConvertTo-Json), $utf8)
 Get-Content (Join-Path $artifacts "SHA256SUMS.txt")
+# the release gate: what is still open (a person decides; green CI and this script cannot)
+$gateText = (& $python "packaging/release_gate.py" "status") -join [Environment]::NewLine
+[System.IO.File]::WriteAllText((Join-Path $artifacts "release-gate-status.txt"), $gateText, $utf8)
+if ($ForRelease) {
+    Step "Checking the finished build against the release gate"
+    Run $python @("packaging/release_gate.py", "check", "--release", "--package-dir", $artifacts)
+}
+Write-Output ""
+Write-Output $gateText
 Write-Output ""
 Write-Output $status
 Write-Output "Package:   $app"

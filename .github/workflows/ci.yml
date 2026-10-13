@@ -28,6 +28,8 @@ jobs:
         run: mypy
       - name: Licence audit tables are current
         run: python packaging/notices.py audit --check
+      - name: Release gate status (information only; the gate itself is enforced by release.yml and build.ps1 -ForRelease)
+        run: python packaging/release_gate.py status
       - name: Tests
         run: pytest
       - name: CLI entry point
@@ -54,6 +56,8 @@ jobs:
         run: powershell -NoProfile -ExecutionPolicy Bypass -File host/build.ps1
       - name: Verify what the host contains (no Voicevox types, no GPL spline, dictionaries)
         run: powershell -NoProfile -ExecutionPolicy Bypass -File host/verify-host.ps1 -HostDir research-output/host/build -OpenUtauSrc research-output/openutau-src
+      - name: No removed data (English plus dictionary, C+V template, other packs) anywhere in the host
+        run: python -I packaging/verify_absent_data.py research-output/host/build --openutau-src research-output/openutau-src
       - name: FFmpeg for the MP3 test (CI only; BLT never bundles it)
         run: |
           if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg -y --no-progress }

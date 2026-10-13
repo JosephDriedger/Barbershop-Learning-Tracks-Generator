@@ -1,0 +1,11 @@
+# The release gate and the compliance material are the owner's to approve: a change here can open or
+# close a release (docs/release-gate.md). Enforced by a branch-protection rule that requires code owner
+# review (a repository setting the owner applies; it is not set by the code).
+/compliance/                      @JosephDriedger
+/packaging/release_gate.py        @JosephDriedger
+/packaging/components.json        @JosephDriedger
+/docs/release-gate.md             @JosephDriedger
+/docs/review/                     @JosephDriedger
+/docs/acceptance/                 @JosephDriedger
+/.github/workflows/release.yml    @JosephDriedger
+/.github/CODEOWNERS               @JosephDriedger

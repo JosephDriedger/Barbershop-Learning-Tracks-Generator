@@ -1,0 +1,103 @@
+{
+ "schema": "blt.release-gate/1",
+ "note": "Every required item needs a person's recorded sign-off before anything is published. Only a human edits 'signoff' (python packaging/release_gate.py sign ...). Green CI does not satisfy any item. See docs/release-gate.md.",
+ "items": [
+  {
+   "id": "worldline-spline-review",
+   "title": "Independent source/licensing review of BLT's replacement for tk::spline in worldline.dll",
+   "kind": "review",
+   "required": true,
+   "who": "a qualified person who has not read tk::spline and did not write or direct the replacement",
+   "packet": "docs/review/worldline-spline-review-packet.md",
+   "subjects": [
+    "host/native/patched/natural_spline.h",
+    "host/native/effects-natural-spline.patch",
+    "host/native/CMakeLists.txt",
+    "host/native/prepare.py",
+    "docs/review/worldline-spline-review-packet.md"
+   ],
+   "signoff": null
+  },
+  {
+   "id": "qt-lgpl-review",
+   "title": "Human review of BLT's LGPL-3.0 arrangement for Qt and PySide6 (notices, written offer, replaceability)",
+   "kind": "review",
+   "required": true,
+   "who": "a qualified person (licensing counsel or the owner with counsel's written advice)",
+   "packet": "docs/review/qt-pyside6-review-packet.md",
+   "subjects": [
+    "packaging/compliance.py",
+    "packaging/qt-statement.txt",
+    "packaging/replaceability-test.ps1",
+    "packaging/licenses/LGPL-3.0-only.txt",
+    "packaging/licenses/GPL-3.0-only.txt",
+    "docs/review/qt-pyside6-review-packet.md"
+   ],
+   "signoff": null
+  },
+  {
+   "id": "qt-source-published",
+   "title": "The corresponding-source bundle is attached to the release it accompanies and its link works",
+   "kind": "publication",
+   "required": true,
+   "who": "the owner, when the release exists (the evidence is the https URL of the published asset)",
+   "packet": "docs/review/qt-pyside6-review-packet.md",
+   "subjects": [],
+   "signoff": null
+  },
+  {
+   "id": "english-voicebank-acceptance",
+   "title": "English voicebank acceptance: a person listened to the tracks and the checklist passed",
+   "kind": "acceptance",
+   "required": true,
+   "who": "a tester who is not the developer, with a legitimately obtained English voicebank",
+   "packet": "docs/acceptance/english-voicebank-acceptance.md",
+   "subjects": [
+    "docs/acceptance/english-voicebank-acceptance.md"
+   ],
+   "signoff": null
+  },
+  {
+   "id": "clean-machine-verification",
+   "title": "Clean-machine verification: install, run, upgrade and uninstall on a PC that has never had BLT or developer tools, including a PC without the Visual C++ runtime",
+   "kind": "acceptance",
+   "required": true,
+   "who": "a tester who is not the developer, on a clean Windows 10/11 x64 machine or VM",
+   "packet": "docs/acceptance/clean-machine-verification.md",
+   "subjects": [
+    "docs/acceptance/clean-machine-verification.md"
+   ],
+   "signoff": null
+  },
+  {
+   "id": "code-signing-decision",
+   "title": "Decision on code signing recorded (sign the installer, or release unsigned knowingly)",
+   "kind": "decision",
+   "required": true,
+   "who": "the owner",
+   "packet": "docs/release-gate.md",
+   "subjects": [],
+   "signoff": null
+  },
+  {
+   "id": "owner-release-approval",
+   "title": "The owner approves this exact build for release after reading the open items above",
+   "kind": "decision",
+   "required": true,
+   "who": "the owner",
+   "packet": "docs/release-gate.md",
+   "subjects": [],
+   "signoff": null
+  },
+  {
+   "id": "upstream-plus-dictionary-answer",
+   "title": "Only if the English 'plus' dictionary is ever re-included: documented provenance and licence answer from upstream",
+   "kind": "review",
+   "required": false,
+   "who": "the owner (not needed while the dictionary stays excluded, which verify-host and verify_absent_data enforce)",
+   "packet": "docs/g2p-plus-provenance.md",
+   "subjects": [],
+   "signoff": null
+  }
+ ]
+}
