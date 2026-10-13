@@ -64,8 +64,9 @@ test, which compares the copy's timestamps).
   small next to rendering. None is worth the risk to rendering behaviour; the layout stays a plain
   folder of DLLs.
 * **Pruning** removes only what the supported renderer (WORLDLINE-R) never loads: NetMQ and its
-  dependencies (LGPL / unlicensed / MPL, OpenUtau's DAW bridge), the native ONNX Runtime (neural renderers),
-  other platforms' natives and `createdump.exe`. The host and backend tests and `blt selftest` run
+  dependencies (LGPL / unlicensed / MPL, OpenUtau's DAW bridge), other platforms' natives and `createdump.exe`.
+  (Since M14 the native `onnxruntime.dll` is kept: the English phonemizers' neural g2p fallback needs it. The host is also
+  built from a patched copy of OpenUtau, with BLT's own `worldline.dll`; see [m14-compliance-report.md](m14-compliance-report.md).) The host and backend tests and `blt selftest` run
   against the pruned output, so a removal that breaks rendering fails. The Advanced settings list only
   the renderer this host can run and BLT accepts.
 

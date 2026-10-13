@@ -64,6 +64,14 @@ overwritten.
 **It is slow the first time.** The first generation copies BLT's singing engine to your user folder (a few
 seconds); long songs take proportionally longer to sing. Later runs reuse the copy.
 
+## "Microsoft Visual C++ runtime is missing"
+
+BLT needs Microsoft's Visual C++ Redistributable (x64), version 14.44 or newer, and does not contain it. If Setup or BLT
+says it is missing or too old, install the current `vc_redist.x64.exe` from Microsoft
+(https://aka.ms/vc14/vc_redist.x64.exe, or on another PC for offline use: see [INSTALL.md](INSTALL.md)), then start BLT again.
+`blt.exe diagnostics` prints the *vc runtime* line with the version it found. An error such as "DLL load failed while
+importing QtWidgets" at start-up on a freshly set-up PC is the typical symptom of a missing or damaged runtime.
+
 ## "A BLT component is missing" / the singing engine cannot start
 
 Run `blt.exe diagnostics`. The line *render host* must name a folder; if it says NOT FOUND, or `blt-render-host.exe`

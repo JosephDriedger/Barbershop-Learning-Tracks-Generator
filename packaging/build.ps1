@@ -66,6 +66,9 @@ if (-not $SkipHost) {
     Run "powershell" $hostArgs
 }
 if (-not (Test-Path (Join-Path $hostOut "blt-render-host.exe"))) { throw "no published host in $hostOut (run without -SkipHost)" }
+Step "Verifying what the host contains"
+$pinnedSource = if ($OpenUtauSrc) { $OpenUtauSrc } else { Join-Path $root "research-output\openutau-src" }
+Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "host\verify-host.ps1"), "-HostDir", $hostOut, "-OpenUtauSrc", $pinnedSource)
 
 # 2. the Python application ----------------------------------------------------------------------
 Step "Freezing the application with PyInstaller"
@@ -78,6 +81,14 @@ Step "Adding the render host"
 robocopy $hostOut (Join-Path $app "host") /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE)" }
 $global:LASTEXITCODE = 0
+
+# 3b. the Microsoft runtime is required of the user's PC, never shipped ---------------------------------
+Step "Checking that no Microsoft runtime files are in the package"
+$hashedCopies = @(& $python "packaging/runtime_copies.py" $app)
+if ($LASTEXITCODE -ne 0) { throw "runtime_copies.py failed" }
+Run $python (@("packaging/runtime_copies.py", $app, "--check") + $hashedCopies)
+$vcRequired = (& $python -c "from barbershop_tracks.core.runtime.vcruntime import REQUIRED; print(*REQUIRED)").Trim().Split(" ")
+Write-Output "requires Microsoft Visual C++ runtime $($vcRequired -join '.') or newer; renamed imports satisfied at install: $($hashedCopies -join ', ')"
 
 # 4. notices and the audit ------------------------------------------------------------------------
 Step "Writing NOTICES.txt and licenses"
@@ -98,8 +109,14 @@ $blockers = @($components.components | Where-Object { $_.status -eq "blocker" } 
 # 5. smoke tests of the package --------------------------------------------------------------------
 if (-not $NoSmoke) {
     Step "Smoke-testing the package"
-    Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "packaging\smoke.ps1"), "-App", $app)
+    Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "packaging\smoke.ps1"), "-App", $app, "-RuntimeCopies", ($hashedCopies -join ";"))
+    Step "Checking that the Qt libraries are replaceable (LGPL)"
+    Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "packaging/replaceability-test.ps1"), "-App", $app, "-RuntimeCopies", ($hashedCopies -join ";"))
 }
+
+# 5b. the Qt/PySide6 corresponding-source bundle (prepared only; attaching it to the GitHub release is manual) ----
+Step "Preparing the corresponding-source bundle (not uploaded)"
+Run $python @("packaging/compliance.py", "--out", (Join-Path $OutDir "compliance"), "--version", $version)
 
 # 6. the installer ----------------------------------------------------------------------------------------
 $installer = $null
@@ -109,7 +126,9 @@ if (-not $NoInstaller) {
         "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
         "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe") | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
     if (-not $iscc) { throw "Inno Setup 6 not found (install it, or set BLT_ISCC; or use -NoInstaller)" }
-    Run $iscc @("/Qp", "/DAppVersion=$version", "/DSourceDir=$app", "/DOutputDir=$artifacts", (Join-Path $root "packaging\installer.iss"))
+    $isccArgs = @("/Qp", "/DAppVersion=$version", "/DSourceDir=$app", "/DOutputDir=$artifacts", "/DVcMajor=$($vcRequired[0])", "/DVcMinor=$($vcRequired[1])", "/DVcBuild=$($vcRequired[2])")
+    if ($hashedCopies.Count -eq 1) { $isccArgs += "/DNumpyMsvcp=$($hashedCopies[0])" } elseif ($hashedCopies.Count -gt 1) { throw "the installer handles one renamed runtime copy, found $($hashedCopies.Count)" }
+    Run $iscc ($isccArgs + (Join-Path $root "packaging\installer.iss"))
     $installer = Join-Path $artifacts "BLT-Music-Generator-$version-Setup.exe"
     if (-not (Test-Path $installer)) { throw "installer was not produced" }
 }

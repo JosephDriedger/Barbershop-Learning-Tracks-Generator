@@ -38,27 +38,34 @@ under the GNU Lesser General Public License version 3 (LGPL-3.0; its text and th
 refers to are in licenses\\LGPL-3.0-only.txt and licenses\\GPL-3.0-only.txt). The Qt and PySide6
 libraries are shipped as separate files (the *.dll and *.pyd files below _internal\\PySide6 and
 _internal\\shiboken6), not merged into the executables, and have not been modified. You may replace
-them with another build of the same Qt / PySide6 version.
+them with another build of the same Qt / PySide6 version (RELINKING.md in the source bundle below
+says how) and run this program with it.
 
-Corresponding source code of the unmodified libraries:
-  Qt 6.11.2:        https://download.qt.io/official_releases/qt/6.11/6.11.2/
-  PySide6 6.11.2:   https://code.qt.io/cgit/pyside/pyside-setup.git (tag v6.11.2)
-The source of this program is available from its project page; on request to the distributor named
-in the installer, the same sources are provided for as long as this version is distributed.
+Corresponding source code: each release on the project's GitHub page carries the asset
+BLT-Music-Generator-<version>-corresponding-source.zip, which holds the Qt Project's own source
+archives of Qt 6.11.2 (qtbase) and PySide6 6.11.2 (pyside-setup), checksummed, BLT's own source at
+the release commit, a written offer and the instructions for replacing the libraries:
+  https://github.com/JosephDriedger/Barbershop-Learning-Tracks-Generator/releases
+The same archives come from the Qt Project:
+  Qt 6.11.2:        https://download.qt.io/official_releases/qt/6.11/6.11.2/submodules/
+  PySide6 6.11.2:   https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.11.2-src/
+If you cannot get the bundle, open an issue at the project page and a copy will be provided, for at
+least three years after this version was last distributed.
 """
 
-VOICEVOX_STATEMENT = """\
-OpenUtau.Core and the VOICEVOX engine (LGPL-3.0)
-------------------------------------------------
-Part of OpenUtau.Core.dll (the OpenUtau.Core.Voicevox classes) is, in the words of its source code,
-"partially based on the VOICEVOX engine", which is licensed under the GNU Lesser General Public
-License version 3 (licenses\\LGPL-3.0-only.txt; the VOICEVOX statement of its dual licensing is in
-licenses\\third-party\\openutau-core\\).
-OpenUtau.Core.dll is a separate file (host\\OpenUtau.Core.dll), built unmodified from OpenUtau
-release 0.1.565 (commit a60ca5830b9064556157245d4bf8f5920d93e5f8); you may replace it with another
-build of that version. Corresponding source code:
+OPENUTAU_STATEMENT = """\
+OpenUtau.Core (MIT; modified build)
+-----------------------------------
+The render host contains OpenUtau.Core.dll and OpenUtau.Plugin.Builtin.dll built from OpenUtau
+release 0.1.565 (commit a60ca5830b9064556157245d4bf8f5920d93e5f8, MIT licence), MODIFIED by this
+project: the OpenUtau.Core.Voicevox classes (which derive from the LGPL-3.0 VOICEVOX engine), the
+Vogen data files and the non-English dictionaries are deleted, so no VOICEVOX code is distributed.
+host\\patch_openutau.py makes the change; the revision the host reports ends in "+blt-patched".
+The native worldline.dll is built by this project from the pinned World / libpyin / libgvps sources
+with its own natural cubic spline in place of the GPL-licensed tk::spline (host\\native).
+Source:
   OpenUtau:         https://github.com/stakira/OpenUtau/tree/a60ca5830b9064556157245d4bf8f5920d93e5f8
-  VOICEVOX engine:  https://github.com/VOICEVOX/voicevox_engine
+  The changes:      the project source (host\\), included in the corresponding-source bundle.
 """
 
 PYINSTALLER_STATEMENT = """\
@@ -153,7 +160,7 @@ def bundle(out: Path, where: dict[str, Path]) -> list[str]:
         "own licences; MP3 output uses an FFmpeg the user installs.",
         "",
         QT_STATEMENT,
-        VOICEVOX_STATEMENT,
+        OPENUTAU_STATEMENT,
         PYINSTALLER_STATEMENT,
         RULE,
         "Components",

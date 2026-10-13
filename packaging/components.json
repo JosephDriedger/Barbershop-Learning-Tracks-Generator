@@ -17,6 +17,7 @@
     "NOTICE",
     "NOTICES.txt",
     "blt.exe",
+    "host/blt-host-build.json",
     "host/blt-render-host.*",
     "licenses/**"
    ],
@@ -111,23 +112,16 @@
   },
   {
    "id": "msvc-runtime",
-   "name": "Microsoft Visual C++ runtime (VCRUNTIME140*.dll, MSVCP140*.dll)",
-   "version": "14.x as shipped in Python 3.12.10 and the Qt/NumPy wheels",
-   "license": "Microsoft Visual C++ redistributable terms (Distributable Code)",
+   "name": "Microsoft Visual C++ runtime (VCRUNTIME140*.dll, MSVCP140*.dll): required of the user's PC, not shipped",
+   "version": "14.44.35211 or newer, installed by the user from Microsoft's redistributable",
+   "license": "Microsoft Software License Terms of the Visual C++ Redistributable (accepted by the user at install)",
    "copyright": "Microsoft Corporation",
    "source": "Python 3.12.10 installation; PySide6 and NumPy wheels",
-   "status": "blocker",
-   "obligations": "Microsoft's REDIST list (Visual Studio 2026) says redistribution of the Visual C++ runtime files 'is limited to licensed Visual Studio users' under the Microsoft Software License Terms. The 11 copies in this package come from the Python (14.42), NumPy/delvewheel (14.40) and Qt (14.44, signed by The Qt Company) distributions; BLT's rights to pass them on were not established. Options and evidence: docs/m13-compliance.md.",
-   "notes": "Needs a human decision: confirm the terms, or have the installer run Microsoft's official Visual C++ Redistributable instead of carrying app-local copies.",
-   "patterns": [
-    "_internal/VCRUNTIME*.dll",
-    "_internal/MSVCP*.dll",
-    "_internal/*/VCRUNTIME*.dll",
-    "_internal/*/MSVCP*.dll",
-    "_internal/*/msvcp*.dll",
-    "_internal/*/concrt*.dll"
-   ],
-   "bundled": "yes",
+   "status": "ok",
+   "obligations": "BLT redistributes none of Microsoft's runtime files (Microsoft limits redistribution to licensed Visual Studio users). Setup requires Microsoft's own Visual C++ Redistributable (x64), downloaded by the user from Microsoft or supplied by the user for offline installs, and verifies its Microsoft signature before running it. The program checks again before rendering. The one file NumPy imports under a hash-renamed name (msvcp140-<hash>.dll) is created at install time as a copy of the PC's own msvcp140.dll: a copy of a file the user already has, not a redistribution.",
+   "notes": "Enforced by build: packaging/runtime_copies.py fails the build if any Visual C++ runtime file is in the package, and inventory.py fails on unowned files. The installer's prerequisite flow is tested silently (missing runtime stops Setup, nothing installed); its dialogs have not been exercised on a PC that really lacks the runtime (clean-machine gate).",
+   "patterns": [],
+   "bundled": "no (prerequisite)",
    "texts": [],
    "extra_texts": []
   },
@@ -161,8 +155,8 @@
    "copyright": "The Qt Company Ltd. and the Qt for Python team",
    "source": "https://code.qt.io/cgit/pyside/pyside-setup.git (tag v6.11.2); wheels from PyPI",
    "status": "blocker",
-   "obligations": "LGPL-3.0: ship the LGPL and GPL texts (done); keep the libraries as separate replaceable DLLs/PYDs (done: one-folder layout); state that the application uses PySide6/Qt under the LGPL; offer the corresponding source and any modifications (none made). A source offer is drafted in NOTICES.txt but has not been reviewed by a person.",
-   "notes": "Blocker until a person confirms the LGPL-3.0 compliance statement. If commercial licensing is preferred instead, this entry changes.",
+   "obligations": "LGPL-3.0: ship the LGPL and GPL texts (done); keep the libraries as separate replaceable DLLs/PYDs (done: one-folder layout, proven by packaging/replaceability-test.ps1 on every build); state that the application uses PySide6/Qt under the LGPL (done, NOTICES.txt); offer the corresponding source and any modifications (none made). Materials are prepared by packaging/compliance.py: the Qt Project's own qtbase and pyside-setup 6.11.2 source archives (SHA-256 recorded; qtbase MD5 matches Qt's published md5sums.txt), BLT's source at the release commit, a written offer, RELINKING.md. They are meant to be attached to the BLT GitHub release (BLT-Music-Generator-<version>-corresponding-source.zip); nothing is published yet.",
+   "notes": "Blocker until (1) the corresponding-source zip is actually published with the release it accompanies and the NOTICES.txt link works, and (2) a person has reviewed the LGPL-3.0 arrangement (docs/m14-compliance-report.md). No Qt or PySide6 file is modified.",
    "patterns": [
     "_internal/PySide6/*.pyd",
     "_internal/PySide6/pyside6*.dll",
@@ -367,19 +361,18 @@
   {
    "id": "openutau-core",
    "name": "OpenUtau.Core (OpenUtau.Core.dll)",
-   "version": "0.1.565 (commit a60ca5830b9064556157245d4bf8f5920d93e5f8)",
-   "license": "MIT; contains code partially based on the VOICEVOX engine (LGPL-3.0), a C# port of SimpleEnunu's f0_smoother (MIT) and a Deque implementation matching Nito.Collections.Deque (MIT); embeds data of unverified provenance",
-   "copyright": "Copyright (c) 2014 StAkira and OpenUtau contributors; (c) 2023 oatsu (SimpleEnunu); (c) 2015 Stephen Cleary (Deque); the VOICEVOX engine authors; (c) 2017 Ryuichi Yamamoto and the University of Edinburgh (Merlin-derived code in Plugin.Builtin); Carnegie Mellon University (CMUdict 0.07)",
-   "source": "https://github.com/stakira/OpenUtau (tag 0.1.565, built unmodified from that commit)",
-   "status": "blocker",
-   "obligations": "MIT notice and the upstream MIT/Apache notices of the ported code (shipped). LGPL-3.0: OpenUtau.Core.Voicevox (VoicevoxRenderer, VoicevoxUtils, VoicevoxConfig) states it is 'partially based on the VOICEVOX engine' (LGPL_LICENSE), so OpenUtau.Core.dll is distributed with the LGPL text (shipped), as a separate replaceable DLL, built unmodified from the public commit named above; the written statement is in NOTICES.txt. Embedded data: the g2p models (arpabet, arpabet-plus, de, es, fr, it, ja-mono, ko, pt, ru) were contributed to the MIT repository by named contributors (e.g. commits 22e0c887, 2d0fcbe7, 8b8104ae, ed3267b9), the Vogen models and yue.csv by the maintainer in 2022 (e6486acc, 5b698e5b); none carries a licence statement, and the training data or dictionaries they derive from (for example CMUdict for the English model) are not named. The CREPE tiny.onnx model is MIT (Jong Wook Kim; licence shipped). Added in M13: g2p-arpabet.zip carries CMUdict 0.07 verbatim (Carnegie Mellon University licence, text shipped); g2p-arpabet-plus.zip has 420,422 entries of which 299,535 are CMUdict words and 120,887 are additions of unknown origin. Exact embedded resources are listed in docs/m13-compliance.md; a prototype build without the Voicevox classes, the Vogen data and the non-English dictionaries is in research-output/m13.",
-   "notes": "Release blocker until a person (1) confirms the LGPL handling of the VOICEVOX-derived classes and (2) the owner of the embedded g2p/Vogen data is asked to confirm it may be redistributed, or those features are removed from a BLT-specific build of OpenUtau.Core (which would no longer be the unmodified upstream binary).",
+   "version": "0.1.565 (commit a60ca5830b9064556157245d4bf8f5920d93e5f8), built by BLT with host/patch_openutau.py",
+   "license": "MIT; embeds CMUdict 0.07 (Carnegie Mellon University licence) and the English 'plus' dictionary (see g2p-arpabet-plus); the Voicevox classes (LGPL-derived), the Vogen data and the non-English dictionaries are NOT in BLT's build",
+   "copyright": "Copyright (c) 2014 StAkira and OpenUtau contributors; (c) 2023 oatsu (SimpleEnunu); (c) 2015 Stephen Cleary (Deque); (c) 2017 Ryuichi Yamamoto and the University of Edinburgh (Merlin-derived code in Plugin.Builtin); Carnegie Mellon University (CMUdict 0.07)",
+   "source": "https://github.com/stakira/OpenUtau (tag 0.1.565, commit a60ca58...; built from a copy modified by host/patch_openutau.py)",
+   "status": "ok",
+   "obligations": "MIT notice and the upstream MIT/Apache notices of the ported code (shipped); CMUdict licence text (shipped). BLT's host is a MODIFIED build of OpenUtau.Core: host/patch_openutau.py deletes the Voicevox classes and blanks the Vogen data and the non-English dictionaries; the reported revision is 'a60ca58...+blt-patched'. host/verify-host.ps1 (run by every package build) reads the built assemblies and fails unless there is no Voicevox type, the English dictionaries are byte-identical to the pinned source, and the other dictionaries and Vogen data are empty. No LGPL obligation remains for this DLL.",
+   "notes": "Resolved by evidence: the patched build renders byte-identical audio to the stock build (tests/golden/selftest_audio.json), 44 of 46 host-driven tests passed at prototype stage and all pass now. Supported functionality kept: the WORLDLINE-R renderer, the default and English phonemizers. Removed on purpose: Voicevox, Vogen, and phonemizers needing a non-English dictionary. The English 'plus' dictionary is tracked separately.",
    "patterns": [
     "host/OpenUtau.Core.dll"
    ],
    "texts": [
     "MIT",
-    "LGPL-3.0-only",
     "Apache-2.0"
    ],
    "extra_texts": [
@@ -390,10 +383,6 @@
     {
      "label": "CREPE licence (embedded tiny.onnx model)",
      "path": "{openutau}/OpenUtau.Core/Analysis/Crepe/LICENSE.txt"
-    },
-    {
-     "label": "VOICEVOX engine LICENSE (dual LGPL-3.0 / commercial)",
-     "path": "packaging/licenses/upstream_VOICEVOX_engine_LICENSE.txt"
     },
     {
      "label": "SimpleEnunu LICENSE (MIT)",
@@ -440,13 +429,13 @@
   {
    "id": "worldline",
    "name": "worldline.dll (OpenUtau's native resampler/vocoder, prebuilt win-x64)",
-   "version": "from OpenUtau 0.1.565 (runtimes/win-x64/native/worldline.dll)",
-   "license": "MIT (OpenUtau's worldline sources) with statically linked: World (BSD-3-Clause, modified), PLATINUM (Morise, no licence text in file), libgvps and libpyin (BSD-3-Clause), libnpy (MIT), miniaudio (public domain or MIT-0), xxHash (BSD-2-Clause), Abseil strings (Apache-2.0) and tk::spline (GPL-2.0-or-later)",
-   "copyright": "StAkira and OpenUtau contributors; Masanori Morise (World, PLATINUM); Kanru Hua (libgvps, libpyin); Leon Merten Lohse (libnpy); David Reid (miniaudio); Yann Collet (xxHash); The Abseil Authors; Tino Kluge (tk::spline)",
+   "version": "BLT build of OpenUtau's worldline sources at 6958d68 with the pinned third-party sources; see docs/worldline-provenance.md",
+   "license": "MIT (OpenUtau's worldline sources) with statically linked World (BSD-3-Clause, modified), PLATINUM (Morise, no licence text in file), libgvps and libpyin (BSD-3-Clause), libnpy (MIT), miniaudio (public domain or MIT-0), xxHash (BSD-2-Clause), Abseil strings (Apache-2.0), and BLT's own natural cubic spline (Apache-2.0) in place of the GPL tk::spline",
+   "copyright": "StAkira and OpenUtau contributors; Masanori Morise (World, PLATINUM); Kanru Hua (libgvps, libpyin); Leon Merten Lohse (libnpy); David Reid (miniaudio); Yann Collet (xxHash); The Abseil Authors; Tino Kluge (tk::spline); Copyright 2026 Joseph Driedger (the replacement spline)",
    "source": "https://github.com/stakira/OpenUtau/tree/0.1.565/cpp",
    "status": "blocker",
-   "obligations": "Open: tk::spline (Tino Kluge, spline.h, GPL-2.0-or-later, https://github.com/ttk592/spline at 5894bea) is compiled into worldline (worldline/model/effects.cpp) and runs on every rendered frame with f0 >= 50 Hz in both PhraseSynth and Resample. A binary containing it may be conveyed only under GPL terms. Evidence and the proposed fix: docs/m13-compliance.md. Permissive notices that this DLL already requires are shipped (World, libgvps, libpyin, libnpy, miniaudio, xxHash, Abseil). Correction to the M12 audit: libpyin is BSD-3-Clause (every source file carries the licence header; the repository only lacks a LICENSE file).",
-   "notes": "RELEASE BLOCKER until worldline.dll is replaced by a BLT build without tk::spline (a two-line source change, parity-tested: research-output/m13) or upstream/the spline author grants other terms. Legal review recommended for the replacement spline. PLATINUM files state only 'Copyright 2012-2015 Masanori Morise. All Rights Reserved.'; they were extracted from World 0.1.4_3 (BSD-3-Clause); the extracted copy carries no licence text (residual risk, low).",
+   "obligations": "tk::spline is no longer compiled in: host/native/build.ps1 builds the DLL from the pinned sources with host/native/effects-natural-spline.patch and fails unless the link map has no tk::spline symbol and the exports are those OpenUtau.Core calls; the replacement matches tk::spline to 1.6e-14 and renders byte-identical audio (tests/golden/selftest_audio.json). Permissive notices shipped (World, libgvps, libpyin, libnpy, miniaudio, xxHash, Abseil). Open: the owner requires an independent source/licensing review of the replacement before this is marked resolved (the author had read tk::spline's source; docs/worldline-provenance.md).",
+   "notes": "BLOCKER stays open until that independent review is documented. PLATINUM files carry only 'Copyright 2012-2015 Masanori Morise. All Rights Reserved.' (extracted from World 0.1.4_3, BSD-3-Clause): residual, low.",
    "patterns": [
     "host/worldline.dll"
    ],
@@ -762,7 +751,7 @@
      "path": "{nuget}/microsoft.ml.onnxruntime.managed/1.16.3/LICENSE.txt"
     }
    ],
-   "notes": "The managed wrapper only: the native onnxruntime.dll is pruned (host/prune.txt), so ONNX-based renderers are unavailable in this build.",
+   "notes": "The managed wrapper; the native onnxruntime.dll that it loads ships separately (component onnxruntime-native).",
    "status": "ok",
    "bundled": "yes"
   },
@@ -1571,6 +1560,55 @@
    "notes": "",
    "status": "ok",
    "bundled": "yes"
+  },
+  {
+   "id": "g2p-arpabet-plus",
+   "name": "English 'ARPAbet plus' dictionary and model (OpenUtau.Core g2p-arpabet-plus.zip, inside OpenUtau.Core.dll)",
+   "version": "0.1.565, added 2024-02 by cadlaxa (commit ba93f8b3), updated until 2024-06",
+   "license": "UNKNOWN for the additions; CMUdict-derived entries under the Carnegie Mellon licence",
+   "copyright": "Carnegie Mellon University (CMUdict entries); the contributor and unknown others (additions)",
+   "source": "https://github.com/stakira/OpenUtau (OpenUtau.Core/G2p/Data/g2p-arpabet-plus.zip)",
+   "status": "blocker",
+   "bundled": "yes",
+   "obligations": "420,422 entries: 299,535 are CMUdict words, 120,887 are additions whose source is not stated anywhere in the repository. Not approved for redistribution until the provenance is established (docs/g2p-plus-provenance.md).",
+   "notes": "Explicit blocker by decision of the owner: do not remove blindly, do not approve redistribution yet.",
+   "patterns": [],
+   "texts": [],
+   "extra_texts": [
+    {
+     "label": "CMUdict 0.07 licence",
+     "path": "packaging/licenses/upstream_CMUdict_0.07_licence.txt"
+    }
+   ]
+  },
+  {
+   "id": "onnxruntime-native",
+   "name": "ONNX Runtime native library (onnxruntime.dll, DirectML build; Microsoft.ML.OnnxRuntime.DirectML NuGet package)",
+   "version": "1.16.3",
+   "license": "MIT",
+   "copyright": "Copyright (c) Microsoft Corporation",
+   "source": "https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.DirectML/1.16.3",
+   "package": "Microsoft.ML.OnnxRuntime.DirectML",
+   "status": "ok",
+   "bundled": "yes",
+   "obligations": "MIT licence and the package's ThirdPartyNotices.txt (shipped verbatim: it lists the libraries inside onnxruntime.dll). Needed because the English phonemizers fall back to a neural g2p model for words that are not in CMUdict. M12 had pruned it as 'neural renderer only', which left that fallback depending on a Windows-supplied onnxruntime that does not exist on Windows 10; restored in M14 and proven by 'blt-render-host --g2p-check'. DirectML.dll is not shipped (the DirectML provider is never used).",
+   "notes": "",
+   "patterns": [
+    "host/onnxruntime.dll"
+   ],
+   "texts": [
+    "MIT"
+   ],
+   "extra_texts": [
+    {
+     "label": "ONNX Runtime LICENSE (MIT)",
+     "path": "{nuget}/microsoft.ml.onnxruntime.directml/1.16.3/LICENSE"
+    },
+    {
+     "label": "ONNX Runtime third-party notices",
+     "path": "{nuget}/microsoft.ml.onnxruntime.directml/1.16.3/ThirdPartyNotices.txt"
+    }
+   ]
   }
  ],
  "excluded": [
@@ -1593,10 +1631,10 @@
    "how": "host/prune.txt"
   },
   {
-   "name": "ONNX Runtime native (onnxruntime.dll, onnxruntime.lib)",
-   "license": "MIT, with bundled third-party notices that were not read",
-   "why": "Only the neural renderers (DiffSinger, ENUNU, Vogen, CREPE) need it; BLT supports the classic and WORLDLINE-R renderers.",
-   "how": "host/prune.txt. Consequence: neural renderers are unavailable in this build."
+   "name": "ONNX Runtime import library (onnxruntime.lib) and DirectML.dll",
+   "license": "MIT / Microsoft DirectML terms (not analysed)",
+   "why": "Not needed to run: onnxruntime.dll itself is shipped (the English g2p fallback uses it); DirectML is never used.",
+   "how": "host/prune.txt (the .lib); DirectML.dll is not part of the published host."
   },
   {
    "name": "DirectML (Microsoft.AI.DirectML)",

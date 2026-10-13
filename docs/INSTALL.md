@@ -10,7 +10,9 @@ missing part).
 
 ## What you need
 
-* Windows 10 or 11, 64-bit. Nothing else has to be installed (no Python, no .NET).
+* Windows 10 or 11, 64-bit. No Python and no .NET are needed. BLT does need Microsoft's **Visual C++ Redistributable
+  (x64)**, which most PCs already have; if yours does not, Setup offers to download it from Microsoft or to use a copy you
+  have (see below). BLT does not contain Microsoft's runtime files itself.
 * A **singing voicebank** that works with OpenUtau (UTAU-style), for example an English one. BLT does not
   include or download any; you get one from its author and agree to its licence.
 * A MusicXML export (`.musicxml`, `.xml` or `.mxl`) of your arrangement from MuseScore, with the lyrics
@@ -25,6 +27,15 @@ missing part).
    **Run anyway**. (Compare checksums with `Get-FileHash <file> -Algorithm SHA256` in PowerShell.)
 3. Accept the defaults. BLT installs for your user only, without administrator rights, and puts
    **BLT Music Generator** in the Start menu. Tick the desktop-shortcut box if you want one.
+
+**Visual C++ Redistributable.** Setup checks for Microsoft's runtime (version 14.44 or newer). If it is missing, Setup
+asks whether to download `vc_redist.x64.exe` from Microsoft (https://aka.ms/vc14/vc_redist.x64.exe), or to use a copy you
+already have. Setup only runs the file if Windows reports that Microsoft signed it, and Microsoft's own installer shows its
+licence terms and needs administrator approval (BLT itself does not).
+*Without internet:* on a PC that is online, download `vc_redist.x64.exe` from
+https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist and put it on a USB stick next to
+`BLT-Music-Generator-<version>-Setup.exe`; Setup finds it there, or choose "Install from a vc_redist.x64.exe I have" and
+browse to it. A silent install (`/SILENT`) never downloads or installs anything: it stops and says what is missing.
 
 Uninstall from Settings > Apps. Your voicebanks, generated tracks and settings are left in place.
 Installing a newer version over the old one upgrades it and keeps everything of yours.

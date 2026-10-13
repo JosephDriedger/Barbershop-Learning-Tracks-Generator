@@ -4,7 +4,7 @@ Status: **investigation only. Every artifact is still NOT FOR RELEASE and no blo
 Four blockers remain (`worldline.dll`, `OpenUtau.Core.dll`, the PySide6/Qt LGPL position, the Visual C++
 runtime); BLT's own copyright holder is now recorded. Nothing was published or uploaded. The changes below that
 would alter what ships are *proposals* for review; the prototypes that back them live in `research-output/`
-(git-ignored) and are reproducible from `packaging/prototypes/m13/`.
+(git-ignored) and are reproducible from `host/native/ (since M14; the OpenUtau patch is host/patch_openutau.py)`.
 
 | Blocker | Finding in one line | Proposed resolution | Needs |
 |---|---|---|---|
@@ -81,7 +81,7 @@ host as a separate program is not a safe assumption. Not acceptable for an Apach
    this is not a clean-room implementation; the formulation differs (second derivatives and Thomas algorithm versus
    its band-matrix LU on the cubic coefficients), but a lawyer should judge that, or a permissively licensed spline
    (for example from a library under MIT/BSD) can be substituted.
-2. Build `worldline.dll` ourselves with CMake and MSVC from the pinned sources (`packaging/prototypes/m13/`:
+2. Build `worldline.dll` ourselves with CMake and MSVC from the pinned sources (`host/native/ (since M14; the OpenUtau patch is host/patch_openutau.py)`:
    `prepare.py`, `CMakeLists.txt`, patches). With `/Brepro`, two builds in different directories were byte-identical.
 3. Evidence collected: 864 parameter combinations of `GetTensionCoefficients` (830,304 values): max absolute difference
    1.6e-14 from tk::spline (95.8 % bit-identical), exactly 1.0 for tension 0; full runs of `blt selftest` with the original
@@ -220,10 +220,10 @@ Gaps that still make you reach for something else, found while checking (not fix
 ## 6. Reproducing the evidence
 
 ```
-python packaging/prototypes/m13/prepare.py <work> --openutau-src research-output/spike/OpenUtau-src
+python host/native/prepare.py <work> --openutau-src research-output/spike/OpenUtau-src
 cmake -S <work> -B <work>/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPATCH_SPLINE=ON   # OFF = as upstream
 cmake --build <work>/build --target worldline
-python packaging/prototypes/m13/patch_openutau.py research-output/spike/OpenUtau-src <patched tree>
+python host/patch_openutau.py research-output/spike/OpenUtau-src <patched tree>
 ```
 
 `prepare.py` verifies the SHA-256 of every pinned archive (World, libgvps, libpyin, spline, libnpy, miniaudio, xxHash, Abseil)

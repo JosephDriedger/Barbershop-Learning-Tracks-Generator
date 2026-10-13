@@ -50,8 +50,10 @@ jobs:
           dotnet-version: "8.0.x"
       - name: Install
         run: python -m pip install -e ".[dev]"
-      - name: Build the render host (pinned OpenUtau 0.1.565)
+      - name: Build the render host (pinned OpenUtau 0.1.565, patched; BLT's own worldline.dll with MSVC and CMake)
         run: powershell -NoProfile -ExecutionPolicy Bypass -File host/build.ps1
+      - name: Verify what the host contains (no Voicevox types, no GPL spline, dictionaries)
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File host/verify-host.ps1 -HostDir research-output/host/build -OpenUtauSrc research-output/openutau-src
       - name: FFmpeg for the MP3 test (CI only; BLT never bundles it)
         run: |
           if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg -y --no-progress }

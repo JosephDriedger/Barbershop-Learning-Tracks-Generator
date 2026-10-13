@@ -4,9 +4,13 @@ Things that are not done, not verified, or deliberately restricted. Nothing here
 
 ## Release status
 
-* **Not cleared for public release.** The licensing audit ([dependency-audit.md](dependency-audit.md)) has open
-  blockers, the most serious being the bundled `worldline.dll` (it compiles GPL-2.0 code and code without a licence).
-  Builds are for internal testing.
+* **Not cleared for public release.** The licensing audit ([dependency-audit.md](dependency-audit.md)) has three open
+  blockers: BLT's own `worldline.dll` build needs an independent source review of its replacement spline
+  ([worldline-provenance.md](worldline-provenance.md)); the English "plus" dictionary has additions of unknown origin
+  ([g2p-plus-provenance.md](g2p-plus-provenance.md)); and the Qt/PySide6 source bundle has been prepared but not published,
+  nor legally reviewed ([m14-compliance-report.md](m14-compliance-report.md)). Builds are for internal testing.
+* **Visual C++ Redistributable is a prerequisite.** BLT does not ship Microsoft's runtime. The installer's download and
+  file-picker dialogs have not been tried on a PC that really lacks the runtime; only the silent path is tested.
 * **Not verified with an English voicebank.** The musical acceptance in [m12-acceptance.md](m12-acceptance.md) has
   not been run; whether English lyrics are intelligible with a given voicebank, how melismas sound, and whether the
   predominant tracks are clear enough are all unknown. Only a generated sine-wave voicebank and a French voicebank
