@@ -62,6 +62,22 @@ if ($LASTEXITCODE -ne 0) { throw "the parity harness failed to build or run" }
 & $python (Join-Path $PSScriptRoot "parity\compare.py") (Join-Path $parity "original.txt") (Join-Path $parity "blt.txt")
 if ($LASTEXITCODE -ne 0) { throw "the replacement spline differs from tk::spline beyond rounding" }
 
+# the replacement spline against the mathematical definition (no code of tk::spline involved)
+$spec = Join-Path $Work "spec"
+New-Item -ItemType Directory -Force $spec | Out-Null
+Copy-Item (Join-Path $PSScriptRoot "parity\spec_test.cpp") $spec -Force
+@"
+@echo off
+call "$vcvars" >nul 2>&1
+cd /d "$spec"
+cl /nologo /O2 /EHsc /std:c++17 /DNOMINMAX /I"$Work\patched" spec_test.cpp /Fe:spec.exe > spec.log 2>&1 || (type spec.log & exit /b 1)
+"%CD%\spec.exe" > cases.txt
+"@ | Set-Content (Join-Path $spec "run.bat") -Encoding ascii
+cmd /c (Join-Path $spec "run.bat")
+if ($LASTEXITCODE -ne 0) { throw "the spline specification harness failed to build or run" }
+& $python (Join-Path $PSScriptRoot "parity\spec_check.py") (Join-Path $spec "cases.txt")
+if ($LASTEXITCODE -ne 0) { throw "the replacement spline does not match its mathematical definition" }
+
 New-Item -ItemType Directory -Force $Out | Out-Null
 Copy-Item (Join-Path $build "worldline.dll") (Join-Path $Out "worldline.dll") -Force
 Write-Output "worldline.dll: $(Join-Path $Out 'worldline.dll') sha256 $((Get-FileHash (Join-Path $Out 'worldline.dll') -Algorithm SHA256).Hash.ToLower())"

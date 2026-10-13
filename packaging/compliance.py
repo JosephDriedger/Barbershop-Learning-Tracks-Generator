@@ -42,8 +42,20 @@ SOURCES = {
         f"v{QT}",
     ),
 }
-# tag -> commit in the Qt Project's own repositories, to cross-check the tarballs against
-TAG_COMMITS = {"qtbase": "7a59d906fb765eb85759d4d3cae45d3f295f6359"}
+# The release tags in the Qt Project's own repositories (annotated tags: object -> commit), read on
+# 2026-10-13 (qtbase: github.com/qt/qtbase; pyside-setup: git ls-remote https://code.qt.io/pyside/
+# pyside-setup.git). Qt publishes no checksum for the pyside-setup archive, so the SHA-256 recorded
+# in the manifest is BLT's own measurement of what it downloaded.
+TAG_COMMITS = {
+    "qtbase": (
+        "7a59d906fb765eb85759d4d3cae45d3f295f6359",
+        "ef55f427f2c8b410d34f8a7681020a3000cf6866",
+    ),
+    "pyside-setup": (
+        "bd13ae01c34bd018aa53f29b6044043a255cf9e0",
+        "24627cd36e1593adf22eb1f2950e4248e7bcc1ec",
+    ),
+}
 REPLACEABLE = (
     "_internal/PySide6/Qt6Core.dll, Qt6Gui.dll, Qt6Widgets.dll",
     "_internal/PySide6/plugins/platforms/qwindows.dll, qoffscreen.dll and plugins/imageformats/qico.dll",
@@ -76,7 +88,9 @@ def written_offer(version: str, items: dict[str, dict[str, str]]) -> str:
         f"BLT Music Generator {version} (Copyright 2026 Joseph Driedger, Apache License 2.0) contains Qt {QT} and",
         f"PySide6 / shiboken6 {QT} (Qt for Python), licensed under the GNU Lesser General Public License,",
         "version 3 (licenses/LGPL-3.0-only.txt and licenses/GPL-3.0-only.txt in the program folder). They are",
-        "included unmodified, as the separate files listed in RELINKING.md.",
+        "included unmodified, as the separate files listed in RELINKING.md (plus four small Python modules",
+        "of PySide6 and shiboken6 that PyInstaller freezes into the two .exe files; RELINKING.md says how to",
+        "replace those by rebuilding).",
         "",
         "1. Where the source is",
         "   Each release of BLT Music Generator on its GitHub page carries the asset",
@@ -124,8 +138,14 @@ To use your own build of Qt {QT} / PySide6 {QT} (or an interface-compatible one)
    `QT_QPA_PLATFORM=offscreen`) check that the program starts with your libraries.
 
 BLT's own program code is frozen with PyInstaller into the two `.exe` files; the Qt and PySide6 libraries
-are *not* inside them, which is what makes this replacement possible. The release build is reproducible
-from the BLT source in this bundle (`packaging/build.ps1`).
+listed above are *not* inside them, which is what makes this replacement possible.
+
+One part is inside the executables: four small Python modules of the bindings (`PySide6`, `PySide6.support`,
+`PySide6.support.deprecated`, `shiboken6`; the packages' `__init__` and support code), which PyInstaller freezes
+into the executables' archives with BLT's own code. To replace those you rebuild the program: unpack the BLT
+source of this bundle, install the build environment (`packaging/requirements-build.txt`, but with your own
+PySide6 / shiboken6 in place of the pinned wheels), and run `powershell -File packaging/build.ps1`. The build
+is reproducible from the source in this bundle.
 
 What has been checked: with `Qt6Widgets.dll` removed the program refuses to start; with a different file
 of the same version in its place it starts (`packaging/replaceability-test.ps1`, run for every build).
@@ -160,7 +180,7 @@ def main() -> int:
             "sha256": sha256(target),
         }
         if name in TAG_COMMITS:
-            items[name]["tag_commit"] = TAG_COMMITS[name]
+            items[name]["tag_object"], items[name]["tag_commit"] = TAG_COMMITS[name]
 
     dirty = subprocess.run(
         ["git", "status", "--porcelain", "--untracked-files=no"],

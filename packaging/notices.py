@@ -30,28 +30,8 @@ RULE = "=" * 78
 
 PRODUCT = "BLT Music Generator"
 
-QT_STATEMENT = """\
-Qt and PySide6 (LGPL-3.0)
--------------------------
-This program uses Qt 6.11.2 and PySide6 / shiboken6 6.11.2 (Qt for Python), which are licensed
-under the GNU Lesser General Public License version 3 (LGPL-3.0; its text and the GPL-3.0 text it
-refers to are in licenses\\LGPL-3.0-only.txt and licenses\\GPL-3.0-only.txt). The Qt and PySide6
-libraries are shipped as separate files (the *.dll and *.pyd files below _internal\\PySide6 and
-_internal\\shiboken6), not merged into the executables, and have not been modified. You may replace
-them with another build of the same Qt / PySide6 version (RELINKING.md in the source bundle below
-says how) and run this program with it.
-
-Corresponding source code: each release on the project's GitHub page carries the asset
-BLT-Music-Generator-<version>-corresponding-source.zip, which holds the Qt Project's own source
-archives of Qt 6.11.2 (qtbase) and PySide6 6.11.2 (pyside-setup), checksummed, BLT's own source at
-the release commit, a written offer and the instructions for replacing the libraries:
-  https://github.com/JosephDriedger/Barbershop-Learning-Tracks-Generator/releases
-The same archives come from the Qt Project:
-  Qt 6.11.2:        https://download.qt.io/official_releases/qt/6.11/6.11.2/submodules/
-  PySide6 6.11.2:   https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.11.2-src/
-If you cannot get the bundle, open an issue at the project page and a copy will be provided, for at
-least three years after this version was last distributed.
-"""
+# the text sits in its own file so that a licence reviewer's sign-off can name its exact bytes
+QT_STATEMENT = (Path(__file__).with_name("qt-statement.txt")).read_text(encoding="utf-8")
 
 OPENUTAU_STATEMENT = """\
 OpenUtau.Core (MIT; modified build)

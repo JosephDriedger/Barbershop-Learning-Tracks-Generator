@@ -35,16 +35,13 @@ for the tridiagonal system, 92 lines, `Copyright 2026 Joseph Driedger`, Apache-2
 A natural cubic spline is textbook mathematics (Burden & Faires, *Numerical Analysis*; Press et al., *Numerical Recipes*).
 What it must reproduce is a *function* (the interpolated value at a point), not code.
 
-**Disclosure for the reviewer.** The author of the replacement had read `tk::spline`'s source while analysing the
-dependency (to learn which behaviours OpenUtau relies on: natural boundary condition, evaluation outside the knots,
-the degenerate cases tension 0 / fewer than three points). The header was then written from the maths, not by
-translating `tk::spline`. This is why the owner asked for an independent check: a person who has not read the original
-should compare the two files for shared structure, names or comments beyond what the mathematics dictates.
+**Disclosure for the reviewer (corrected in M15).** The replacement was written by an AI coding assistant (Claude Code) in a session directed by the owner, and it was **not** a clean-room implementation: about 25 seconds before the file was created, the assistant had printed large parts of `tk::spline`'s `spline.h` (the equation-system set-up, the boundary-condition branches and `operator()` with its extrapolation) to see which behaviour OpenUtau relies on. The code was then written from the mathematics (second derivatives and the Thomas algorithm rather than `tk::spline`'s coefficient formulation and band-matrix solver), but a reviewer must not take that on trust. Full account, the specification, the evidence and the options (including a clean-room rewrite, or removing the interpolation because BLT never sets tension) are in [review/worldline-spline-review-packet.md](review/worldline-spline-review-packet.md).
 
 ## Evidence that it behaves the same
 
 * `host/native/parity/main.cpp` and `compare.py`: the original `tk::spline` and the replacement are compiled into two
   programs and fed the same inputs; maximum difference 1.6e-14, tolerance 1e-12 (exactly 1.0 for tension 0).
+* `host/native/parity/spec_test.cpp` + `spec_check.py` (M15): the replacement against the mathematical definition, with a dense NumPy solve as reference, 360 cases / 20,840 values including both extrapolation sides; involves no GPL code and runs in `host/native/build.ps1`.
 * `tests/integration/test_selftest_e2e.py` compares the SHA-256 of all 13 rendered WAVs (`tests/golden/selftest_audio.json`)
   with those made by the stock OpenUtau DLL: byte-identical.
 * `host/native/verify_dll.py` fails the build if the linker map or the DLL mentions `tk::spline` (`@spline@tk@`), if the
