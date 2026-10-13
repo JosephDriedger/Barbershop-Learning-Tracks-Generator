@@ -28,14 +28,17 @@ missing part).
 3. Accept the defaults. BLT installs for your user only, without administrator rights, and puts
    **BLT Music Generator** in the Start menu. Tick the desktop-shortcut box if you want one.
 
-**Visual C++ Redistributable.** Setup checks for Microsoft's runtime (version 14.44 or newer). If it is missing, Setup
-asks whether to download `vc_redist.x64.exe` from Microsoft (https://aka.ms/vc14/vc_redist.x64.exe), or to use a copy you
-already have. Setup only runs the file if Windows reports that Microsoft signed it, and Microsoft's own installer shows its
-licence terms and needs administrator approval (BLT itself does not).
-*Without internet:* on a PC that is online, download `vc_redist.x64.exe` from
-https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist and put it on a USB stick next to
-`BLT-Music-Generator-<version>-Setup.exe`; Setup finds it there, or choose "Install from a vc_redist.x64.exe I have" and
-browse to it. A silent install (`/SILENT`) never downloads or installs anything: it stops and says what is missing.
+**Visual C++ Redistributable.** Setup checks for Microsoft's runtime (version 14.44 or newer) when you press Install. If it is
+missing, a window "Microsoft Visual C++ runtime needed" offers three buttons: *Download and install it now* (from
+https://aka.ms/vc14/vc_redist.x64.exe), *Install from a vc_redist.x64.exe I have*, and *Go back (BLT is not installed yet)*.
+Setup runs the file only if Windows reports that Microsoft signed it; Microsoft's own installer then shows its licence terms and
+Windows asks for administrator approval (a standard user needs an administrator's password; BLT itself needs none). After that
+Setup carries on installing BLT.
+*Without internet:* on a PC that is online, download `vc_redist.x64.exe` from https://aka.ms/vc14/vc_redist.x64.exe (or
+https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) and put it on a USB stick **next to**
+`BLT-Music-Generator-<version>-Setup.exe`; Setup then uses it without asking where it is. Otherwise choose
+*Install from a vc_redist.x64.exe I have* and browse to it. A silent install (`/SILENT`, `/VERYSILENT`) never downloads or installs
+anything: it stops (non-zero exit code) and logs what is missing.
 
 Uninstall from Settings > Apps. Your voicebanks, generated tracks and settings are left in place.
 Installing a newer version over the old one upgrades it and keeps everything of yours.

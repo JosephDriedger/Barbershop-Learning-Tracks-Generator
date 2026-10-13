@@ -4,6 +4,8 @@ Status: **implemented and verified locally. Every artifact is still NOT FOR RELE
 (below). Nothing was uploaded or published, no release was created, and BLT's own code stays Apache-2.0
 (`Copyright 2026 Joseph Driedger`).
 
+> **Update (M15, [m15-report.md](m15-report.md)):** the English "plus" dictionary is no longer in the build (excluded, verified by reflection and by a byte search of the whole package), so decision 3 is resolved by exclusion and only two licensing blockers remain; the dictionary figures quoted below were replaced by reproducible ones ([g2p-plus-provenance.md](g2p-plus-provenance.md)); the replacement spline's provenance statement was corrected ([review/worldline-spline-review-packet.md](review/worldline-spline-review-packet.md)).
+
 ## The five decisions
 
 | # | Decision | Result | State |

@@ -70,7 +70,11 @@ BLT needs Microsoft's Visual C++ Redistributable (x64), version 14.44 or newer, 
 says it is missing or too old, install the current `vc_redist.x64.exe` from Microsoft
 (https://aka.ms/vc14/vc_redist.x64.exe, or on another PC for offline use: see [INSTALL.md](INSTALL.md)), then start BLT again.
 `blt.exe diagnostics` prints the *vc runtime* line with the version it found. An error such as "DLL load failed while
-importing QtWidgets" at start-up on a freshly set-up PC is the typical symptom of a missing or damaged runtime.
+importing QtWidgets" at start-up on a freshly set-up PC is the typical symptom of a damaged runtime. If the runtime is removed
+*after* BLT was installed, BLT cannot show a message of its own (it never gets to run): the program's launcher is expected to
+report that it "failed to load" the Python DLL; install Microsoft's redistributable again (or run BLT's Setup, which checks for it).
+Setup's window offers *Download*, *Install from a vc_redist.x64.exe I have* and *Go back*; if the download does not work, use the
+second button with a file fetched on another PC.
 
 ## "A BLT component is missing" / the singing engine cannot start
 

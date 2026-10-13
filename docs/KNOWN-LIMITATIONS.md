@@ -4,19 +4,27 @@ Things that are not done, not verified, or deliberately restricted. Nothing here
 
 ## Release status
 
-* **Not cleared for public release.** The licensing audit ([dependency-audit.md](dependency-audit.md)) has three open
-  blockers: BLT's own `worldline.dll` build needs an independent source review of its replacement spline
-  ([worldline-provenance.md](worldline-provenance.md)); the English "plus" dictionary has additions of unknown origin
-  ([g2p-plus-provenance.md](g2p-plus-provenance.md)); and the Qt/PySide6 source bundle has been prepared but not published,
-  nor legally reviewed ([m14-compliance-report.md](m14-compliance-report.md)). Builds are for internal testing.
-* **Visual C++ Redistributable is a prerequisite.** BLT does not ship Microsoft's runtime. The installer's download and
-  file-picker dialogs have not been tried on a PC that really lacks the runtime; only the silent path is tested.
-* **Not verified with an English voicebank.** The musical acceptance in [m12-acceptance.md](m12-acceptance.md) has
-  not been run; whether English lyrics are intelligible with a given voicebank, how melismas sound, and whether the
+* **Not cleared for public release.** Every build is marked NOT FOR RELEASE, and a release gate ([release-gate.md](release-gate.md))
+  refuses publication until people have signed off: an independent review of BLT's replacement for the GPL `tk::spline` in
+  `worldline.dll` ([worldline-provenance.md](worldline-provenance.md)); a review of the Qt/PySide6 LGPL arrangement, with the source
+  bundle attached to the release; an English-voicebank listening test; a clean-machine test; and the owner's decisions on signing
+  and release ([m15-report.md](m15-report.md)). The English "plus" dictionary, whose origin is unknown, is **not** in the build.
+* **Two English phonemizers are missing.** Because the "plus" dictionary is excluded, upstream OpenUtau's *Arpasing+* and *English
+  C+V* phonemizers (and the DiffSinger English+ one) are not in BLT's host. The CMUdict-based ones (Arpasing, English VCCV, X-SAMPA)
+  and the default phonemizer are. A voicebank that only works with C+V cannot be used.
+* **Visual C++ Redistributable is a prerequisite.** BLT does not ship Microsoft's runtime; Setup checks for it, offers Microsoft's
+  download or a file you bring, and refuses a silent install without it. Tested with the real Setup window on the developer's PC
+  (`packaging/installer-gui-test.ps1`: the dialog, the offline file route, refusing files not signed by Microsoft, a failing download).
+  Not tested by a machine: the Windows administrator prompt and Microsoft's own installer running (it needs a person; it is in
+  [acceptance/clean-machine-verification.md](acceptance/clean-machine-verification.md)). If the runtime is removed after BLT is
+  installed, BLT cannot start and cannot show its own message.
+* **Not verified with an English voicebank.** The listening test in [acceptance/english-voicebank-acceptance.md](acceptance/english-voicebank-acceptance.md)
+  (protocol background: [m12-acceptance.md](m12-acceptance.md)) has not been run; whether English lyrics are intelligible with a given voicebank, how melismas sound, and whether the
   predominant tracks are clear enough are all unknown. Only a generated sine-wave voicebank and a French voicebank
   (technical checks) were used.
 * **Not verified on a pristine machine or by users.** The clean-machine check and a usability test with
-  non-developers have not been done ([m12-verification.md](m12-verification.md)). Automated tests ran in a stripped
+  non-developers have not been done ([acceptance/clean-machine-verification.md](acceptance/clean-machine-verification.md);
+  background: [m12-verification.md](m12-verification.md)). Automated tests ran in a stripped
   environment on the development PC.
 
 ## Installation and trust

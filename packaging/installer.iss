@@ -38,6 +38,11 @@
 #ifndef NumpyMsvcp
   #define NumpyMsvcp ""
 #endif
+; Where the "download" button fetches Microsoft's installer from. Only packaging/installer-gui-test.ps1 builds
+; a variant with another address (a local server), to test the download paths without Microsoft's servers.
+#ifndef VcRedistUrlOverride
+  #define VcRedistUrlOverride "https://aka.ms/vc14/vc_redist.x64.exe"
+#endif
 
 [Setup]
 ; Never change AppId: it is what makes a new version replace the old one in place.
@@ -116,8 +121,9 @@ Type: filesandordirs; Name: "{#DataDir}\Cache"
 
 [Code]
 const
-  VcRedistUrl = 'https://aka.ms/vc14/vc_redist.x64.exe';
+  VcRedistUrl = '{#VcRedistUrlOverride}';
   VcRedistPage = 'https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist';
+  VcRedistShort = 'https://aka.ms/vc14/vc_redist.x64.exe';
   VcKey = 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64';
 
 { Is Microsoft's Visual C++ runtime (x64) at the required version or newer installed? The switch
@@ -152,6 +158,9 @@ begin
   Result := Exec('powershell.exe', Params, '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
 end;
 
+var
+  AttemptHandled: Boolean;  { the last attempt has already told the user what happened (or the user backed out) }
+
 function RunMicrosoftInstaller(const FileName: String): Boolean;
 var
   Code: Integer;
@@ -159,19 +168,24 @@ begin
   Result := False;
   if not IsMicrosoftSigned(FileName) then
   begin
+    AttemptHandled := True;
     MsgBox('The file ' + FileName + ' is not signed by Microsoft, so it will not be run.', mbError, MB_OK);
     Exit;
   end;
   { /passive shows Microsoft's own progress window; it asks Windows for administrator rights }
   if not ShellExec('runas', FileName, '/install /passive /norestart', '', SW_SHOWNORMAL, ewWaitUntilTerminated, Code) then
   begin
+    AttemptHandled := True;
     MsgBox('Microsoft''s installer could not be started (' + SysErrorMessage(Code) + ').', mbError, MB_OK);
     Exit;
   end;
   { 0 installed, 3010 installed but a restart is advised, 1638 a newer one is already there }
   Result := (Code = 0) or (Code = 3010) or (Code = 1638);
   if not Result then
+  begin
+    AttemptHandled := True;
     MsgBox('Microsoft''s installer ended with code ' + IntToStr(Code) + '.', mbError, MB_OK);
+  end;
 end;
 
 function DownloadAndInstallRuntime(): Boolean;
@@ -183,8 +197,10 @@ begin
     DownloadTemporaryFile(VcRedistUrl, 'vc_redist.x64.exe', '', nil);
     Downloaded := ExpandConstant('{tmp}\vc_redist.x64.exe');
   except
-    MsgBox('The download from Microsoft failed:' + #13#10 + GetExceptionMessage + #13#10#13#10 +
-      'You can download it yourself from' + #13#10 + VcRedistPage, mbError, MB_OK);
+    AttemptHandled := True;
+    MsgBox('The download from Microsoft did not work:' + #13#10 + GetExceptionMessage + #13#10#13#10 +
+      'Check the internet connection and try again, or download the file on another PC from' + #13#10 +
+      VcRedistPage + #13#10 + 'and choose "Install from a vc_redist.x64.exe I have".', mbError, MB_OK);
     Exit;
   end;
   Result := RunMicrosoftInstaller(Downloaded);
@@ -200,7 +216,10 @@ begin
   begin
     Chosen := '';
     if not GetOpenFileName('Choose vc_redist.x64.exe', Chosen, '', 'Microsoft installer (vc_redist.x64.exe)|vc_redist.x64.exe|Programs (*.exe)|*.exe', 'exe') then
+    begin
+      AttemptHandled := True;  { the user backed out: back to the question, no further message }
       Exit;
+    end;
   end;
   Result := RunMicrosoftInstaller(Chosen);
 end;
@@ -213,21 +232,23 @@ begin
   Result := VcRuntimeOk();
   while not Result do
   begin
+    AttemptHandled := False;
     Answer := TaskDialogMsgBox('Microsoft Visual C++ runtime needed',
-      '{#AppName} needs Microsoft''s "Visual C++ Redistributable" (x64, version {#VcMajor}.{#VcMinor}.{#VcBuild} or newer), ' +
-      'a free Microsoft component that is not part of this installer and is not installed on this PC (or is older).' + #13#10#13#10 +
-      'Without internet: download vc_redist.x64.exe from Microsoft on another PC and either put it next to this ' +
-      'installer or choose it here. Details: ' + VcRedistPage,
+      '{#AppName} needs Microsoft''s "Visual C++ Redistributable" (x64, version {#VcMajor}.{#VcMinor}.{#VcBuild} or newer). ' +
+      'It is a free Microsoft component that is not part of this installer, and it is not installed on this PC (or is older).' + #13#10#13#10 +
+      'Without internet: on another PC download vc_redist.x64.exe from' + #13#10 + VcRedistShort + #13#10 +
+      'then either put it next to this installer or choose it here.',
       mbInformation, MB_YESNOCANCEL, ['Download and install it now',
-      'Install from a vc_redist.x64.exe I have', 'Cancel setup'], 0);
+      'Install from a vc_redist.x64.exe I have', 'Go back (BLT is not installed yet)'], 0);
     if Answer = IDYES then
       Result := DownloadAndInstallRuntime() and VcRuntimeOk()
     else if Answer = IDNO then
       Result := InstallRuntimeFromFile() and VcRuntimeOk()
     else
       Exit;
-    if (not Result) and (Answer <> IDCANCEL) then
-      MsgBox('The runtime is still not available. You can try again, or cancel setup and install it first.', mbInformation, MB_OK);
+    if (not Result) and (not AttemptHandled) then
+      MsgBox('Microsoft''s installer finished, but Setup still cannot find the runtime. ' +
+        'Restart Windows if it asks you to, then run this setup again.', mbInformation, MB_OK);
   end;
 end;
 

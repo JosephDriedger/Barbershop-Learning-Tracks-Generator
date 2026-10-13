@@ -1,5 +1,8 @@
 # M12: installation verification
 
+> **Section 2 (clean machine) is superseded for execution by [acceptance/clean-machine-verification.md](acceptance/clean-machine-verification.md)
+> (M15)**, which adds the runtime-missing paths. The automated checks described here still run.
+
 Three different things are verified here, and they are kept apart:
 
 1. **Automated smoke tests** (`packaging/smoke.ps1`, `packaging/installer-test.ps1`, run by CI): the
