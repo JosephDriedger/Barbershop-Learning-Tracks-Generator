@@ -1,8 +1,9 @@
+import gc
 import os
 import socket
 import warnings
 import zipfile
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import NoReturn
 
@@ -112,3 +113,27 @@ def tree_snapshot(tmp_path: Path) -> Callable[[], list[str]]:
 def _parts_do_not_follow_the_lead_unless_a_test_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
     """Most tests are about lyrics the score leaves open, which the convention would fill in."""
     monkeypatch.setenv("BLT_FOLLOW_LEAD", "0")
+
+
+@pytest.fixture(autouse=True)
+def _no_garbage_collection_inside_a_gui_test(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Collect garbage only between GUI tests, never inside a test's Qt event loop.
+
+    Without this, CI aborted at random ("Fatal Python error: Aborted" in ``MainWindow.changeEvent``
+    while a fixture waited for the window; PySide6 6.12.0, offscreen) in about half of the runs of
+    the whole suite and in none of the runs of the GUI tests alone. The cause is the timing of
+    Python's cycle collector: a collection that happens to run inside Qt's event dispatch can
+    finalise wrappers of objects left over from earlier tests. With collection switched off
+    during each GUI test and run before and after it, 20 of 20 CI runs passed (10 of 10 with only
+    the collections around the test).
+    """
+    if "ui" not in request.path.parts:
+        yield
+        return
+    gc.collect()
+    gc.disable()
+    try:
+        yield
+    finally:
+        gc.enable()
+        gc.collect()
