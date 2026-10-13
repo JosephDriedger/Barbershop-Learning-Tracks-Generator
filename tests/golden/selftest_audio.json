@@ -1,0 +1,18 @@
+{
+ "description": "SHA-256 of the 13 WAVs `blt selftest` writes, rendered with OpenUtau's own stock worldline.dll (Windows, WORLDLINE-R). BLT's own worldline.dll must reproduce them exactly.",
+ "files": {
+  "01_Full_Quartet.wav": "05a70dcba0be5876cde2ef59ad27afa7aa6a5e0d998db15071fc0a170d4b0255",
+  "02_Tenor_Predominant.wav": "17b70fe1cb9a9a7b841ee34e1c8340803f311e9e074c5e5c3a8af61ad16f2ae0",
+  "03_Lead_Predominant.wav": "5bc985e25d5825a8c36defafdf2af55da94ca12143f561cf20864811ef99986b",
+  "04_Baritone_Predominant.wav": "9e02979564cc390d6aa0330380330859f6d0b3eb2ac3815f44ad2570e3077480",
+  "05_Bass_Predominant.wav": "60c3b35d2dcc76c34410550762dc083cd111b1ab5c832c488cd665c441a952a5",
+  "06_Tenor_Solo.wav": "861d0ca4b608ecb4f510ca02a721c94f02b663052ff064c179059bef895c7617",
+  "07_Lead_Solo.wav": "9e2c161efc5e6ed31aa9bf65a48a291928ef48f9385c37fc61a9726c9b203bd6",
+  "08_Baritone_Solo.wav": "99a51fd8e7fccbf5229734868a1172af973a3048c56e367253cdae05c070605e",
+  "09_Bass_Solo.wav": "5f65bb599259838c9949c72ec7da5c5ef0c49260ad3b9d0dcdc3094222367b98",
+  "10_Without_Tenor.wav": "845f7fa25e22dd176992702d97008aff67813244480f27b3bf678a915826ced3",
+  "11_Without_Lead.wav": "58201b17311656755d085edf927aa16ad7a105bf9507ebf358f30391c7dbdcd0",
+  "12_Without_Baritone.wav": "804d55cf3c880a909b37f981dd27993d209c9b69acddfd5c62eee28f440a60bd",
+  "13_Without_Bass.wav": "213801b0203d96a7d4f566437c7f1d516f7db2afd872d8be99a1e4138aaf962a"
+ }
+}

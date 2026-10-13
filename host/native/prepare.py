@@ -1,18 +1,20 @@
-"""Prepare the M13 worldline prototype: pinned sources, upstream patches, and the BLT spline patch.
+"""Prepare the sources of BLT's own ``worldline.dll`` (OpenUtau's native resampler, rebuilt by us).
 
-NOT part of the product build. It exists so that the audit findings in docs/m13-compliance.md can be
-reproduced: it downloads the exact third-party archives that OpenUtau's own build pins (checked by
-SHA-256), applies OpenUtau's three upstream patches, and lays out a work folder that
-``CMakeLists.txt`` builds with MSVC into ``worldline.dll`` (variant ``-DPATCH_SPLINE=OFF`` is what
-upstream compiles; ``ON`` replaces the GPL tk::spline with ``patched/natural_spline.h``).
+OpenUtau ships a prebuilt ``worldline.dll`` that statically contains ``tk::spline``
+(GPL-2.0-or-later). BLT builds the DLL itself from the same pinned sources with that one component
+replaced by ``patched/natural_spline.h`` (see docs/worldline-provenance.md). This script downloads
+the exact third-party archives OpenUtau's own build pins (SHA-256 checked), applies OpenUtau's three
+upstream patches and BLT's patch, and lays out a work folder that CMakeLists.txt builds with MSVC.
 
-    python packaging/prototypes/m13/prepare.py WORKDIR --openutau-src SRC
+    python host/native/prepare.py WORKDIR --openutau-src SRC
 
-Needs: git, GNU patch on PATH (Git for Windows has one), network access to github.com.
+``SRC`` is the pinned OpenUtau checkout (``host/build.ps1`` creates it). Needs git and network
+access to github.com. ``-DPATCH_SPLINE=OFF`` builds what upstream compiles (comparison only).
 """
 
 import argparse
 import hashlib
+import os
 import shutil
 import subprocess
 import sys
@@ -21,6 +23,7 @@ import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+CRLF, LF = bytes([13, 10]), bytes([10])
 # The commit that last changed the shipped runtimes/win-x64/native/worldline.dll (2024-07-28).
 WORLDLINE_COMMIT = "6958d68b648bdd734d1eafa9e49b02657ca9d18e"
 # name -> (url, sha256 of the archive); the same pins as cpp/WORKSPACE.bazel and MODULE.bazel
@@ -90,6 +93,25 @@ def unpack(archive: Path, destination: Path) -> None:
                 path.write_bytes(data.replace(b"\r\n", b"\n"))
 
 
+def apply_patch(patch: Path, directory: Path) -> None:
+    """Apply a unified diff (paths with one leading component) inside ``directory``.
+
+    The work folder lives under a git repository that ignores it, and ``git apply`` silently skips
+    ignored paths there; the ceiling makes git behave as it does outside any repository, and a
+    "Skipped" line in its report is treated as a failure.
+    """
+    done = subprocess.run(
+        ["git", "apply", "--ignore-whitespace", "-p1", "-v", str(patch)],
+        cwd=directory,
+        env={**os.environ, "GIT_CEILING_DIRECTORIES": str(directory.resolve().parent)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if done.returncode != 0 or "Skipped" in done.stderr or "Applied patch" not in done.stderr:
+        raise SystemExit(f"applying {patch.name} failed: {done.stdout} {done.stderr}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -124,30 +146,22 @@ def main() -> int:
     patches = work / "patches"
     patches.mkdir(exist_ok=True)
     for name, patch in UPSTREAM_PATCHES.items():
-        text = (cpp / "cpp" / "third_party" / patch).read_bytes().replace(b"\r\n", b"\n")
+        text = (cpp / "cpp" / "third_party" / patch).read_bytes().replace(CRLF, LF)
         (patches / patch).write_bytes(text)
-        subprocess.run(["patch", "-p1", "-i", str(patches / patch)], cwd=sources / name, check=True)
+        apply_patch(patches / patch, sources / name)
 
     shutil.copy(HERE / "CMakeLists.txt", work / "CMakeLists.txt")
     shutil.copytree(HERE / "patched", work / "patched", dirs_exist_ok=True)
-    crlf, lf = bytes([13, 10]), bytes([10])
-    own_patch = (HERE / "effects-natural-spline.patch").read_bytes().replace(crlf, lf)
+    own_patch = (HERE / "effects-natural-spline.patch").read_bytes().replace(CRLF, LF)
     (patches / "effects-natural-spline.patch").write_bytes(
         own_patch
     )  # LF whatever the checkout did
-    # patched/effects.cpp = upstream effects.cpp + the BLT patch
+    # patched/worldline/model/effects.cpp = upstream effects.cpp + BLT's patch
+    target = work / "patched" / "worldline" / "model"
+    target.mkdir(parents=True, exist_ok=True)
     original = cpp / "cpp" / "worldline" / "model" / "effects.cpp"
-    shutil.copy(original, work / "patched" / "effects.cpp")
-    subprocess.run(
-        [
-            "patch",
-            "-p1",
-            "-i",
-            str(patches / "effects-natural-spline.patch"),
-            str(work / "patched" / "effects.cpp"),
-        ],
-        check=True,
-    )
+    (target / "effects.cpp").write_bytes(original.read_bytes().replace(CRLF, LF))
+    apply_patch(patches / "effects-natural-spline.patch", work / "patched")
     print(
         f"prepared {work}",
         f"build: cmake -S {work} -B {work}/build -G Ninja -DPATCH_SPLINE=ON",

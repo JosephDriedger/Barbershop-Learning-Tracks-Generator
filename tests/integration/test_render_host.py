@@ -12,7 +12,7 @@ import pytest
 
 from barbershop_tracks.core.synthesis import VoiceEngineRef
 from barbershop_tracks.core.synthesis.openutau import write_ustx
-from host_support import HostRun, install_host, run_host
+from host_support import PINNED_COMMIT, HostRun, install_host, run_host
 from synth_builders import ROLES, full_lyrics, plan_of
 from synthetic_voicebank import SINGER_ID, build_voicebank
 
@@ -63,7 +63,7 @@ def test_a_successful_render_streams_events_and_ends_with_a_result(
     phases = [e["name"] for e in run.events if e["event"] == "phase"]
     assert phases == ["init", "load_project", "validate", "phonemize", "render"]
     assert any(e["event"] == "progress" for e in run.events)
-    assert run.result["openutau_commit"] == "a60ca5830b9064556157245d4bf8f5920d93e5f8"
+    assert run.result["openutau_commit"] == PINNED_COMMIT + "+blt-patched"
     assert run.result["singers_found"] == [SINGER_ID]
     assert sorted(stems(tmp_path / "out")) == [
         "case_Baritone.wav",

@@ -28,7 +28,7 @@ from barbershop_tracks.core.rendering import (
 from barbershop_tracks.core.runtime import RuntimeLayout
 from barbershop_tracks.core.synthesis import SynthesisPlan, VoiceEngineRef
 from barbershop_tracks.models import VoiceRole
-from host_support import host_environment, require_host
+from host_support import PINNED_COMMIT, host_environment, require_host
 from synth_builders import ROLES, full_lyrics, plan_of, sung
 from synthetic_voicebank import SINGER_ID, build_voicebank
 
@@ -141,7 +141,7 @@ def test_a_real_render_is_validated_and_published(shared: Rig, tmp_path: Path) -
         "phonemize",
         "render",
     ]
-    assert result.host_result["openutau_commit"] == "a60ca5830b9064556157245d4bf8f5920d93e5f8"
+    assert result.host_result["openutau_commit"] == PINNED_COMMIT + "+blt-patched"
     assert shared.staging_entries() == []
 
 

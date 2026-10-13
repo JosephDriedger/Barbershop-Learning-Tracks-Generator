@@ -17,6 +17,8 @@ import pytest
 from barbershop_tracks.core.runtime import ensure_host_runtime
 
 REPO = Path(__file__).resolve().parents[1]
+# OpenUtau 0.1.565; the host is built from a patched copy and says so (host/build.ps1)
+PINNED_COMMIT = "a60ca5830b9064556157245d4bf8f5920d93e5f8"
 DEFAULT_BUILD = REPO / "research-output" / "host" / "build"
 LOCAL_SDK = REPO / "research-output" / "spike" / "dotnet"
 

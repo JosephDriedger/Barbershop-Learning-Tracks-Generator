@@ -1,11 +1,11 @@
-# M13 prototype (not part of the product build): worldline.dll from the pinned sources, with or without tk::spline.
-# Prepared by prepare.py; see docs/m13-compliance.md.
+# BLT's own build of OpenUtau's worldline.dll from the pinned sources (see docs/worldline-provenance.md).
+# Laid out by prepare.py. PATCH_SPLINE=ON (the product) replaces the GPL tk::spline.
 cmake_minimum_required(VERSION 3.20)
-project(worldline_proto C CXX)
+project(blt_worldline C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
-option(PATCH_SPLINE "use the permissively licensed spline in effects" OFF)
+option(PATCH_SPLINE "use BLT's own spline instead of the GPL tk::spline (the product)" ON)
 set(ABSL_PROPAGATE_CXX_STD ON)
 set(ABSL_BUILD_TESTING OFF)
 add_subdirectory(wl/abseil absl EXCLUDE_FROM_ALL)
@@ -18,7 +18,7 @@ file(GLOB F0_SRC ${WL}/worldline/f0/*.cpp)
 file(GLOB PLAT_SRC ${WL}/worldline/platinum/*.cpp)
 
 if(PATCH_SPLINE)
-  set(EFFECTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/patched/effects.cpp)
+  set(EFFECTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/patched/worldline/model/effects.cpp)
 else()
   set(EFFECTS_SRC ${WL}/worldline/model/effects.cpp)
 endif()

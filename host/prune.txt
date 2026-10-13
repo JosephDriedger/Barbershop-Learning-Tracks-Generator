@@ -4,13 +4,14 @@
 # (BLT_HOST_SELF_CONTAINED=1 BLT_HOST_DIR=<pruned dir>), so a removal that breaks rendering fails CI.
 #
 # NetMQ.dll / AsyncIO.dll / NaCl.dll : messaging for OpenUtau's DAW bridge (LGPL-3.0 / unspecified / MPL-2.0)
-# onnxruntime.dll / onnxruntime.lib  : native runtime for neural renderers (DiffSinger, ENUNU, Vogen...)
+# onnxruntime.lib                    : import library, not needed to run. onnxruntime.dll itself STAYS: the
+#                                      English phonemizers' neural g2p fallback (words not in CMUdict) runs on it
+#                                      (host --g2p-check proves it is the DLL beside the host that loads)
 # Melanchall_DryWetMidi_Native32.dll, Melanchall_DryWetMidi_Native64.dylib : other platforms' MIDI natives
 # createdump.exe                     : .NET crash dump tool, not needed to run
 NetMQ.dll
 AsyncIO.dll
 NaCl.dll
-onnxruntime.dll
 onnxruntime.lib
 Melanchall_DryWetMidi_Native32.dll
 Melanchall_DryWetMidi_Native64.dylib

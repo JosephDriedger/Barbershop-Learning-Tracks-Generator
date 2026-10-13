@@ -1,7 +1,7 @@
-"""M13 prototype (not part of the product build): a copy of the pinned OpenUtau source without the
-LGPL-derived Voicevox classes and without the embedded data whose licence is unknown.
+"""A copy of the pinned OpenUtau source without the LGPL-derived Voicevox classes and without the
+embedded data whose licence is unknown (see docs/m13-compliance.md). ``host/build.ps1`` runs this.
 
-    python packaging/prototypes/m13/patch_openutau.py <pinned OpenUtau checkout> <output folder>
+    python host/patch_openutau.py <pinned OpenUtau checkout> <output folder>
 
 Changes to the copy (the pinned checkout itself is never touched):
 * delete ``OpenUtau.Core/Voicevox`` (code "partially based on" the LGPL-3.0 VOICEVOX engine) and
@@ -9,8 +9,8 @@ Changes to the copy (the pinned checkout itself is never touched):
   referenced them (``ClassicSingerLoader.cs``, ``Renderers.cs``);
 * replace the g2p packs other than ``g2p-arpabet`` (CMUdict) and ``g2p-arpabet-plus`` by empty zips,
   and the Vogen models and ``yue.csv`` by empty files.
-Build it like the product host: ``dotnet publish host/BltRenderHost
--p:OpenUtauSrc=<output folder>``.
+Everything that BLT's supported rendering uses (the classic WORLDLINE-R path and the English
+phonemizers) is untouched.
 """
 
 import io

@@ -28,6 +28,7 @@ namespace Blt.RenderHost {
         static readonly Dictionary<string, long> timingsMs = new Dictionary<string, long>();
         static readonly HashSet<string> known = new HashSet<string> {
             "--project", "--out", "--base", "--singers-dir", "--phonemize-timeout-ms", "--render-timeout-ms",
+            "--g2p-check",
         };
 
         static bool Pump(Func<bool> done, int timeoutMs) {
@@ -75,10 +76,36 @@ namespace Blt.RenderHost {
             return code;
         }
 
+        // The English phonemizers look a word up in the CMU dictionary and, when it is not there, ask a neural
+        // model to spell it out. That model runs on the ONNX Runtime, a native library that must sit beside the
+        // host (otherwise it silently depends on whatever Windows happens to provide). This check makes both
+        // visible: it phonemizes a word that is not in the dictionary and reports which onnxruntime was loaded.
+        static int G2pCheck() {
+            try {
+                var phonemes = new OpenUtau.Core.G2p.ArpabetG2p().Query("blorptastic");
+                string loaded = null;
+                foreach (ProcessModule m in Process.GetCurrentProcess().Modules) {
+                    if (m.ModuleName.StartsWith("onnxruntime", StringComparison.OrdinalIgnoreCase)) loaded = m.FileName;
+                }
+                string here = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
+                result["g2p_word"] = "blorptastic";
+                result["g2p_phonemes"] = phonemes == null ? "" : string.Join(" ", phonemes);
+                result["onnxruntime"] = loaded;
+                result["onnxruntime_beside_host"] = loaded != null &&
+                    string.Equals(Path.GetDirectoryName(loaded), here, StringComparison.OrdinalIgnoreCase);
+                bool ok = phonemes != null && phonemes.Length > 0 && (bool)result["onnxruntime_beside_host"];
+                return Finish(ok ? 0 : Exit.Environment, ok ? "ok" : "g2p_failed",
+                    ok ? null : "the neural English g2p did not run with an onnxruntime.dll beside the host");
+            } catch (Exception e) {
+                return Finish(Exit.Environment, "g2p_failed", e.GetType().Name + ": " + e.Message);
+            }
+        }
+
         static int Run(string[] args) {
             for (int i = 0; i < args.Length; i++) {
                 if (args[i].StartsWith("--") && !known.Contains(args[i])) return Finish(Exit.Usage, "usage", "unknown option " + args[i]);
             }
+            if (Array.IndexOf(args, "--g2p-check") >= 0) return G2pCheck();
             string projectPath = Arg(args, "--project"), outDir = Arg(args, "--out"), baseName = Arg(args, "--base");
             string singersDir = Arg(args, "--singers-dir");
             if (projectPath == null || outDir == null || baseName == null) {
