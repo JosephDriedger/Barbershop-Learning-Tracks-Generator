@@ -64,7 +64,6 @@ def test_the_real_gate_file_is_well_formed_and_points_at_files_that_exist() -> N
             assert (REPO / subject).is_file(), f"{item['id']}: {subject}"
     required = {i["id"] for i in gate["items"] if i["required"]}
     assert {
-        "worldline-spline-review",
         "qt-lgpl-review",
         "qt-source-published",
         "english-voicebank-acceptance",
@@ -216,15 +215,26 @@ def test_a_release_build_must_be_clean_committed_and_blocker_free(
         f"{INSTALLER} *BLT-Music-Generator-0.1.0-Setup.exe\n", encoding="utf-8"
     )
     monkeypatch.setattr(gate_module, "git_head", lambda repo=None: "c" * 40)
-    info = {"commit": "c" * 40, "uncommitted_changes": False, "release_blockers": []}
+    info = {
+        "commit": "c" * 40,
+        "uncommitted_changes": False,
+        "release_blockers": [],
+        "worldline_spline_free": True,
+    }
     (artifacts / "release-info.json").write_text(json.dumps(info), encoding="utf-8")
     assert gate_module.package_problems(artifacts) == []
-    info.update(uncommitted_changes=True, commit="d" * 40, release_blockers=["worldline"])
+    info.update(
+        uncommitted_changes=True,
+        commit="d" * 40,
+        release_blockers=["pyside6"],
+        worldline_spline_free=False,
+    )
     (artifacts / "release-info.json").write_text(json.dumps(info), encoding="utf-8")
     problems = " | ".join(gate_module.package_problems(artifacts))
     assert "uncommitted" in problems
     assert "not of the commit" in problems
     assert "blockers" in problems
+    assert "no spline" in problems
 
 
 def test_sign_refuses_a_bot_and_records_a_person(

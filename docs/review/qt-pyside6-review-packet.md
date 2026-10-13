@@ -85,6 +85,25 @@ CI).
 4. Are the notices (About text, `NOTICES.txt`, `licenses\`) adequate, including Qt's third-party components?
 5. Does anything change if the installer is code-signed later, or if Qt is ever upgraded or modified?
 
+## 7b. Evidence index (the packet folder, `python packaging/review_packets.py`; one file: `qt-review-packet.zip`)
+
+| File in the packet | What it shows |
+|---|---|
+| `README.md` | this page |
+| `MANIFEST.json` | SHA-256 of every file in the packet |
+| `WRITTEN-OFFER.txt`, `RELINKING.md`, `SHA256SUMS.txt`, `MANIFEST.json` (from `packaging/compliance.py`) | the offer, the replacement instructions and the checksums of the source bundle |
+| `evidence/qt-wheel-metadata.json` | for PySide6, PySide6_Essentials, PySide6_Addons and shiboken6: version, the licence field as the wheel states it, classifiers, and the licence files inside the wheel with hashes |
+| `evidence/qt-runtime-versions.json` | what the loaded libraries report about themselves (Qt 6.11.2, MSVC 2022, PySide6 and shiboken6 6.11.2). Qt does **not** embed source commit hashes in its DLLs, so the link between binary and source rests on the version and on Qt's release, not on a commit check |
+| `evidence/qt-files-in-package.json`, `evidence/qt-files-vs-wheel-record.json` | the 12 Qt/PySide6 files of the package with size and hash, each compared with the hash in its wheel's own RECORD (all identical: unmodified) |
+| `evidence/qt-attribution-index.json` | the Qt third-party attribution files BLT ships (verbatim from qtbase v6.11.2) with hashes |
+| `evidence/notices-qt-section.txt` | the Qt text of `NOTICES.txt` (`packaging/qt-statement.txt`) |
+| `evidence/qt-replaceability-test.log` | the log of `packaging/replaceability-test.ps1` for this build |
+| `packaging/compliance.py`, `packaging/replaceability-test.ps1`, `src/barbershop_tracks/ui/main_window.py`, licence texts | the code that makes the bundle and the test, and the About dialog |
+
+**Not in the packet and not checked by BLT:** that the PyPI wheels are byte-identical to what the Qt Company published (a reviewer can run `pip download PySide6==6.11.2 --no-deps`
+and compare the wheel's SHA-256 with the digest PyPI lists); that the Qt Company's binaries were built from the tagged source (BLT has no way to show it); and anything about law:
+the questions in section 7 are for the reviewer. BLT has **not** concluded that its arrangement satisfies the LGPL.
+
 ## 8. What BLT needs back
 
 A signed statement: reviewer name and qualification, date, files and hashes reviewed (the gate's `subjects`), the conclusion

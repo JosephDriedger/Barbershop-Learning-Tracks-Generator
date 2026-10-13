@@ -167,6 +167,8 @@ def package_problems(package_dir: Path, repo: Path | None = None) -> list[str]:
         problems.append("the build was made from a working tree with uncommitted changes")
     if info.get("commit") != git_head(repo):
         problems.append("the build is not of the commit that is checked out")
+    if info.get("worldline_spline_free") is not True:
+        problems.append("the build does not record that its worldline.dll has no spline in it")
     if info.get("release_blockers"):
         problems.append(f"the build lists licensing blockers: {info['release_blockers']}")
     return problems

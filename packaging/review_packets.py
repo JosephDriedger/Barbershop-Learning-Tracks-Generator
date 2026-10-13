@@ -23,6 +23,7 @@ import importlib.metadata
 import json
 import shutil
 import sys
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -30,16 +31,13 @@ REPO = Path(__file__).resolve().parents[1]
 
 WORLDLINE_FILES = (
     "docs/worldline-provenance.md",
-    "host/native/patched/natural_spline.h",
-    "host/native/effects-natural-spline.patch",
+    "host/native/effects-no-tension-spline.patch",
     "host/native/CMakeLists.txt",
     "host/native/prepare.py",
     "host/native/build.ps1",
     "host/native/verify_dll.py",
-    "host/native/parity/main.cpp",
-    "host/native/parity/compare.py",
-    "host/native/parity/spec_test.cpp",
-    "host/native/parity/spec_check.py",
+    "host/native/tests/tension_test.cpp",
+    "host/native/trace_tension.ps1",
     "host/verify-host.ps1",
     "tests/golden/selftest_audio.json",
     "tests/integration/test_selftest_e2e.py",
@@ -122,6 +120,80 @@ def versions() -> dict[str, str]:
     return found
 
 
+def wheel_metadata() -> dict[str, Any]:
+    """Licence-relevant metadata and licence files of the installed Qt for Python wheels."""
+    result: dict[str, Any] = {}
+    for name in QT_DISTRIBUTIONS:
+        try:
+            dist = importlib.metadata.distribution(name)
+        except importlib.metadata.PackageNotFoundError:
+            continue
+        md = dist.metadata
+        licence_files = []
+        for entry in dist.files or []:
+            low = entry.name.lower()
+            if any(word in low for word in ("licen", "copying", "notice")):
+                located = Path(str(dist.locate_file(entry)))
+                if located.is_file():
+                    licence_files.append(
+                        {
+                            "path": entry.as_posix(),
+                            "bytes": located.stat().st_size,
+                            "sha256": sha256_of(located),
+                        }
+                    )
+        result[name] = {
+            "version": dist.version,
+            "license_field": md.get("License"),
+            "license_expression": md.get("License-Expression"),
+            "license_classifiers": [c for c in (md.get_all("Classifier") or []) if "License" in c],
+            "author": md.get("Author") or md.get("Author-email"),
+            "home_page": md.get("Home-page") or md.get("Project-URL"),
+            "licence_files_in_the_wheel": licence_files,
+        }
+    return result
+
+
+def runtime_versions() -> dict[str, str]:
+    """What the loaded libraries say about themselves (nothing about commits: Qt does not embed them)."""
+    import PySide6
+    import shiboken6
+    from PySide6 import QtCore
+
+    return {
+        "PySide6.__version__": str(PySide6.__version__),
+        "shiboken6.__version__": str(shiboken6.__version__),
+        "QtCore.qVersion()": str(QtCore.qVersion()),
+        "QLibraryInfo.build()": str(QtCore.QLibraryInfo.build()),
+    }
+
+
+def attribution_index() -> list[dict[str, Any]]:
+    """The Qt third-party attribution files BLT ships (verbatim from qtbase v6.11.2), with hashes."""
+    root = REPO / "packaging" / "licenses" / "qt-6.11.2"
+    return [
+        {"path": f.relative_to(root).as_posix(), "bytes": f.stat().st_size, "sha256": sha256_of(f)}
+        for f in sorted(root.rglob("*"))
+        if f.is_file()
+    ]
+
+
+def write_json(out: Path, name: str, data: Any, manifest: dict[str, str]) -> None:
+    path = out / "evidence" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=1) + chr(10), encoding="utf-8")
+    manifest[f"evidence/{name}"] = sha256_of(path)
+
+
+def zip_packet(folder: Path, target: Path) -> None:
+    """One file per packet, byte-for-byte reproducible from the folder (sorted, fixed timestamps)."""
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as zf:
+        for file in sorted(p for p in folder.rglob("*") if p.is_file()):
+            info = zipfile.ZipInfo(file.relative_to(folder).as_posix(), (2026, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            zf.writestr(info, file.read_bytes())
+
+
 def build_worldline(out: Path, evidence: Path | None) -> dict[str, str]:
     manifest: dict[str, str] = {}
     copy_into(out, REPO / "docs/review/worldline-spline-review-packet.md", "README.md", manifest)
@@ -141,6 +213,9 @@ def build_qt(
     for name in QT_FILES:
         copy_into(out, REPO / name, name, manifest)
     copy_into(out, REPO / "packaging/qt-statement.txt", "evidence/notices-qt-section.txt", manifest)
+    write_json(out, "qt-wheel-metadata.json", wheel_metadata(), manifest)
+    write_json(out, "qt-runtime-versions.json", runtime_versions(), manifest)
+    write_json(out, "qt-attribution-index.json", attribution_index(), manifest)
     if compliance and compliance.is_dir():
         for name in ("WRITTEN-OFFER.txt", "RELINKING.md", "MANIFEST.json", "SHA256SUMS.txt"):
             if (compliance / name).is_file():
@@ -199,7 +274,11 @@ def main() -> int:
             + "\n",
             encoding="utf-8",
         )
-        print(f"{name}: {len(manifest)} files -> {args.out / name}")
+        archive = args.out / f"{name}-review-packet.zip"
+        zip_packet(args.out / name, archive)
+        print(
+            f"{name}: {len(manifest)} files -> {args.out / name} ; one file: {archive.name} ({sha256_of(archive)[:16]}...)"
+        )
     print("not signed, not uploaded: a person signs, with packaging/release_gate.py")
     return 0
 

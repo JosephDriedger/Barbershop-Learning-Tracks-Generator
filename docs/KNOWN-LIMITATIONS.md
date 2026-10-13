@@ -5,10 +5,13 @@ Things that are not done, not verified, or deliberately restricted. Nothing here
 ## Release status
 
 * **Not cleared for public release.** Every build is marked NOT FOR RELEASE, and a release gate ([release-gate.md](release-gate.md))
-  refuses publication until people have signed off: an independent review of BLT's replacement for the GPL `tk::spline` in
-  `worldline.dll` ([worldline-provenance.md](worldline-provenance.md)); a review of the Qt/PySide6 LGPL arrangement, with the source
-  bundle attached to the release; an English-voicebank listening test; a clean-machine test; and the owner's decisions on signing
-  and release ([m15-report.md](m15-report.md)). The English "plus" dictionary, whose origin is unknown, is **not** in the build.
+  refuses publication until people have signed off: a review of the Qt/PySide6 LGPL arrangement, with the source bundle attached to
+  the release; an English-voicebank listening test; a clean-machine test; and the owner's decisions on signing and release
+  ([m16-report.md](m16-report.md)). The native `worldline.dll` has no spline code at all (the tension effect, the only user of a GPL spline, is removed;
+  [worldline-provenance.md](worldline-provenance.md)); an earlier replacement spline remains in the repository's git history. The English "plus" dictionary,
+  whose origin is unknown, is **not** in the build.
+* **Tension is not supported.** OpenUtau's per-note/curve "tension" voice effect is not in BLT's native library. BLT never writes it; a project that asks for it
+  is refused by the host ("unsupported_tension") instead of being rendered without it.
 * **Two English phonemizers are missing.** Because the "plus" dictionary is excluded, upstream OpenUtau's *Arpasing+* and *English
   C+V* phonemizers (and the DiffSinger English+ one) are not in BLT's host. The CMUdict-based ones (Arpasing, English VCCV, X-SAMPA)
   and the default phonemizer are. A voicebank that only works with C+V cannot be used.
@@ -39,8 +42,8 @@ Things that are not done, not verified, or deliberately restricted. Nothing here
 ## Features
 
 * **Renderer:** WORLDLINE-R only. CLASSIC renders but its audio runs a few tens of milliseconds past the performed length
-  and the mix check rejects it (`MIX_STEM_TOO_LONG`, seen with a real voicebank), so it is not offered. The neural renderers (ENUNU, Vogen, DiffSinger, VOICEVOX) are
-  not in this build because their native runtime is not included.
+  and the mix check rejects it (`MIX_STEM_TOO_LONG`, seen with a real voicebank), so it is not offered. The neural renderers are not offered: Vogen and VOICEVOX are
+  removed from the host (licensing), and ENUNU and DiffSinger have never been tested with BLT.
 * **MP3 needs an FFmpeg you install**; none is bundled. WAV needs nothing.
 * **No playback or preview** inside the app yet (tracked separately). You open the output folder and play the files elsewhere.
 * One score at a time; no batch mode in the GUI (the command line scripts well).

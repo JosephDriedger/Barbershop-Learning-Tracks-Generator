@@ -12,7 +12,7 @@ the installer works on a clean PC. **Green CI is not an input to the gate and ca
 
 | Item | Kind | What closes it | Packet / checklist |
 |---|---|---|---|
-| `worldline-spline-review` | review | a qualified person, who has not read `tk::spline` and did not write or direct the replacement, reviews the replacement spline | [review/worldline-spline-review-packet.md](review/worldline-spline-review-packet.md) |
+| `worldline-spline-review` | review, **retired in M16 (not required)** | there is no spline code left to review: the binary is proven spline-free by the build (`worldline_spline_free`, required by `check --release`). Re-open it (`required: true`) if any spline or interpolation code is ever reintroduced | [review/worldline-spline-review-packet.md](review/worldline-spline-review-packet.md) (closing record) |
 | `qt-lgpl-review` | review | a qualified person reviews BLT's LGPL-3.0 arrangement for Qt and PySide6 | [review/qt-pyside6-review-packet.md](review/qt-pyside6-review-packet.md) |
 | `qt-source-published` | publication | the corresponding-source bundle is attached to the release it accompanies and the link works (evidence: its https URL) | same packet, section 8 |
 | `english-voicebank-acceptance` | acceptance | a tester who is not the developer listens to tracks made with a real English voicebank and the checklist is passed | [acceptance/english-voicebank-acceptance.md](acceptance/english-voicebank-acceptance.md) |
@@ -23,7 +23,7 @@ the installer works on a clean PC. **Green CI is not an input to the gate and ca
 
 Besides the items, `check` fails while any component in `packaging/components.json` has status `blocker`, and in `--release` mode
 it also fails unless the build being released is of the commit that is checked out, from a clean tree, with no blockers listed in its
-`release-info.json` and an installer in its `SHA256SUMS.txt`.
+`release-info.json`, records that its `worldline.dll` has no spline in it (`worldline_spline_free`), and has an installer in its `SHA256SUMS.txt`.
 
 ## What a sign-off is
 

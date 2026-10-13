@@ -31,7 +31,7 @@ def test_component_ids_are_unique_and_complete() -> None:
 
 def test_blockers_say_what_is_unresolved() -> None:
     blockers = [c for c in _components() if c["status"] == "blocker"]
-    assert {"worldline", "pyside6"} == {str(c["id"]) for c in blockers}
+    assert {"pyside6"} == {str(c["id"]) for c in blockers}
     for component in blockers:
         assert str(component["notes"]).strip() or str(component["obligations"]).strip()
 

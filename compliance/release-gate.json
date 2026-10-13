@@ -1,21 +1,15 @@
 {
  "schema": "blt.release-gate/1",
- "note": "Every required item needs a person's recorded sign-off before anything is published. Only a human edits 'signoff' (python packaging/release_gate.py sign ...). Green CI does not satisfy any item. See docs/release-gate.md.",
+ "note": "Every required item needs a person's recorded sign-off before anything is published. Only a human edits 'signoff' (python packaging/release_gate.py sign ...). Green CI does not satisfy any item. See docs/release-gate.md. Item worldline-spline-review was retired in M16 because the code it covered was removed; the release build must prove that (worldline_spline_free).",
  "items": [
   {
    "id": "worldline-spline-review",
-   "title": "Independent source/licensing review of BLT's replacement for tk::spline in worldline.dll",
+   "title": "RETIRED in M16 (not required): independent review of the replacement spline in worldline.dll. The spline is gone; the build now proves it (see packet)",
    "kind": "review",
-   "required": true,
-   "who": "a qualified person who has not read tk::spline and did not write or direct the replacement",
+   "required": false,
+   "who": "nobody: there is no spline code left to review. The release build must record worldline_spline_free (verify_dll.py), which `check --release` demands; re-open this item (required: true) if any spline or interpolation code is ever reintroduced",
    "packet": "docs/review/worldline-spline-review-packet.md",
-   "subjects": [
-    "host/native/patched/natural_spline.h",
-    "host/native/effects-natural-spline.patch",
-    "host/native/CMakeLists.txt",
-    "host/native/prepare.py",
-    "docs/review/worldline-spline-review-packet.md"
-   ],
+   "subjects": [],
    "signoff": null
   },
   {
@@ -53,7 +47,8 @@
    "who": "a tester who is not the developer, with a legitimately obtained English voicebank",
    "packet": "docs/acceptance/english-voicebank-acceptance.md",
    "subjects": [
-    "docs/acceptance/english-voicebank-acceptance.md"
+    "docs/acceptance/english-voicebank-acceptance.md",
+    "docs/acceptance/HANDOFF.md"
    ],
    "signoff": null
   },
@@ -65,7 +60,8 @@
    "who": "a tester who is not the developer, on a clean Windows 10/11 x64 machine or VM",
    "packet": "docs/acceptance/clean-machine-verification.md",
    "subjects": [
-    "docs/acceptance/clean-machine-verification.md"
+    "docs/acceptance/clean-machine-verification.md",
+    "docs/acceptance/HANDOFF.md"
    ],
    "signoff": null
   },

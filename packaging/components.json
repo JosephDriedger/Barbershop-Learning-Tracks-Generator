@@ -19,7 +19,8 @@
     "blt.exe",
     "host/blt-host-build.json",
     "host/blt-render-host.*",
-    "licenses/**"
+    "licenses/**",
+    "_internal/blt-runtime-copies.json"
    ],
    "texts": [
     "Apache-2.0"
@@ -429,13 +430,13 @@
   {
    "id": "worldline",
    "name": "worldline.dll (OpenUtau's native resampler/vocoder, prebuilt win-x64)",
-   "version": "BLT build of OpenUtau's worldline sources at 6958d68 with the pinned third-party sources; see docs/worldline-provenance.md",
-   "license": "MIT (OpenUtau's worldline sources) with statically linked World (BSD-3-Clause, modified), PLATINUM (Morise, no licence text in file), libgvps and libpyin (BSD-3-Clause), libnpy (MIT), miniaudio (public domain or MIT-0), xxHash (BSD-2-Clause), Abseil strings (Apache-2.0), and BLT's own natural cubic spline (Apache-2.0) in place of the GPL tk::spline",
-   "copyright": "StAkira and OpenUtau contributors; Masanori Morise (World, PLATINUM); Kanru Hua (libgvps, libpyin); Leon Merten Lohse (libnpy); David Reid (miniaudio); Yann Collet (xxHash); The Abseil Authors; Tino Kluge (tk::spline); Copyright 2026 Joseph Driedger (the replacement spline)",
+   "version": "BLT build of OpenUtau's worldline sources at 6958d68 with the pinned third-party sources and without the tension effect; see docs/worldline-provenance.md",
+   "license": "MIT (OpenUtau's worldline sources) with statically linked World (BSD-3-Clause, modified), PLATINUM (Morise, no licence text in file), libgvps and libpyin (BSD-3-Clause), libnpy (MIT), miniaudio (public domain or MIT-0), xxHash (BSD-2-Clause) and Abseil strings (Apache-2.0). No spline code of any kind (the GPL tk::spline of the original is not built, downloaded or linked)",
+   "copyright": "StAkira and OpenUtau contributors; Masanori Morise (World, PLATINUM); Kanru Hua (libgvps, libpyin); Leon Merten Lohse (libnpy); David Reid (miniaudio); Yann Collet (xxHash); The Abseil Authors",
    "source": "https://github.com/stakira/OpenUtau/tree/0.1.565/cpp",
-   "status": "blocker",
-   "obligations": "tk::spline is no longer compiled in: host/native/build.ps1 builds the DLL from the pinned sources with host/native/effects-natural-spline.patch and fails unless the link map has no tk::spline symbol and the exports are those OpenUtau.Core calls; the replacement matches tk::spline to 1.6e-14 and renders byte-identical audio (tests/golden/selftest_audio.json). Permissive notices shipped (World, libgvps, libpyin, libnpy, miniaudio, xxHash, Abseil). Open: the owner requires an independent source/licensing review of the replacement before this is marked resolved (the author had read tk::spline's source; docs/worldline-provenance.md).",
-   "notes": "BLOCKER stays open until that independent review is documented. PLATINUM files carry only 'Copyright 2012-2015 Masanori Morise. All Rights Reserved.' (extracted from World 0.1.4_3, BSD-3-Clause): residual, low.",
+   "status": "ok",
+   "obligations": "The tension effect (the only user of tk::spline, GPL-2.0-or-later) is removed: host/native/effects-no-tension-spline.patch makes GetTensionCoefficients return the neutral envelope; the spline library is not downloaded, not on any include path, not compiled. host/native/verify_dll.py fails the build if the link map or the DLL's bytes mention a spline, and checks the exports and imports. Permissive notices shipped (World, libgvps, libpyin, libnpy, miniaudio, xxHash, Abseil).",
+   "notes": "Resolved by technical evidence (M16): BLT never asks for tension (every one of 45,624 native calls over the whole integration suite passed tension 0, for which the original also returns exactly 1.0; host/native/trace_tension.ps1 reproduces this), the host refuses a project that asks for a tension curve, and the audio is byte-identical to the stock DLL's on the golden self-test. Residual, outside the binary: an earlier replacement spline (M13-M15) remains in the repository's git history (docs/worldline-provenance.md); PLATINUM files carry only 'Copyright 2012-2015 Masanori Morise. All Rights Reserved.' (extracted from World 0.1.4_3, BSD-3-Clause): low.",
    "patterns": [
     "host/worldline.dll"
    ],
