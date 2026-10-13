@@ -71,6 +71,6 @@ Optional but advisable: submit the upstream inquiry.
 | Installer test (silent install, missing-runtime refusal, upgrade, uninstall) | passed |
 | Installer GUI test (the real Setup window, 23 checks) | passed |
 | Release gate `check --release` | exit 1 (closed), as intended |
-| CI | see the commit log |
+| CI on `56d5db3` | `render-host` and `package` passed first time. **`checks` aborted once** ("Fatal Python error: Aborted" inside `MainWindow.changeEvent` while the `rig` fixture of `test_a_second_click_cannot_start_a_second_generation` waited for the window; 27 earlier GUI tests of that file had passed) and **passed on re-run**. I could not reproduce it: 20 local runs of the whole GUI test folder were clean. Cause unknown; treated as an intermittent Qt-on-CI abort, not as a fix to make. If it recurs it needs a closer look (the window re-checks its folders whenever it is activated) |
 
 Evidence logs are in `research-output/release/evidence/`, the review packets in `research-output/release/review/` and the tester kit in `research-output/release/tester-kit/` (none committed).
