@@ -1,5 +1,9 @@
 # Acceptance tests for a release candidate (to be run by someone other than the developer)
 
+**Short version for the tester: [HANDOFF.md](HANDOFF.md)** (six checks, the helper scripts and a results sheet). `packaging/tester_kit.ps1` (run by `packaging/build.ps1`)
+assembles the kit: the installer under test, a second installer of the same program with the next version number for the upgrade check, checksums, these documents and
+the helper scripts `Collect-Environment.ps1` and `Check-UserData.ps1`. The pages below are the full steps.
+
 BLT's automated tests prove that the program starts, renders and installs. They cannot prove that it **sounds right**, that it
 installs on a PC that has never had a developer tool, or that a normal person can get from a score to 13 tracks. Two
 person-run tests close that gap. Both are *required by the release gate* ([../release-gate.md](../release-gate.md)):

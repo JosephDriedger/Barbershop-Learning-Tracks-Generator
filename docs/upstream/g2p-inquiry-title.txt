@@ -1,0 +1,1 @@
+Provenance and licence of the English g2p data: g2p-arpabet-plus.zip and the g2p.onnx models

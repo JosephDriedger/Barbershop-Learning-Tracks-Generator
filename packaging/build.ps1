@@ -110,6 +110,8 @@ Step "Checking that no Microsoft runtime files are in the package"
 $hashedCopies = @(& $python "packaging/runtime_copies.py" $app)
 if ($LASTEXITCODE -ne 0) { throw "runtime_copies.py failed" }
 Run $python (@("packaging/runtime_copies.py", $app, "--check") + $hashedCopies)
+# lets the program remake the PC-specific copy itself if it ever goes missing (src/barbershop_tracks/frozen_fixups.py)
+Run $python @("packaging/runtime_copies.py", $app, "--write-manifest")
 $vcRequired = (& $python -c "from barbershop_tracks.core.runtime.vcruntime import REQUIRED; print(*REQUIRED)").Trim().Split(" ")
 Write-Output "requires Microsoft Visual C++ runtime $($vcRequired -join '.') or newer; renamed imports satisfied at install: $($hashedCopies -join ', ')"
 
@@ -169,8 +171,12 @@ foreach ($file in @($installer, (Join-Path $artifacts "NOTICES.txt"), (Join-Path
     $sums += "$((Get-FileHash $file -Algorithm SHA256).Hash.ToLower()) *$(Split-Path $file -Leaf)"
 }
 Set-Content (Join-Path $artifacts "SHA256SUMS.txt") $sums -Encoding ascii
+# what the host build recorded about its native library (host/build.ps1, host/native/verify_dll.py)
+$hostBuild = Get-Content (Join-Path $hostOut "blt-host-build.json") -Raw | ConvertFrom-Json
+Copy-Item (Join-Path $hostOut "blt-host-build.json") (Join-Path $artifacts "blt-host-build.json") -Force
 $info = [ordered]@{
     product = "BLT Music Generator"; version = $version; commit = $commit; uncommitted_changes = $dirty
+    worldline_spline_free = [bool]$hostBuild.worldline_spline_free; worldline_sha256 = $hostBuild.worldline_sha256
     openutau = "0.1.565 a60ca5830b9064556157245d4bf8f5920d93e5f8"; dotnet_runtime = $runtimeVersion
     python = (& $python --version); pyinstaller = ((& $python -m pip show pyinstaller | Select-String "^Version").ToString() -replace "Version: ", "")
     installer = if ($installer) { Split-Path $installer -Leaf } else { $null }
@@ -179,6 +185,10 @@ $info = [ordered]@{
 }
 [System.IO.File]::WriteAllText((Join-Path $artifacts "release-info.json"), ($info | ConvertTo-Json), $utf8)
 Get-Content (Join-Path $artifacts "SHA256SUMS.txt")
+if ($installer) {
+    Step "Assembling the tester kit (not sent anywhere)"
+    Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "packaging/tester_kit.ps1"), "-Artifacts", $artifacts, "-App", $app, "-Out", (Join-Path $OutDir "tester-kit"))
+}
 # the release gate: what is still open (a person decides; green CI and this script cannot)
 $gateText = (& $python "packaging/release_gate.py" "status") -join [Environment]::NewLine
 [System.IO.File]::WriteAllText((Join-Path $artifacts "release-gate-status.txt"), $gateText, $utf8)
