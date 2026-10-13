@@ -30,8 +30,8 @@ jobs:
         run: python packaging/notices.py audit --check
       - name: Release gate status (information only; the gate itself is enforced by release.yml and build.ps1 -ForRelease)
         run: python packaging/release_gate.py status
-      - name: Tests
-        run: pytest
+      - name: Tests (diagnostic: unbuffered and verbose to see the message of a Qt abort)
+        run: pytest -s -v -p no:cacheprovider
       - name: CLI entry point
         run: barbershop-tracks --version
       - name: GUI entry point
