@@ -186,3 +186,37 @@ def test_renders_are_reproducible_and_the_cache_changes_them_by_at_most_one_lsb(
         assert warm1.read_bytes() == warm2.read_bytes()  # so are warm runs
         worst = max(abs(a - b) for a, b in zip(_samples(cold1), _samples(warm1), strict=True))
         assert worst <= 1  # measured: the cache stores 16-bit audio, a 1 LSB difference
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "OpenUtau.Plugin.Builtin.ArpasingPlusPhonemizer",
+        "OpenUtau.Plugin.Builtin.EnglishCpVPhonemizer",
+        "OpenUtau.Core.DiffSinger.DiffSingerARPAPlusEnglishPhonemizer",
+    ],
+)
+def test_phonemizers_that_need_the_unverified_english_plus_data_are_not_in_the_host(
+    exe: Path, singers: Path, tmp_path: Path, name: str
+) -> None:
+    run = run_host(exe, project(tmp_path, phonemizer=name), tmp_path / "out", singers_dir=singers)
+    assert run.returncode == 4
+    assert "did not resolve" in run.result["error"]
+    assert stems(tmp_path / "out") == {}
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+        "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer",
+        "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer",
+    ],
+)
+def test_the_cmudict_based_english_phonemizers_still_render(
+    exe: Path, singers: Path, tmp_path: Path, name: str
+) -> None:
+    run = run_host(exe, project(tmp_path, phonemizer=name), tmp_path / "out", singers_dir=singers)
+    assert run.returncode == 0, run.result
+    assert run.result["status"] == "ok"
+    assert len(stems(tmp_path / "out")) == 4

@@ -362,12 +362,12 @@
    "id": "openutau-core",
    "name": "OpenUtau.Core (OpenUtau.Core.dll)",
    "version": "0.1.565 (commit a60ca5830b9064556157245d4bf8f5920d93e5f8), built by BLT with host/patch_openutau.py",
-   "license": "MIT; embeds CMUdict 0.07 (Carnegie Mellon University licence) and the English 'plus' dictionary (see g2p-arpabet-plus); the Voicevox classes (LGPL-derived), the Vogen data and the non-English dictionaries are NOT in BLT's build",
+   "license": "MIT; embeds CMUdict 0.07 (Carnegie Mellon University licence). NOT in BLT's build: the Voicevox classes (LGPL-derived), the Vogen data, the non-English dictionaries and the English 'plus' dictionary (see g2p-arpabet-plus)",
    "copyright": "Copyright (c) 2014 StAkira and OpenUtau contributors; (c) 2023 oatsu (SimpleEnunu); (c) 2015 Stephen Cleary (Deque); (c) 2017 Ryuichi Yamamoto and the University of Edinburgh (Merlin-derived code in Plugin.Builtin); Carnegie Mellon University (CMUdict 0.07)",
    "source": "https://github.com/stakira/OpenUtau (tag 0.1.565, commit a60ca58...; built from a copy modified by host/patch_openutau.py)",
    "status": "ok",
-   "obligations": "MIT notice and the upstream MIT/Apache notices of the ported code (shipped); CMUdict licence text (shipped). BLT's host is a MODIFIED build of OpenUtau.Core: host/patch_openutau.py deletes the Voicevox classes and blanks the Vogen data and the non-English dictionaries; the reported revision is 'a60ca58...+blt-patched'. host/verify-host.ps1 (run by every package build) reads the built assemblies and fails unless there is no Voicevox type, the English dictionaries are byte-identical to the pinned source, and the other dictionaries and Vogen data are empty. No LGPL obligation remains for this DLL.",
-   "notes": "Resolved by evidence: the patched build renders byte-identical audio to the stock build (tests/golden/selftest_audio.json), 44 of 46 host-driven tests passed at prototype stage and all pass now. Supported functionality kept: the WORLDLINE-R renderer, the default and English phonemizers. Removed on purpose: Voicevox, Vogen, and phonemizers needing a non-English dictionary. The English 'plus' dictionary is tracked separately.",
+   "obligations": "MIT notice and the upstream MIT/Apache notices of the ported code (shipped); CMUdict licence text (shipped). BLT's host is a MODIFIED build of OpenUtau.Core: host/patch_openutau.py deletes the Voicevox classes and the English 'plus' dictionary with the Arpasing+/English C+V phonemizers that need it, and blanks the Vogen data and the non-English dictionaries; the reported revision is 'a60ca58...+blt-patched'. host/verify-host.ps1 (run by every package build) reads the built assemblies and fails unless there is no Voicevox type, the English dictionary (CMUdict) is byte-identical to the pinned source, no plus data is present, and the other dictionaries and Vogen data are empty. No LGPL obligation remains for this DLL.",
+   "notes": "Resolved by evidence: the patched build renders byte-identical audio to the stock build (tests/golden/selftest_audio.json), 44 of 46 host-driven tests passed at prototype stage and all pass now. Supported functionality kept: the WORLDLINE-R renderer, the default and English phonemizers. Removed on purpose: Voicevox, Vogen, phonemizers needing a non-English dictionary, and Arpasing+/English C+V. The English 'plus' dictionary and the phonemizers that need it are omitted (component g2p-arpabet-plus).",
    "patterns": [
     "host/OpenUtau.Core.dll"
    ],
@@ -1563,23 +1563,18 @@
   },
   {
    "id": "g2p-arpabet-plus",
-   "name": "English 'ARPAbet plus' dictionary and model (OpenUtau.Core g2p-arpabet-plus.zip, inside OpenUtau.Core.dll)",
-   "version": "0.1.565, added 2024-02 by cadlaxa (commit ba93f8b3), updated until 2024-06",
-   "license": "UNKNOWN for the additions; CMUdict-derived entries under the Carnegie Mellon licence",
+   "name": "English 'ARPAbet plus' dictionary and model (OpenUtau g2p-arpabet-plus.zip): EXCLUDED from BLT's build",
+   "version": "0.1.565, added 2024-02 by Cadlaxa (commit ba93f8b3, PR openutau/OpenUtau#1038), updated until 2024-06",
+   "license": "UNKNOWN for the additions (the contributor's own repository has no licence file either)",
    "copyright": "Carnegie Mellon University (CMUdict entries); the contributor and unknown others (additions)",
    "source": "https://github.com/stakira/OpenUtau (OpenUtau.Core/G2p/Data/g2p-arpabet-plus.zip)",
-   "status": "blocker",
-   "bundled": "yes",
-   "obligations": "420,422 entries: 299,535 are CMUdict words, 120,887 are additions whose source is not stated anywhere in the repository. Not approved for redistribution until the provenance is established (docs/g2p-plus-provenance.md).",
-   "notes": "Explicit blocker by decision of the owner: do not remove blindly, do not approve redistribution yet.",
+   "status": "ok",
+   "bundled": "no (excluded)",
+   "obligations": "Not distributed. host/patch_openutau.py removes the pack, the Arpasing+, English C+V and DiffSinger English+ phonemizers, ArpabetPlusG2p and the English C+V template from the sources and the resource tables; host/verify-host.ps1 (reflection) and packaging/verify_absent_data.py (byte search of the whole package for the removed data) fail the build if any of it is present.",
+   "notes": "Resolved by exclusion, not by provenance: the origin of the additions is still unknown (docs/g2p-plus-provenance.md; the upstream inquiry is a draft that has not been sent). Re-including it would need a documented answer first. The supported English phonemizers use the CMUdict pack (g2p-arpabet), which equals CMUdict 0.7b entry for entry.",
    "patterns": [],
    "texts": [],
-   "extra_texts": [
-    {
-     "label": "CMUdict 0.07 licence",
-     "path": "packaging/licenses/upstream_CMUdict_0.07_licence.txt"
-    }
-   ]
+   "extra_texts": []
   },
   {
    "id": "onnxruntime-native",

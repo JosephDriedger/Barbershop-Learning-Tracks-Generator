@@ -1,49 +1,59 @@
-# The English "ARPAbet plus" dictionary: provenance and dependency
+# The English "ARPAbet plus" dictionary: provenance, dependency and BLT's release-safe fallback
 
-Status: **explicit blocker, redistribution not approved** (owner decision, M14). It is still inside the host build because
-removing it was not approved either ("do not remove blindly"). Nothing here resolves it.
+Status (M15): **excluded from BLT's build.** The dictionary's origin is still unknown and no upstream answer exists, so this is
+resolved by *exclusion*, not by provenance. Re-including it would need a documented answer first. The upstream inquiry is a
+draft ([upstream-g2p-plus-issue.md](upstream-g2p-plus-issue.md)) that **has not been sent**.
 
 ## What it is
 
-`OpenUtau.Core/G2p/Data/g2p-arpabet-plus.zip` (embedded in `OpenUtau.Core.dll`): a dictionary and a neural g2p model for English.
+`OpenUtau.Core/G2p/Data/g2p-arpabet-plus.zip` (OpenUtau 0.1.565, 4,327,034 bytes, SHA-256 `9fc73c72…8733`): `dict.txt`, a neural
+`g2p.onnx` and `phones.txt`. Added by the contributor **Cadlaxa** with pull request openutau/OpenUtau#1038 (merged 2024-03-28 by
+stakira); six commits by Cadlaxa touch it, 2024-02-16 to 2024-06-21. Neither the commits, the pull request nor the contributor's own
+repository (no licence file) state where the additional data comes from.
 
-* 420,422 entries. 299,535 of them are CMUdict 0.07 words (Carnegie Mellon University, BSD-style licence, shipped and credited).
-* 120,887 entries are **additions** (for example `'sblood`, `'tisn't`) whose source is not stated anywhere in OpenUtau's repository.
-* Added to OpenUtau by the contributor *cadlaxa* in February 2024 (commit `ba93f8b3`), updated until June 2024; the commit/PR
-  text names no source and no licence. The file's later history in the pinned tree is only a revert-merge (`a60ca58`).
+Reproducible measurements (`python scripts/analyze_g2p_plus.py <checkout> --cmudict cmudict-0.7b`):
+
+| | |
+|---|---|
+| Plain pack `g2p-arpabet.zip` dictionary | 133,852 entries, **exactly the entries of CMU's `cmudict-0.7b`** (compared entry for entry; only line endings differ) |
+| Plus pack dictionary lines | 420,420 (258,522 distinct after lower-casing) |
+| of which identical to a CMUdict entry | 74,227 |
+| of which another form of a CMUdict word (variants, apostrophe-marked forms) | 138,476 |
+| **entries for words that are not in CMUdict** | **45,819 entries, 37,558 words** (e.g. `kiva`, `negentropy`, `shigella`) |
+
+(M13 and M14 quoted "299,535 CMUdict words / 120,887 additions" from an ad-hoc count; the numbers above replace them because
+they can be re-run.)
 
 ## What depends on it (traced in the pinned source, commit `a60ca58`)
 
-| Consumer | Uses plus? | In BLT? |
+| Consumer | Uses plus? | BLT |
 |---|---|---|
-| `DefaultPhonemizer` (BLT's default) | no: voicebank's own dictionary | yes, default |
-| `ArpasingPhonemizer`, `EnglishVCCV`, `EnXSampa`, `ENtoJA`, Enunu English, DiffSinger English | no: they use the plain `g2p-arpabet` (CMUdict + a neural fallback for unknown words) | selectable by name |
-| `ArpasingPlusPhonemizer` | **yes** | selectable by name |
-| `EnglishCpVPhonemizer` | **yes** | selectable by name |
-| DiffSinger ARPA+ English, Phonetic Assistant, lyrics helper | yes | not offered or tested by BLT (DiffSinger is not a supported BLT renderer) |
+| `DefaultPhonemizer` (BLT's default) | no (the voicebank's own aliases) | supported |
+| `ArpasingPhonemizer`, `EnglishVCCVPhonemizer`, `EnXSampaPhonemizer`, ENtoJA, Enunu English, DiffSinger English | no: plain `g2p-arpabet` (CMUdict, plus a neural fallback for words not in it) | supported (the first three are tested end to end) |
+| `ArpasingPlusPhonemizer` ("EN ARPA+") | yes | **omitted** |
+| `EnglishCpVPhonemizer` ("EN C+V"; also uses a 1.2 MB template of its own) | yes | **omitted** |
+| `DiffSingerARPAPlusEnglishPhonemizer`, `ArpabetPlusG2p`, the lyrics helper, the Phonetic Assistant | yes | omitted / not built |
 
-So English singing does **not** depend on the plus dictionary unless the user explicitly picks "Arpasing+" or "English CpV".
-Everything BLT tests (default phonemizer, Arpasing, the self-test, the English acceptance plan) works from CMUdict.
-The plain dictionary's neural fallback needs the shipped `onnxruntime.dll`; that is checked by `blt-render-host --g2p-check`.
+English singing therefore never needed the plus dictionary unless Arpasing+ or English C+V were picked by name.
 
-## Options (nothing is done yet)
+## The fallback (implemented, tested)
 
-1. **Keep as is**: not acceptable until provenance is known (the blocker).
-2. **Replace the plus pack with an empty one** in `host/patch_openutau.py` (as for the other languages) and mark
-   Arpasing+/English CpV unavailable. Cheapest, loses those two phonemizers. `host/verify-host.ps1` would then expect an empty pack.
-3. **Replace it with a pack made only from CMUdict** (299,535 entries) so the two phonemizers keep working with the
-   known-licence part. Needs a build step that regenerates the zip from `cmudict-0.7b` and the neural fallback model of the
-   plain pack; the model's licence must be known as well (the plain pack's model is the same trained weights family but that is
-   *not verified*).
-4. **Get the answer from upstream**: ask the contributor which sources the 120,887 additions come from and under which licence.
+* `host/patch_openutau.py` deletes the pack, the three phonemizers, `ArpabetPlusG2p`, the lyrics-helper class and the English C+V
+  template from the patched sources **and from the resource tables** (`Resources.resx`, `Resources.Designer.cs`), so the data is in
+  the built assemblies neither as a resource nor as a file.
+* `host/verify-host.ps1` (reflection) fails if a plus resource, a `*Plus*`/`EnglishCpV` type or the C+V template is present, and still
+  requires the CMUdict pack to be byte-identical to the pinned source.
+* `packaging/verify_absent_data.py` does not trust the patch: it fingerprints every removed data file as it is in the pinned source
+  and searches **every file of the package folder** for those bytes. As a positive control it finds the plus pack and the C+V template
+  in the previous (M14) host build; on the M15 build it finds nothing. It runs in `packaging/build.ps1` and in CI.
+* Tests: the host refuses `ArpasingPlusPhonemizer`, `EnglishCpVPhonemizer` and the DiffSinger English+ phonemizer with exit 4 ("did not
+  resolve"); `ArpasingPhonemizer`, `EnglishVCCVPhonemizer` and `EnXSampaPhonemizer` render all four stems against the real host;
+  `tests/unit/test_verify_absent_data.py` checks that the scanner finds the data under any file name and refuses a vacuous pass.
 
-## Upstream contact
+## Residual items for the owner (not blockers of this exclusion)
 
-A draft issue for OpenUtau is in `docs/upstream-g2p-plus-issue.md`. **It has not been sent**: it is a public post under the
-owner's account, so the owner sends it (or asks BLT to). Until a reply documents the sources and licences, the blocker stays.
-
-## Recommendation
-
-Do option 4 in parallel with option 2 as the default for any release candidate: ship the build with the plus pack emptied
-unless the upstream answer is positive and documented. That keeps all BLT-supported English functionality, because the
-supported English phonemizers do not use it.
+1. The plain pack's `g2p.onnx` (the neural fallback for words not in CMUdict) has no stated training data either. It is a model, not a
+   dictionary; the question can be added to the upstream inquiry.
+2. Users lose two upstream phonemizers (Arpasing+, English C+V). Recorded in `docs/KNOWN-LIMITATIONS.md`.
+3. If the upstream answer is positive and documented, re-inclusion is a small change to the patch plus a new review item in the
+   release gate.

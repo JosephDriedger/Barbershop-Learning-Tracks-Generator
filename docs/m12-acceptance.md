@@ -1,5 +1,8 @@
 # M12e: musical acceptance with a real English voicebank
 
+> **Superseded for execution by [acceptance/english-voicebank-acceptance.md](acceptance/english-voicebank-acceptance.md) (M15)**, which a
+> tester other than the developer can follow and whose result feeds the release gate. This page keeps the background.
+
 **Status: NOT VERIFIED.** No English-compatible voicebank is installed on the development machine, and
 none was downloaded: a voicebank is somebody else's licensed work and is only used here once the user has
 legitimately obtained it. The generated sine-wave voicebank of the smoke tests is deliberately *not* used
@@ -23,9 +26,8 @@ matches it, and a representative four-part TTBB arrangement exported from MuseSc
 copyrighted score; record only its title, source and licence).
 
 Suggested voicebank / phonemizer pairings for English in OpenUtau 0.1.565 (check the voicebank's readme):
-ARPAsing-style banks with `OpenUtau.Plugin.Builtin.ArpasingPhonemizer` (or `ArpasingPlusPhonemizer`); English C+V banks
-with `OpenUtau.Plugin.Builtin.EnglishCpVPhonemizer`; X-SAMPA banks with `EnXSampaPhonemizer`; VCCV English banks with
-`OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer` (class names checked against the 0.1.565 sources). The renderer is WORLDLINE-R (CLASSIC is rejected by the mix check, see KNOWN-LIMITATIONS); neural
+ARPAsing-style banks with `OpenUtau.Plugin.Builtin.ArpasingPhonemizer`; X-SAMPA banks with `EnXSampaPhonemizer`; VCCV English banks with
+`OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer` (class names checked against the 0.1.565 sources). Arpasing+ and English C+V are not in BLT's build since M15 (docs/g2p-plus-provenance.md); a C+V-only bank cannot be accepted with this release. The renderer is WORLDLINE-R (CLASSIC is rejected by the mix check, see KNOWN-LIMITATIONS); neural
 renderers are not part of this build.
 
 Score requirements: all four parts with lyrics under every note (so every voice is rendered), at least one

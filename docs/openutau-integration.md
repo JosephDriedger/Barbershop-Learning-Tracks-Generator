@@ -160,7 +160,7 @@ Decision:
 
 ### 5.1 What the English phonemizers expect [Documented]
 
-For the English phonemizers (EN ARPA, EN ARPA+, EN C+V) and for slur notes generally:
+For the English phonemizers (EN ARPA; upstream also has EN ARPA+ and EN C+V, which BLT's build omits since M15) and for slur notes generally:
 
 - A whole word is typed on its **first** note.
 - `+` on following notes moves to the **next syllable** of that word.
