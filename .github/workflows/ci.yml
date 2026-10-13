@@ -31,7 +31,12 @@ jobs:
       - name: Release gate status (information only; the gate itself is enforced by release.yml and build.ps1 -ForRelease)
         run: python packaging/release_gate.py status
       - name: Tests (diagnostic - unbuffered and verbose to see the message of a Qt abort)
-        run: pytest -s -v -p no:cacheprovider
+        run: |
+          foreach ($i in 1..4) {
+            pytest tests/unit/ui -s -v --no-qt-log -p no:cacheprovider
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          pytest -s -v --no-qt-log -p no:cacheprovider
       - name: CLI entry point
         run: barbershop-tracks --version
       - name: GUI entry point
