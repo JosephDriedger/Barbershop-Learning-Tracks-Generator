@@ -38,9 +38,11 @@ Installing a newer version over the old one upgrades it and keeps everything of 
 4. **Parts.** Tell BLT which line of the score is Tenor, Lead, Baritone and Bass (*Suggest voices* fills in
    likely ones from the part names; you confirm them).
 5. **Singer.** Choose the voicebank for the parts (the same one for all, or one per part).
-6. **Lyrics.** Where notes have no lyric of their own (a held vowel, or something missing), *Review lyrics…*
-   lets you decide what they are sung to; fix or approve them. Generating stays disabled until nothing is
-   unresolved, and the window says why.
+6. **Lyrics.** As is usual in barbershop scores, a part with no lyrics of its own sings what the Lead sings (it
+   holds the vowel when it moves under a held word). *Review lyrics…* lists those notes as "Follows the Lead" and
+   lets you override any of them. Notes the Lead is not singing under (for example a part's own "oom") have no
+   words to follow: you decide what they are sung to, and generating stays disabled until you have. The
+   window says why. You can switch the convention off in *Advanced…*.
 7. **Output.** Choose an output folder and WAV (or MP3).
 8. Press **Generate**. It shows each stage; when it finishes, *Open output folder* shows the 13 files and
    `manifest.json`. The first generation also sets up BLT's private copy of the singing engine, which takes a few

@@ -5,6 +5,7 @@ GUI can show it while the user is still choosing. ``generate`` turns the same ou
 errors the CLI reports, so there is one implementation of "is this score ready, and what is left".
 """
 
+import os
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -53,6 +54,11 @@ def blocking_details(report: ReadinessReport) -> list[dict[str, Any]]:
     return out
 
 
+def default_follow_lead() -> bool:
+    """Parts follow the Lead's words unless ``BLT_FOLLOW_LEAD=0`` says otherwise."""
+    return os.environ.get("BLT_FOLLOW_LEAD", "1").strip() != "0"
+
+
 def prepare(
     parsed: ParseResult,
     assignments: RoleAssignments,
@@ -61,6 +67,7 @@ def prepare(
     engine_refs: Mapping[VoiceRole, VoiceEngineRef],
     verse: str | None = None,
     approvals: Sequence[LyricApproval] = (),
+    follow_lead: bool | None = None,
 ) -> Preparation:
     if parsed.performed is None or parsed.song is None:
         return Preparation(None, None, None)
@@ -74,5 +81,6 @@ def prepare(
         engine_refs=engine_refs,
         verse=verse,
         approvals=approvals,
+        follow_lead=default_follow_lead() if follow_lead is None else follow_lead,
     )
     return Preparation(report, plan, None if plan.is_ready else review_report(plan))

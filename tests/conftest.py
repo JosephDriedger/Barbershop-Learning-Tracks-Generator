@@ -106,3 +106,9 @@ def tree_snapshot(tmp_path: Path) -> Callable[[], list[str]]:
         return sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*"))
 
     return snapshot
+
+
+@pytest.fixture(autouse=True)
+def _parts_do_not_follow_the_lead_unless_a_test_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Most tests are about lyrics the score leaves open, which the convention would fill in."""
+    monkeypatch.setenv("BLT_FOLLOW_LEAD", "0")

@@ -280,6 +280,7 @@ class MainWindow(QMainWindow):
         dialog = AdvancedDialog(self.prefs, self)
         if self.run_dialog(dialog):
             self.controller.refresh_voices()
+            self.controller.schedule_validation()
             self.controller.state_changed.emit()
 
     # --- drag and drop ---------------------------------------------------------------------
@@ -349,7 +350,7 @@ class MainWindow(QMainWindow):
         elif view is not None:
             technical = view.technical
             items.extend((m.severity, m.text) for m in view.messages)
-            review_count = view.unresolved if c.review is not None else 0
+            review_count = (view.unresolved + view.following) if c.review is not None else 0
             if view.source_ready and view.unresolved:
                 n = view.unresolved
                 items.append(
@@ -357,6 +358,15 @@ class MainWindow(QMainWindow):
                         "warning",
                         f"{n} note{'s have' if n != 1 else ' has'} no lyric yet. "
                         "Open the lyric review and decide what they are sung to.",
+                    )
+                )
+            if view.source_ready and view.following:
+                n = view.following
+                items.append(
+                    (
+                        "info",
+                        f"{n} note{'s' if n != 1 else ''} sing the Lead's words (the usual "
+                        "barbershop convention). Open the lyric review to change any.",
                     )
                 )
             if view.generatable:

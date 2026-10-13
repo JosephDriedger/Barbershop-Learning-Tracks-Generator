@@ -136,6 +136,7 @@ class GenerateRequest:
     keep_project: bool = False
     timeout_seconds: float = 900.0
     mp3_quality: int = 2
+    follow_lead: bool | None = None  # None: the default (parts sing the Lead's words)
 
 
 @dataclass(frozen=True, slots=True)
@@ -294,6 +295,7 @@ def _generate(
         engine_refs=refs,
         verse=request.verse,
         approvals=request.approvals,
+        follow_lead=request.follow_lead,
     )
     if prepared.report is not None and not prepared.report.ready:
         raise PipelineError(
@@ -309,8 +311,8 @@ def _generate(
         raise PipelineError(
             ErrorCategory.REVIEW,
             "LYRICS_NEED_REVIEW",
-            f"{len(plan.review_items)} note(s) have no decided lyric; nothing is guessed or copied "
-            "from another voice",
+            f"{len(plan.review_items)} note(s) have no decided lyric; nothing is guessed (a part "
+            "sings the Lead's words only where the Lead is singing at that moment)",
             {"review": prepared.review},
         )
     run.stage(Stage.READINESS_VALIDATION, "finished")

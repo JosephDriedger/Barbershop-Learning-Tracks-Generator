@@ -78,6 +78,7 @@ def plan_of(
     approvals: Sequence[LyricApproval] = (),
     engine_refs: dict[VoiceRole, VoiceEngineRef] | None = None,
     voices: Mapping[str, Sequence[Note]] | None = None,
+    follow_lead: bool = False,
 ) -> SynthesisPlan:
     if song is None:
         song = performed(**(voices or full_lyrics()))
@@ -88,6 +89,7 @@ def plan_of(
         engine_refs=engine_refs or refs(),
         proposals=proposals,
         approvals=approvals,
+        follow_lead=follow_lead,
     )
     if not plan.meter:  # the hand-built scores carry no meter event; state the 4/4 they are in
         plan = replace(plan, meter=(MeterPoint(position=Fraction(0), beats=4, beat_type=4),))

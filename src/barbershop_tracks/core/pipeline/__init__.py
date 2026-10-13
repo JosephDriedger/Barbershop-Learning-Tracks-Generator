@@ -28,7 +28,12 @@ from barbershop_tracks.core.pipeline.lyric_files import (
     render_review_text,
     review_report,
 )
-from barbershop_tracks.core.pipeline.preparation import Preparation, blocking_details, prepare
+from barbershop_tracks.core.pipeline.preparation import (
+    Preparation,
+    blocking_details,
+    default_follow_lead,
+    prepare,
+)
 
 __all__ = [
     "APPROVALS_SCHEMA",
@@ -51,6 +56,7 @@ __all__ = [
     "approvals_document",
     "blocking_details",
     "config_path",
+    "default_follow_lead",
     "discover_singers",
     "generate",
     "load_config_file",

@@ -310,3 +310,48 @@ def test_the_review_button_needs_a_review(rig: Rig) -> None:
     rig.assign()
     assert not rig.window.validation_section.review.isEnabled()
     assert rig.window.create_review_dialog() is None
+
+
+def test_parts_follow_the_lead_by_default_and_generation_is_not_blocked(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("BLT_FOLLOW_LEAD", "1")
+    Review(rig)
+    window = rig.window
+    rig.qtbot.waitUntil(lambda: not rig.controller.validating, timeout=20000)
+    assert window.generate.isEnabled()
+    assert rig.controller.blockers() == []
+    texts = [
+        window.validation_section.list.item(i).text()
+        for i in range(window.validation_section.list.count())
+    ]
+    assert any("sing the Lead's words" in t for t in texts)
+    assert window.validation_section.review.isEnabled()  # the notes can still be looked at
+    review = rig.controller.review
+    assert review is not None
+    assert review.unresolved == 0
+    assert review.following_count == 24
+    with rig.qtbot.waitSignal(rig.controller.generation_finished, timeout=20000):
+        window.generate.click()
+    (request,) = rig.pipeline.requests
+    assert request.follow_lead is True
+
+
+def test_switching_the_convention_off_in_advanced_settings_brings_the_review_back(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("BLT_FOLLOW_LEAD", "1")
+    Review(rig)
+    rig.qtbot.waitUntil(lambda: not rig.controller.validating, timeout=20000)
+    assert rig.window.generate.isEnabled()
+
+    def switch_off(dialog: QDialog) -> bool:
+        dialog.follow_lead.setChecked(False)  # type: ignore[attr-defined]
+        dialog.accept()
+        return True
+
+    rig.window.run_dialog = switch_off
+    rig.window.open_advanced()
+    rig.qtbot.waitUntil(lambda: not rig.controller.validating, timeout=20000)
+    assert not rig.window.generate.isEnabled()
+    assert any("24 notes still need a lyric" in b for b in rig.controller.blockers())

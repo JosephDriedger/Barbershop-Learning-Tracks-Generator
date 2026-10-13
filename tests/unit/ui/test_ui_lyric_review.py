@@ -184,3 +184,37 @@ def test_file_entries_for_notes_outside_the_review_are_counted_not_applied(tmp_p
     other = state()
     assert other.load_file(path) == (1, 1)
     assert other.unresolved == 4
+
+
+def following_plan() -> SynthesisPlan:
+    voices = {
+        **full_lyrics(("one", "two", "three", "four")),
+        "tenor": sung(VoiceRole.TENOR, [None, "two", None, None]),
+    }
+    return plan_of(voices=voices, follow_lead=True)
+
+
+def test_notes_that_follow_the_lead_are_listed_but_never_block() -> None:
+    review = LyricReviewState(following_plan(), approver="Joe")
+    followers = [r for r in review.rows if r.inherited]
+    assert [(r.role.value, str(r.start), r.lead_text) for r in followers] == [
+        ("tenor", "0", "one"),
+        ("tenor", "2", "three"),
+        ("tenor", "3", "four"),
+    ]
+    assert all(r.state is RowState.FOLLOWS for r in followers)
+    assert review.unresolved == 0
+    assert review.following_count == 3
+    assert review.approvals() == ()  # nothing is approved just by following
+
+
+def test_typing_and_approving_a_followed_note_overrides_the_rule() -> None:
+    review = LyricReviewState(following_plan(), approver="Joe")
+    review.set_text(0, "oo")
+    assert review.rows[0].state is RowState.DRAFT
+    assert review.approve([0]) == 1
+    (approval,) = review.approvals()
+    assert (approval.role, approval.start, approval.text) == (VoiceRole.TENOR, Fraction(0), "oo")
+    assert review.following_count == 2
+    # the dialog copies the Lead's words only for notes that need them
+    assert review.use_lead_words([1]) == 0

@@ -12,6 +12,7 @@ from typing import Any
 from barbershop_tracks.core.lyrics import analyze_song_lyrics
 from barbershop_tracks.core.readiness.assignments import RoleAssignments
 from barbershop_tracks.core.synthesis.errors import SynthesisPlanError
+from barbershop_tracks.core.synthesis.follow_lead import follow_the_lead
 from barbershop_tracks.core.synthesis.plan import (
     VOICE_ORDER,
     LyricApproval,
@@ -224,8 +225,13 @@ def build_synthesis_plan(
     verse: str | None = None,
     proposals: Sequence[LyricProposal] = (),
     approvals: Sequence[LyricApproval] = (),
+    follow_lead: bool = True,
 ) -> SynthesisPlan:
-    """Build the plan; unresolved lyrics become review items, never default syllables."""
+    """Build the plan; unresolved lyrics become review items, never default syllables.
+
+    With ``follow_lead`` (the barbershop convention) a part's note that the score leaves without any
+    lyric sings what the Lead sings there; see ``follow_lead.py``. Everything else is as before.
+    """
     lines = _resolve_lines(performed, assignments)
     refs = engine_refs_from(engine_refs)
     proposed, approved = _index_decisions(proposals, approvals)
@@ -246,6 +252,8 @@ def build_synthesis_plan(
                 "PLAN_LYRIC_TARGET_INVALID",
                 f"no note of {key[0].display_name} at {key[1]} lacks a score lyric",
             )
+    if follow_lead:
+        voices = list(follow_the_lead(tuple(voices)))
     tempo = tuple(TempoPoint(position=t.position, bpm=t.bpm) for t in performed.tempo_events)
     if not tempo or tempo[0].position != 0:
         raise SynthesisPlanError("PLAN_TEMPO_MISSING", "no tempo is declared at position zero")

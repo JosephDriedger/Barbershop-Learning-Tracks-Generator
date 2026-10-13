@@ -44,8 +44,11 @@ or a different pronunciation engine in *Advanced…*. Nothing is saved from a fa
 **Generate is disabled.** The window says why, next to the button: parts not assigned, a voice not chosen,
 lyrics still to review, no output folder, or MP3 selected without FFmpeg.
 
-**Lyrics need review.** Notes with no lyric of their own (a held vowel or a missing word) need a decision. Use
-*Review lyrics…*; each choice is remembered with the package so the result can be reproduced.
+**Lyrics need review.** A part's notes with no lyric follow the Lead automatically where the Lead is singing. What is
+left (the Lead rests or is itself missing words, humming, elisions, or conflicting lyrics) needs a decision. Use
+*Review lyrics…*; each choice is remembered with the package so the result can be reproduced. If a part should
+not follow the Lead, type its own words in the review, or switch the convention off in *Advanced…* (command line:
+`--no-follow-lead`; environment: `BLT_FOLLOW_LEAD=0`).
 
 **Not four parts / parts not recognised.** BLT needs exactly four lines for Tenor, Lead, Baritone, Bass. Use
 *Suggest voices*, or assign each line yourself; ignore extra lines (piano reductions).

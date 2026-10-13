@@ -311,7 +311,7 @@ def write_ustx(
                     f"{MIN_NOTE_TICKS}, so it is refused",
                 )
             lyric = note.lyric
-            if lyric.state is LyricState.SCORE_CONTINUATION:
+            if lyric.state in (LyricState.SCORE_CONTINUATION, LyricState.LEAD_SUSTAIN):
                 if not previous_has_lyric:
                     raise UstxError("USTX_CONTINUATION_ORPHAN", f"{where} continues nothing")
                 if previous_end != start:

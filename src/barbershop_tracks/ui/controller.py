@@ -37,6 +37,7 @@ from barbershop_tracks.core.pipeline import (
     Preparation,
     ResolvedConfig,
     config_path,
+    default_follow_lead,
     discover_singers,
     generate,
     load_config_file,
@@ -57,7 +58,7 @@ from barbershop_tracks.core.synthesis import (
 from barbershop_tracks.models import VoiceRole
 from barbershop_tracks.ui.assignments import AssignmentState, Choice
 from barbershop_tracks.ui.background import Dispatcher
-from barbershop_tracks.ui.lyric_review import LyricReviewState
+from barbershop_tracks.ui.lyric_review import FOLLOWING_STATES, LyricReviewState, has_rows
 from barbershop_tracks.ui.preferences import Preferences
 
 GenerateFn = Callable[..., GenerateResult]
@@ -90,6 +91,7 @@ class ValidationView:
     effective: SynthesisPlan | None  # the plan with the current approvals
     unresolved: int  # notes still without a decided lyric
     technical: str = ""
+    following: int = 0  # notes that sing the Lead's words by the barbershop convention
 
     @property
     def generatable(self) -> bool:
@@ -337,6 +339,10 @@ class AppController(QObject):
 
     # --- output ----------------------------------------------------------------------------
 
+    def follow_lead(self) -> bool:
+        """Whether parts without lyrics of their own sing the Lead's words (preference and env)."""
+        return bool(self.prefs.follow_lead) and default_follow_lead()
+
     def set_options(self, **changes: Any) -> None:
         self.options = replace(self.options, **changes)
         prefs, options = self.prefs, self.options
@@ -418,10 +424,17 @@ class AppController(QObject):
             for role in VOICE_ORDER
         }
 
+        follow = self.follow_lead()
+
         def work(_emit: Callable[[dict[str, Any]], None]) -> ValidationView:
             def run(given: tuple[LyricApproval, ...]) -> Preparation:
                 return prepare(
-                    score.parsed, assignments, identity=identity, engine_refs=refs, approvals=given
+                    score.parsed,
+                    assignments,
+                    identity=identity,
+                    engine_refs=refs,
+                    approvals=given,
+                    follow_lead=follow,
                 )
 
             effective = run(approvals)
@@ -433,7 +446,7 @@ class AppController(QObject):
                 return  # a newer check is on its way
             self.validating = False
             self.validation = view
-            if view.baseline is not None and self.review is None and view.baseline.review_items:
+            if view.baseline is not None and self.review is None and has_rows(view.baseline):
                 self.review = LyricReviewState(view.baseline)
             self.validation_changed.emit(view)
             self.state_changed.emit()
@@ -540,6 +553,7 @@ class AppController(QObject):
             keep_project=options.keep_project,
             timeout_seconds=float(self.prefs.timeout_minutes * 60),
             mp3_quality=options.mp3_quality,
+            follow_lead=self.follow_lead(),
         )
 
     def start_generation(self) -> bool:
@@ -605,6 +619,7 @@ def _view(effective: Preparation, baseline: Preparation) -> ValidationView:
         elif finding.disposition.value == "advisory":
             messages.append(Message("warning", text))
     unresolved = 0 if effective.plan is None else len(effective.plan.review_items)
+    following = 0 if effective.plan is None else _following(effective.plan)
     return ValidationView(
         tuple(messages),
         report.ready,
@@ -612,7 +627,12 @@ def _view(effective: Preparation, baseline: Preparation) -> ValidationView:
         effective.plan,
         unresolved,
         "\n".join(technical),
+        following,
     )
+
+
+def _following(plan: SynthesisPlan) -> int:
+    return sum(1 for v in plan.voices for n in v.notes if n.lyric.state in FOLLOWING_STATES)
 
 
 __all__ = ["AppController", "LoadedScore", "Message", "OutputOptions", "ValidationView"]

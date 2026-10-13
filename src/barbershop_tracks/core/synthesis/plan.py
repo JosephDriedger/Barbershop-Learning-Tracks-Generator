@@ -5,7 +5,7 @@ Immutable and validated at construction. It contains nothing specific to OpenUta
 what state it is. A note whose lyric is not decided is a **review item** and makes the plan not
 ready; it never silently receives a default syllable.
 
-Lyric states (all five are distinct and none implies another):
+Lyric states (all seven are distinct and none implies another):
 
 * ``SCORE_LYRIC``: the score supplies this syllable for this note;
 * ``SCORE_CONTINUATION``: the score marks this note as the continuation of an earlier syllable (a
@@ -14,7 +14,12 @@ Lyric states (all five are distinct and none implies another):
   lyric material, see ``ReviewReason``);
 * ``INFERRED_PROPOSAL``: a lyric proposed from another part. A proposal is **not** a lyric: the note
   still has no text and still needs a decision;
-* ``USER_APPROVED``: a lyric a person explicitly approved for this note.
+* ``USER_APPROVED``: a lyric a person explicitly approved for this note;
+* ``LEAD_SYLLABLE`` / ``LEAD_SUSTAIN``: the barbershop convention: a part the score leaves without
+  its own lyric sings what the Lead sings at that moment. ``LEAD_SYLLABLE`` carries the Lead's
+  syllable; ``LEAD_SUSTAIN`` carries no text and holds the vowel of the previous note. Both are rule
+  decisions (decided, never review items), recorded with the Lead note they follow, and any explicit
+  approval overrides them. They are only made for a note that has no lyric of its own.
 """
 
 from collections.abc import Mapping
@@ -39,6 +44,8 @@ class LyricState(Enum):
     ABSENT = "absent"
     INFERRED_PROPOSAL = "inferred_proposal"
     USER_APPROVED = "user_approved"
+    LEAD_SYLLABLE = "lead_syllable"
+    LEAD_SUSTAIN = "lead_sustain"
 
 
 class ReviewReason(Enum):
@@ -93,7 +100,8 @@ class LyricProvenance:
     syllabic: str | None = None
     melisma_origin_start: Fraction | None = None  # start of the note that opened the melisma
     melisma_basis: str | None = None
-    detail: str = ""  # why a lyric is unsupported or in conflict
+    detail: str = ""  # why a lyric is unsupported or in conflict, or whom it follows
+    follows_start: Fraction | None = None  # start of the Lead note whose syllable is followed
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -106,7 +114,7 @@ class NoteLyric:
 
     def __post_init__(self) -> None:
         state = self.state
-        if state in (LyricState.SCORE_LYRIC, LyricState.USER_APPROVED):
+        if state in (LyricState.SCORE_LYRIC, LyricState.USER_APPROVED, LyricState.LEAD_SYLLABLE):
             _require_text(self.text, f"{state.value} text")
         elif self.text is not None:
             raise SynthesisPlanError(

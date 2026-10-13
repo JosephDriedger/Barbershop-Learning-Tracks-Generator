@@ -71,6 +71,7 @@ class Preferences:
     mp3_quality = _Pref("output/mp3_quality", 2, int, None, 0, 9)
     keep_stems = _Pref("output/keep_stems", False, bool)
     keep_project = _Pref("output/keep_project", False, bool)
+    follow_lead = _Pref("lyrics/follow_lead", True, bool)
     phonemizer = _Pref("engine/phonemizer", "", str)
     renderer = _Pref("engine/renderer", "", str)
     timeout_minutes = _Pref("engine/timeout_minutes", 15, int, None, 1, 240)

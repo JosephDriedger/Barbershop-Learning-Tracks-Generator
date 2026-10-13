@@ -146,6 +146,11 @@ def add_parsers(commands: Any) -> None:
     gen.add_argument("--replace", action="store_true", help="replace a previous package of ours")
     gen.add_argument("--approve-lyrics", metavar="FILE", help="an approvals file you filled in")
     gen.add_argument("--review-report", metavar="FILE", help="where to write the lyric review")
+    gen.add_argument(
+        "--no-follow-lead",
+        action="store_true",
+        help="do not let parts without their own lyrics sing the Lead's words (they go to review)",
+    )
     gen.add_argument("--keep-stems", action="store_true", help="also publish the four stems")
     gen.add_argument("--keep-project", action="store_true", help="also publish the USTX project")
     gen.add_argument(
@@ -349,6 +354,7 @@ def _generate(args: argparse.Namespace, json_mode: bool) -> int:
         keep_project=args.keep_project,
         timeout_seconds=args.timeout,
         mp3_quality=args.mp3_quality,
+        follow_lead=False if args.no_follow_lead else None,
     )
     token = CancelToken()
     previous = _signals(token)

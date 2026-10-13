@@ -401,3 +401,17 @@ def test_ctrl_break_cancels_cleanly(rig: Rig) -> None:
         time.sleep(0.2)
     assert rig.hosts() == 0
     assert seen[0]["event"] == "stage"
+
+
+def test_parts_sing_the_leads_words_by_default_and_the_run_completes(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("BLT_FOLLOW_LEAD", "1")
+    rig.write_score(all_lyrics=False, lyric_part=1, word="ba")
+    assert main(rig.args("--keep-project")) == 0
+    assert len(list(rig.package.glob("*.wav"))) == 13
+    project = yaml.safe_load((rig.package / "project" / "project.ustx").read_text(encoding="utf-8"))
+    for part in project["voice_parts"]:
+        assert {n["lyric"] for n in part["notes"]} == {"ba"}
+    # the switch turns it off again: the same score then needs review
+    assert main(rig.args("--replace", "--no-follow-lead")) == 6

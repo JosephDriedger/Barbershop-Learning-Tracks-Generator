@@ -14,6 +14,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -62,6 +63,7 @@ _STATE_COLORS = {
     RowState.DRAFT: "#1565c0",
     RowState.APPROVED: "#2e7d32",
     RowState.INVALID: "#c62828",
+    RowState.FOLLOWS: "#616161",
 }
 
 
@@ -153,7 +155,7 @@ class _Filter(QSortFilterProxyModel):
         row = self.state.rows[source_row]
         if self.voice and row.role.value != self.voice:
             return False
-        return not (self.only_open and row.approved)
+        return not (self.only_open and (row.approved or row.inherited))
 
 
 class LyricReviewDialog(QDialog):
@@ -179,9 +181,10 @@ class LyricReviewDialog(QDialog):
         self.summary = QLabel()
         self.summary.setWordWrap(True)
         note = QLabel(
-            "These notes have no lyric in the score. BLT never makes lyrics up and never copies "
-            "them from another part on its own: type what each note should be sung to, then "
-            "approve it. Words the score already provides are not listed or changeable here."
+            "These notes have no lyric of their own in the score. Notes marked “Follows the Lead” "
+            "sing what the Lead sings (the usual barbershop convention) and need nothing from you; "
+            "to change one, type what it should sing and approve it. Notes that need a lyric must "
+            "be decided before generating. Words the score already provides are not listed here."
         )
         note.setWordWrap(True)
         note.setObjectName("hint")
@@ -211,7 +214,7 @@ class LyricReviewDialog(QDialog):
         self.voice_filter.addItem("All voices", "")
         for role in sorted({r.role for r in state.rows}, key=lambda r: r.value):
             self.voice_filter.addItem(role.display_name, role.value)
-        self.open_only = QPushButton("Hide approved")
+        self.open_only = QPushButton("Hide approved and followed")
         self.open_only.setCheckable(True)
         self.voice_filter.currentIndexChanged.connect(self._refilter)
         self.open_only.toggled.connect(self._refilter)
@@ -316,9 +319,13 @@ class LyricReviewDialog(QDialog):
             self.state.approver = name
 
     def _update_summary(self) -> None:
-        total, left = len(self.state.rows), self.state.unresolved
+        total = len(self.state.rows) - self.state.following_count
+        left = self.state.unresolved
         drafts = sum(1 for r in self.state.rows if r.state is RowState.DRAFT)
         text = f"{self.state.approved_count} of {total} notes approved; {left} still need a lyric"
+        followed = self.state.following_count
+        if followed:
+            text += f"; {followed} follow the Lead"
         if drafts:
             text += f" ({drafts} typed but not approved yet)"
         self.summary.setText(text + ".")
@@ -449,12 +456,21 @@ class AdvancedDialog(QDialog):
         self.timeout.setValue(prefs.timeout_minutes)
         self.timeout.setAccessibleName("Time limit")
 
+        self.follow_lead = QCheckBox("Parts without lyrics of their own sing the &Lead's words")
+        self.follow_lead.setChecked(prefs.follow_lead)
+        self.follow_lead.setToolTip(
+            "The usual barbershop convention. Notes the score gives no lyric take what the Lead "
+            "sings at that moment (and hold its vowel when they move under a held word). "
+            "Switch off to review every such note yourself."
+        )
+
         form = QFormLayout()
         form.addRow("&Pronunciation:", self.pronunciation)
         form.addRow("Voice &engine:", self.engine)
         form.addRow("Singing engine &folder:", self.host)
         form.addRow(".NET &runtime folder:", self.runtime)
         form.addRow("Time &limit:", self.timeout)
+        form.addRow("Lyrics:", self.follow_lead)
         hint = QLabel(
             "Leave a field empty to use BLT's default. Changing these can stop generation from "
             "working; “Restore defaults” puts everything back."
@@ -484,6 +500,7 @@ class AdvancedDialog(QDialog):
         self.host.clear()
         self.runtime.clear()
         self.timeout.setValue(15)
+        self.follow_lead.setChecked(True)
 
     def accept(self) -> None:
         prefs = self.prefs
@@ -492,4 +509,5 @@ class AdvancedDialog(QDialog):
         prefs.host_dir = self.host.text().strip()
         prefs.dotnet_root = self.runtime.text().strip()
         prefs.timeout_minutes = self.timeout.value()
+        prefs.follow_lead = self.follow_lead.isChecked()
         super().accept()

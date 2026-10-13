@@ -6,6 +6,10 @@ the score gives a lyric never appears, so it can never be overridden here. Each 
 engine could not take). Only approved rows become ``LyricApproval``s. Nothing is filled in on its
 own: copying the Lead's words, applying a proposal or typing one text for many notes are explicit
 actions on the rows the user picked, and still need approving.
+
+Notes that follow the Lead by the barbershop convention (``LEAD_SYLLABLE`` / ``LEAD_SUSTAIN``) are
+also listed, as *follows the Lead* rows. They are decided, never block anything and are not
+approved; typing a text for one and approving it overrides the rule for that note.
 """
 
 import getpass
@@ -33,6 +37,7 @@ class RowState(Enum):
     DRAFT = "Not approved yet"
     APPROVED = "Approved"
     INVALID = "Cannot be sung"
+    FOLLOWS = "Follows the Lead"
 
 
 @dataclass(slots=True)
@@ -51,6 +56,7 @@ class LyricRow:
     approved_by: str = ""
     approved: bool = False
     error: str = ""
+    inherited: bool = False  # decided by the follow-the-Lead rule, listed for information
 
     @property
     def key(self) -> tuple[VoiceRole, Fraction]:
@@ -62,7 +68,9 @@ class LyricRow:
             return RowState.INVALID
         if self.approved:
             return RowState.APPROVED
-        return RowState.DRAFT if self.text.strip() else RowState.UNDECIDED
+        if self.text.strip():
+            return RowState.DRAFT
+        return RowState.FOLLOWS if self.inherited else RowState.UNDECIDED
 
 
 def check_text(text: str) -> str:
@@ -74,6 +82,16 @@ def check_text(text: str) -> str:
     except UstxError as error:
         return str(error.message)
     return ""
+
+
+FOLLOWING_STATES = (LyricState.LEAD_SYLLABLE, LyricState.LEAD_SUSTAIN)
+
+
+def has_rows(plan: SynthesisPlan) -> bool:
+    """Whether the lyric review has anything to show for ``plan`` (to decide or just to see)."""
+    return bool(plan.review_items) or any(
+        n.lyric.state in FOLLOWING_STATES for v in plan.voices for n in v.notes
+    )
 
 
 def default_approver() -> str:
@@ -119,17 +137,42 @@ class LyricReviewState:
                     else _lead_text(baseline, item.start),
                 )
             )
+        for voice in baseline.voices:
+            for note in voice.notes:
+                lyric = note.lyric
+                if lyric.state not in FOLLOWING_STATES:
+                    continue
+                sung = lyric.text if lyric.text is not None else "(holds the vowel)"
+                self.rows.append(
+                    LyricRow(
+                        role=voice.role,
+                        note_index=note.index,
+                        start=note.start,
+                        where=position_label(note.start, baseline.meter),
+                        length=duration_label(note.duration),
+                        pitch=note_name(note.midi_pitch),
+                        reason="Follows the Lead",
+                        detail=lyric.provenance.detail,
+                        proposal=None,
+                        lead_text=sung,
+                        inherited=True,
+                    )
+                )
         self._by_key = {row.key: row for row in self.rows}
 
     # --- counts ----------------------------------------------------------------------------
 
     @property
     def unresolved(self) -> int:
-        return sum(1 for row in self.rows if not row.approved)
+        return sum(1 for row in self.rows if not row.approved and not row.inherited)
 
     @property
     def approved_count(self) -> int:
-        return len(self.rows) - self.unresolved
+        return sum(1 for row in self.rows if row.approved)
+
+    @property
+    def following_count(self) -> int:
+        return sum(1 for row in self.rows if row.inherited and not row.approved)
 
     # --- editing ---------------------------------------------------------------------------
 
@@ -175,7 +218,7 @@ class LyricReviewState:
         done = 0
         for index in indices:
             row = self.rows[index]
-            if row.role is not VoiceRole.LEAD and row.lead_text:
+            if row.role is not VoiceRole.LEAD and row.lead_text and not row.inherited:
                 self.set_text(index, row.lead_text)
                 done += 1
         return done

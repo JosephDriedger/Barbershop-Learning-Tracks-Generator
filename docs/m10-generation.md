@@ -80,9 +80,30 @@ never assumes a tempo or a 4/4.
 
 ## Lyrics that need review
 
-A note without a decided lyric stops the run before anything is rendered: harmony parts with no
-words, humming, elisions, conflicting verses, or an unapproved proposal. BLT never copies the Lead's
-words into a harmony part and never substitutes a syllable.
+### Parts follow the Lead (default)
+
+Barbershop scores usually write the words once, under the Lead; the other parts sing them unless they
+are written separately. So a note of Tenor, Baritone or Bass that the score leaves **without any
+lyric** takes what the Lead sings at that moment (`generate --no-follow-lead` or `BLT_FOLLOW_LEAD=0`
+turns this off; the GUI has a switch in Advanced settings):
+
+* the Lead must be singing a decided syllable there; if the Lead rests, or has no lyric there itself,
+  the note stays a review item;
+* a note that starts together with the Lead's syllable sings it; a note that starts while the Lead
+  still holds the syllable (the part moves under a held word) **sustains the vowel** (an OpenUtau `+`
+  extender) if the part's previous note ends exactly where it starts, and re-sings the syllable after
+  a gap;
+* a lyric the score gives, a melisma continuation, humming, an elision, a conflict, a proposal and
+  any explicit approval are never replaced (an approval overrides the rule for its note).
+
+The plan records each such note as `lead_syllable` / `lead_sustain` with the Lead note it follows; the
+GUI lists them in the lyric review as "Follows the Lead", never blocks on them and lets you override any.
+
+### What still needs review
+
+A note without a decided lyric stops the run before anything is rendered: parts whose notes cannot follow the
+Lead (the Lead rests or lacks words there), humming, elisions, conflicting verses, or an unapproved
+proposal. BLT never substitutes a default syllable.
 
 1. `generate` exits 6, prints which voices and notes are affected, and writes next to the package
    location: `<name>_learning_tracks.lyric-review.json` (schema `blt.lyric-review/1`) and
