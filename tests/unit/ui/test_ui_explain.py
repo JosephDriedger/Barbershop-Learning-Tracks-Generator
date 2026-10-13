@@ -81,3 +81,14 @@ def test_technical_details_list_the_findings() -> None:
 def test_every_error_category_is_covered() -> None:
     covered = {explain(error(c, "X")).kind for c in ErrorCategory}
     assert len(covered) >= 6
+
+
+def test_a_missing_microsoft_runtime_tells_the_user_what_to_install() -> None:
+    from barbershop_tracks.core.pipeline import ErrorCategory, PipelineError
+    from barbershop_tracks.ui.explain import explain
+
+    error = PipelineError(ErrorCategory.CONFIGURATION, "VC_RUNTIME_MISSING", "not installed")
+    explanation = explain(error)
+    assert explanation.kind == "vc_runtime"
+    assert any("Redistributable" in step for step in explanation.steps)
+    assert any("Without internet" in step for step in explanation.steps)

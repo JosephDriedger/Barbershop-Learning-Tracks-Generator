@@ -22,6 +22,23 @@
 #define AppExe "BLT Music Generator.exe"
 #define DataDir "{localappdata}\BarbershopLearningTracks"
 
+; The Microsoft Visual C++ runtime is NOT shipped (Microsoft allows redistributing it only to licensed
+; Visual Studio users); Setup requires Microsoft's own redistributable instead. The version is the one in
+; src/barbershop_tracks/core/runtime/vcruntime.py (build.ps1 passes it); NumpyMsvcp is the hash-renamed
+; name NumPy's wheel imports (packaging/runtime_copies.py), for which Setup copies the PC's own file.
+#ifndef VcMajor
+  #define VcMajor 14
+#endif
+#ifndef VcMinor
+  #define VcMinor 44
+#endif
+#ifndef VcBuild
+  #define VcBuild 35211
+#endif
+#ifndef NumpyMsvcp
+  #define NumpyMsvcp ""
+#endif
+
 [Setup]
 ; Never change AppId: it is what makes a new version replace the old one in place.
 AppId={{7A3B1E52-4C8D-4F6A-9B21-5D0E8C6F3A17}
@@ -72,6 +89,11 @@ Type: filesandordirs; Name: "{app}\licenses"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+#if NumpyMsvcp != ""
+; NumPy imports a hash-renamed MSVCP140; give it a copy of the one this PC already has (the runtime
+; Setup has just verified). Nothing from Microsoft travels inside this installer.
+Source: "{sys}\msvcp140.dll"; DestDir: "{app}\_internal\numpy.libs"; DestName: "{#NumpyMsvcp}"; Flags: external ignoreversion
+#endif
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
@@ -93,6 +115,140 @@ Type: filesandordirs; Name: "{#DataDir}\staging"
 Type: filesandordirs; Name: "{#DataDir}\Cache"
 
 [Code]
+const
+  VcRedistUrl = 'https://aka.ms/vc14/vc_redist.x64.exe';
+  VcRedistPage = 'https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist';
+  VcKey = 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64';
+
+{ Is Microsoft's Visual C++ runtime (x64) at the required version or newer installed? The switch
+  /VCRUNTIME=missing only lets a test pretend it is not; nothing can pretend it is. }
+function VcRuntimeOk(): Boolean;
+var
+  Installed, Major, Minor, Build: Cardinal;
+begin
+  Result := False;
+  if ExpandConstant('{param:VCRUNTIME|}') = 'missing' then
+    Exit;
+  if not RegQueryDWordValue(HKLM64, VcKey, 'Installed', Installed) then Exit;
+  if Installed <> 1 then Exit;
+  if not RegQueryDWordValue(HKLM64, VcKey, 'Major', Major) then Exit;
+  if not RegQueryDWordValue(HKLM64, VcKey, 'Minor', Minor) then Exit;
+  if not RegQueryDWordValue(HKLM64, VcKey, 'Bld', Build) then Exit;
+  Result := (Major > {#VcMajor}) or
+    ((Major = {#VcMajor}) and ((Minor > {#VcMinor}) or ((Minor = {#VcMinor}) and (Build >= {#VcBuild}))));
+end;
+
+{ A file Microsoft signed? (The download is not pinned by hash because Microsoft updates the
+  package under the same address; its signature is what identifies it.) }
+function IsMicrosoftSigned(const FileName: String): Boolean;
+var
+  Escaped, Params: String;
+  Code: Integer;
+begin
+  Escaped := FileName;
+  StringChangeEx(Escaped, '''', '''''', True);
+  Params := '-NoProfile -ExecutionPolicy Bypass -Command "$s = Get-AuthenticodeSignature -LiteralPath ''' +
+    Escaped + '''; if ($s.Status -eq ''Valid'' -and $s.SignerCertificate.Subject -match ''O=Microsoft Corporation'') { exit 0 } else { exit 1 }"';
+  Result := Exec('powershell.exe', Params, '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
+end;
+
+function RunMicrosoftInstaller(const FileName: String): Boolean;
+var
+  Code: Integer;
+begin
+  Result := False;
+  if not IsMicrosoftSigned(FileName) then
+  begin
+    MsgBox('The file ' + FileName + ' is not signed by Microsoft, so it will not be run.', mbError, MB_OK);
+    Exit;
+  end;
+  { /passive shows Microsoft's own progress window; it asks Windows for administrator rights }
+  if not ShellExec('runas', FileName, '/install /passive /norestart', '', SW_SHOWNORMAL, ewWaitUntilTerminated, Code) then
+  begin
+    MsgBox('Microsoft''s installer could not be started (' + SysErrorMessage(Code) + ').', mbError, MB_OK);
+    Exit;
+  end;
+  { 0 installed, 3010 installed but a restart is advised, 1638 a newer one is already there }
+  Result := (Code = 0) or (Code = 3010) or (Code = 1638);
+  if not Result then
+    MsgBox('Microsoft''s installer ended with code ' + IntToStr(Code) + '.', mbError, MB_OK);
+end;
+
+function DownloadAndInstallRuntime(): Boolean;
+var
+  Downloaded: String;
+begin
+  Result := False;
+  try
+    DownloadTemporaryFile(VcRedistUrl, 'vc_redist.x64.exe', '', nil);
+    Downloaded := ExpandConstant('{tmp}\vc_redist.x64.exe');
+  except
+    MsgBox('The download from Microsoft failed:' + #13#10 + GetExceptionMessage + #13#10#13#10 +
+      'You can download it yourself from' + #13#10 + VcRedistPage, mbError, MB_OK);
+    Exit;
+  end;
+  Result := RunMicrosoftInstaller(Downloaded);
+end;
+
+function InstallRuntimeFromFile(): Boolean;
+var
+  Chosen: String;
+begin
+  Result := False;
+  Chosen := ExpandConstant('{src}\vc_redist.x64.exe');
+  if not FileExists(Chosen) then
+  begin
+    Chosen := '';
+    if not GetOpenFileName('Choose vc_redist.x64.exe', Chosen, '', 'Microsoft installer (vc_redist.x64.exe)|vc_redist.x64.exe|Programs (*.exe)|*.exe', 'exe') then
+      Exit;
+  end;
+  Result := RunMicrosoftInstaller(Chosen);
+end;
+
+{ The GUI path: offer Microsoft's own installer, online or from a copy the user brings. }
+function EnsureRuntime(): Boolean;
+var
+  Answer: Integer;
+begin
+  Result := VcRuntimeOk();
+  while not Result do
+  begin
+    Answer := TaskDialogMsgBox('Microsoft Visual C++ runtime needed',
+      '{#AppName} needs Microsoft''s "Visual C++ Redistributable" (x64, version {#VcMajor}.{#VcMinor}.{#VcBuild} or newer), ' +
+      'a free Microsoft component that is not part of this installer and is not installed on this PC (or is older).' + #13#10#13#10 +
+      'Without internet: download vc_redist.x64.exe from Microsoft on another PC and either put it next to this ' +
+      'installer or choose it here. Details: ' + VcRedistPage,
+      mbInformation, MB_YESNOCANCEL, ['Download and install it now',
+      'Install from a vc_redist.x64.exe I have', 'Cancel setup'], 0);
+    if Answer = IDYES then
+      Result := DownloadAndInstallRuntime() and VcRuntimeOk()
+    else if Answer = IDNO then
+      Result := InstallRuntimeFromFile() and VcRuntimeOk()
+    else
+      Exit;
+    if (not Result) and (Answer <> IDCANCEL) then
+      MsgBox('The runtime is still not available. You can try again, or cancel setup and install it first.', mbInformation, MB_OK);
+  end;
+end;
+
+function InitializeSetup(): Boolean;
+begin
+  Result := True;
+  { A silent install never downloads or installs anything on its own: it stops, and says why }
+  if WizardSilent and (not VcRuntimeOk()) then
+  begin
+    Log('Microsoft Visual C++ runtime {#VcMajor}.{#VcMinor}.{#VcBuild} or newer is required and was not found.');
+    Result := False;
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if CurPageID = wpReady then
+    Result := EnsureRuntime();
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if (CurUninstallStep = usDone) and (not UninstallSilent) then

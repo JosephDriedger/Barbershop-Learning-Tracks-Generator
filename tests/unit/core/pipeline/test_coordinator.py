@@ -571,3 +571,18 @@ def test_unrelated_user_files_in_the_output_folder_are_untouched(rig: Rig) -> No
     keepsake.write_text("mine", encoding="utf-8")
     rig.run()
     assert keepsake.read_text(encoding="utf-8") == "mine"
+
+
+def test_a_missing_microsoft_runtime_is_explained_before_anything_is_rendered(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from barbershop_tracks.core.pipeline import coordinator
+    from barbershop_tracks.core.runtime.vcruntime import RuntimeStatus
+
+    monkeypatch.setattr(coordinator, "runtime_status", lambda: RuntimeStatus(None))
+    error = error_of(rig)
+    assert error.code == "VC_RUNTIME_MISSING"
+    assert error.category is ErrorCategory.CONFIGURATION
+    assert "Visual C++" in error.message
+    assert rig.renderer.calls == []
+    assert rig.staging() == []

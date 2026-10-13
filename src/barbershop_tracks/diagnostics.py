@@ -24,6 +24,7 @@ from barbershop_tracks.core.runtime.host_install import (
     HostInstallError,
     fingerprint,
 )
+from barbershop_tracks.core.runtime.vcruntime import runtime_status
 
 
 def _where(config: ResolvedConfig, key: str) -> str:
@@ -55,6 +56,7 @@ def collect(config: ResolvedConfig) -> list[str]:
         f"program:       {sys.executable}  [{'installed build' if frozen else 'source checkout'}]",
         f"python:        {platform.python_version()}",
         f"windows:       {platform.platform()}",
+        f"vc runtime:    Microsoft Visual C++ {runtime_status().text}",
         f"config file:   {config_path()}  [{'exists' if config_path().is_file() else 'none'}]",
         f"data folder:   {config.layout.data}  [{_where(config, 'data_dir')}]",
     ]

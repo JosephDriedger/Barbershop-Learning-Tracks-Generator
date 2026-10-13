@@ -57,6 +57,7 @@ from barbershop_tracks.core.rendering import (
 from barbershop_tracks.core.rendering.errors import OutputValidationError, ProjectValidationError
 from barbershop_tracks.core.runtime import StagingArea, StagingError
 from barbershop_tracks.core.runtime.staging import cleanup_stale, remove_staging
+from barbershop_tracks.core.runtime.vcruntime import DOWNLOAD_PAGE, runtime_status
 from barbershop_tracks.core.synthesis import (
     VOICE_ORDER,
     LyricApproval,
@@ -324,6 +325,16 @@ def _generate(
         warnings.append(f"{warning.code}: {warning.message}")
         run.emit({"event": "warning", "code": warning.code, "message": warning.message})
     run.stage(Stage.USTX_PREPARATION, "finished", notes=document_ustx.note_count)
+
+    # --- the Microsoft runtime the native parts need (BLT does not ship it) ---
+    runtime = runtime_status()
+    if not runtime.ok:
+        raise PipelineError(
+            ErrorCategory.CONFIGURATION,
+            "VC_RUNTIME_MISSING",
+            f"the Microsoft Visual C++ runtime is {runtime.text}; install Microsoft's "
+            f"'Visual C++ Redistributable' (x64) from {DOWNLOAD_PAGE} and try again",
+        )
 
     # --- voicebank ---
     run.stage(Stage.VOICEBANK_DISCOVERY, "started")

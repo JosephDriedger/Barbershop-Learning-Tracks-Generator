@@ -6,6 +6,7 @@
 # adds the published render host (host/), the notices and the licence texts, then runs
 # packaging/inventory.py: every file must belong to a component listed in the dependency audit.
 import os
+import re
 from pathlib import Path
 
 ROOT = Path(SPECPATH).parent
@@ -31,6 +32,9 @@ DROP_PATTERNS = (
 KEEP_ALWAYS = ("qwindows.dll", "qico.dll", "qoffscreen.dll")
 
 
+RUNTIME_FILE = re.compile(r"^(vcruntime|msvcp|concrt|vcomp|vccorlib)\d+(_\d+|_[a-z_]+)?(-[0-9a-f]{32})?\.dll$", re.I)
+
+
 def wanted(name: str) -> bool:
     base = os.path.basename(name)
     if base in KEEP_ALWAYS:
@@ -39,6 +43,11 @@ def wanted(name: str) -> bool:
     # copies it from the build machine only for Windows 7/8. Not shipping it also keeps a Microsoft
     # redistributable out of the package (see docs/dependency-audit.md).
     if base.lower().startswith("api-ms-win-") or base.lower() == "ucrtbase.dll":
+        return False
+    # Microsoft allows only licensed Visual Studio users to pass on the Visual C++ runtime files, so the
+    # wheels' copies (Python, Qt, NumPy's renamed one) are not shipped: the installer requires Microsoft's
+    # own redistributable (see packaging/installer.iss and docs/m13-compliance.md).
+    if RUNTIME_FILE.match(base):
         return False
     return not any(pattern.lower() in base.lower() for pattern in DROP_PATTERNS)
 

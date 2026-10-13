@@ -15,6 +15,9 @@
 # pristine machine (see docs/m12-verification.md) and says nothing about how real voices sound.
 param(
     [Parameter(Mandatory = $true)][string]$App,
+    # hash-renamed Microsoft runtime files the package imports; the installer copies this PC's own file under
+    # each name, and so does this test (into its private copy of the package, never into $App)
+    [string]$RuntimeCopies = "",
     [switch]$Keep
 )
 $ErrorActionPreference = "Stop"
@@ -84,6 +87,10 @@ function Scenario($name, $appDir, $profileDir, $data) {
     $gui = Join-Path $appDir "BLT Music Generator.exe"
     $before = Snapshot $appDir
 
+    $d = Invoke-Clean $exe @("diagnostics") $environment
+    $vcLine = (($d.Out -split "`n") | Where-Object { $_ -match "vc runtime" } | Select-Object -First 1)
+    Check ($d.ExitCode -eq 0 -and $d.Out -match "vc runtime:\s+Microsoft Visual C\+\+ [0-9.]+ ok") "blt diagnostics sees Microsoft's Visual C++ runtime ($("$vcLine".Trim()))"
+
     $v = Invoke-Clean $exe @("--version") $environment
     Check ($v.ExitCode -eq 0 -and $v.Out -match "\d+\.\d+") "blt --version prints a version ($($v.Out.Trim()))"
 
@@ -114,21 +121,44 @@ function Scenario($name, $appDir, $profileDir, $data) {
     $hostsAfter = @(Get-ChildItem -LiteralPath $runtime -Directory -Filter "host-*")
     Check ($hostsAfter.Count -eq 1 -and $hostsAfter[0].CreationTimeUtc.Ticks -eq $created -and (Get-Item -LiteralPath $hostExe).LastWriteTimeUtc.Ticks -eq $stamp) "the second launch reused the host copy instead of reinstalling it"
 
+    # the English phonemizers' neural g2p fallback must run on the onnxruntime.dll shipped beside the host
+    $g2p = Invoke-Clean $hostExe @("--g2p-check") $environment
+    $g2pResult = $null
+    foreach ($line in ($g2p.Out -split "`n")) { if ($line.StartsWith("{")) { $g2pResult = $line | ConvertFrom-Json } }
+    Check ($g2p.ExitCode -eq 0 -and $g2pResult -and $g2pResult.onnxruntime_beside_host -and $g2pResult.g2p_phonemes) "an English word outside the dictionary is phonemized with the onnxruntime.dll shipped beside the host ($($g2pResult.g2p_phonemes))"
+
     $after = Snapshot $appDir
     Check ($before -eq $after) "the program folder is unchanged after running (no caches, settings or temp files in it)"
     Check (-not (Test-Path (Join-Path $appDir "host\OpenUtau")) -and -not (Test-Path (Join-Path $appDir "host\Logs"))) "no OpenUtau cache, prefs or logs were created beside the shipped host"
 }
 
+function Add-RuntimeCopies($appDir) {
+    foreach ($name in ($RuntimeCopies -split ";" | Where-Object { $_ })) {
+        $target = Join-Path $appDir "_internal/numpy.libs/$name"
+        if (-not (Test-Path -LiteralPath $target)) {
+            $source = Join-Path $env:SystemRoot ("System32\" + ($name -replace "-[0-9a-f]{32}", ""))
+            New-Item -ItemType Directory -Force (Split-Path $target) | Out-Null
+            Copy-Item -LiteralPath $source -Destination $target
+        }
+    }
+}
+
 try {
     Write-Output "Package: $App"
     $profileA = Join-Path $base "profile"
-    Scenario "plain paths" $App $profileA (Join-Path $profileA "BLT data")
+    $plainApp = Join-Path $base "plain\BLT Music Generator"
+    robocopy $App $plainApp /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "robocopy failed" }
+    $global:LASTEXITCODE = 0
+    Add-RuntimeCopies $plainApp
+    Scenario "plain paths" $plainApp $profileA (Join-Path $profileA "BLT data")
 
     $oddRoot = Join-Path $base $odd
     $oddApp = Join-Path $oddRoot "Program Files\BLT Music Generator"
     robocopy $App $oddApp /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "robocopy failed" }
     $global:LASTEXITCODE = 0
+    Add-RuntimeCopies $oddApp
     Scenario "spaces and non-ASCII in every path" $oddApp (Join-Path $oddRoot "Users\$odd") (Join-Path $oddRoot "Users\$odd\AppData\Local\BarbershopLearningTracks")
 }
 finally {

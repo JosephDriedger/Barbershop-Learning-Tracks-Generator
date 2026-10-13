@@ -150,6 +150,19 @@ def _configuration(error: PipelineError) -> Explanation:
             ("Choose another package name or output folder.",),
             text,
         )
+    if code == "VC_RUNTIME_MISSING":
+        return Explanation(
+            "vc_runtime",
+            "A Microsoft component is missing",
+            "BLT needs Microsoft's Visual C++ Redistributable, which is free but not part of BLT.",
+            (
+                "Download “Microsoft Visual C++ Redistributable (x64)” from Microsoft "
+                "(learn.microsoft.com, “latest supported Visual C++ Redistributable”) and run it.",
+                "Without internet: download it elsewhere, copy vc_redist.x64.exe over and run it.",
+                "Then start BLT again.",
+            ),
+            text,
+        )
     if code in ("HOST_NOT_FOUND", "HOST_INSTALL_FAILED") or code.startswith("HOST_BINARIES"):
         return Explanation(
             "component_missing",

@@ -55,11 +55,22 @@ try {
     Write-Output "Target:    $target"
 
     Write-Output ""
+    Write-Output "[the Microsoft runtime is a prerequisite, not part of the installer]"
+    $refused = Install $Installer @("/VCRUNTIME=missing")
+    Check ($refused -ne 0) "a silent install stops (exit $refused) when the Microsoft Visual C++ runtime is missing"
+    Check ((-not (Test-Path $uninstallKey)) -and (-not (Test-Path -LiteralPath $target))) "and nothing was installed or registered"
+    Check (Select-String -Path (Join-Path $base "install-*.log") -Pattern "runtime .* is required and was not found" -Quiet) "the setup log says why"
+
+    Write-Output ""
     Write-Output "[install]"
     Check ((Install $Installer) -eq 0) "silent per-user install exits 0"
     $exe = Join-Path $target "BLT Music Generator.exe"
     Check (Test-Path -LiteralPath $exe) "the program is installed"
     Check (Test-Path -LiteralPath (Join-Path $target "host\blt-render-host.exe")) "the render host is installed beside it"
+    $shipped = @(Get-ChildItem -LiteralPath $target -Recurse -File | Where-Object { $_.Name -match '^(vcruntime|msvcp|concrt|vcomp)\d+(_\d+)?\.dll$' })
+    Check ($shipped.Count -eq 0) "no Microsoft runtime file was installed under its own name ($($shipped.Count))"
+    $renamed = @(Get-ChildItem -LiteralPath (Join-Path $target "_internal\numpy.libs") -Filter "msvcp140-*.dll" -ErrorAction SilentlyContinue)
+    Check ($renamed.Count -eq 1 -and (Get-FileHash $renamed[0].FullName).Hash -eq (Get-FileHash (Join-Path $env:SystemRoot "System32\msvcp140.dll")).Hash) "NumPy's renamed MSVCP140 is a copy of this PC's own file, made by Setup"
     Check ((Test-Path -LiteralPath (Join-Path $target "NOTICES.txt")) -and (Test-Path -LiteralPath (Join-Path $target "LICENSE.txt"))) "NOTICES.txt and LICENSE.txt are installed"
     $entry = Get-ItemProperty $uninstallKey -ErrorAction SilentlyContinue
     Check ($entry -and $entry.DisplayName -eq "BLT Music Generator" -and $entry.DisplayVersion) "a per-user uninstall entry exists ($($entry.DisplayVersion))"
@@ -101,9 +112,12 @@ try {
     $upgrade = Join-Path $base "upgrade\BLT-Music-Generator-99.0.0-Setup.exe"
     $iscc = @($env:BLT_ISCC, "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe", "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe") | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
     if (-not $iscc) { throw "ISCC not found: needed to build the newer installer for the upgrade test" }
-    & $iscc /Qp /DAppVersion=99.0.0 "/DSourceDir=$App" "/DOutputDir=$(Join-Path $base 'upgrade')" (Join-Path $root "packaging\installer.iss") | Out-Null
+    $upgradeDefines = @("/DAppVersion=99.0.0")
+    if ($renamed.Count -eq 1) { $upgradeDefines += "/DNumpyMsvcp=$($renamed[0].Name)" }
+    & $iscc /Qp @upgradeDefines "/DSourceDir=$App" "/DOutputDir=$(Join-Path $base 'upgrade')" (Join-Path $root "packaging\installer.iss") | Out-Null
     Check (Test-Path $upgrade) "a newer installer (99.0.0) was built for the upgrade test"
     Check ((Install $upgrade) -eq 0) "silent upgrade over the existing installation exits 0"
+    Check ($renamed.Count -eq 1 -and (Test-Path -LiteralPath $renamed[0].FullName)) "the upgrade restored NumPy's renamed runtime copy"
     Check ((Get-ItemProperty $uninstallKey).DisplayVersion -eq "99.0.0") "the version was replaced in place (one uninstall entry, now 99.0.0)"
     Check (-not (Test-Path (Join-Path $target "_internal\stale-from-old-version.dll"))) "program files that the new version no longer ships were removed"
     Check (Test-Path (Join-Path $target "my-own-notes.txt")) "a file the user added to the program folder was kept"
