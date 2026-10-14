@@ -1,6 +1,6 @@
 {
  "schema": "blt.release-gate/1",
- "note": "Every required item needs a person's recorded sign-off before anything is published. Only a human edits 'signoff' (python packaging/release_gate.py sign ...). Green CI does not satisfy any item. See docs/release-gate.md. Item worldline-spline-review was retired in M16 because the code it covered was removed; the release build must prove that (worldline_spline_free).",
+ "note": "Every required item needs a person's recorded sign-off before anything is published. Only a human edits 'signoff' (python packaging/release_gate.py sign ...). Green CI does not satisfy any item. See docs/release-gate.md. Item worldline-spline-review was retired in M16 because the code it covered was removed; the release build must prove that (worldline_spline_free). M17 added source-history-licensing, g2p-model-provenance, ai-code-authorship and native-dependencies-review for the independent reviewer (docs/review/INDEPENDENT-REVIEWER-CHECKLIST.md); g2p-model-provenance records which variant of the build was approved (included/excluded) and the gate refuses the other.",
  "items": [
   {
    "id": "worldline-spline-review",
@@ -37,6 +37,66 @@
    "who": "the owner, when the release exists (the evidence is the https URL of the published asset)",
    "packet": "docs/review/qt-pyside6-review-packet.md",
    "subjects": [],
+   "signoff": null
+  },
+  {
+   "id": "source-history-licensing",
+   "title": "Independent review of the replacement spline that remains in the public git history (M13-M15 commits), separate from the binary, which is proven spline-free",
+   "kind": "review",
+   "required": true,
+   "who": "a qualified person (licensing counsel), with the owner's decision on remediation (leave, ask the tk::spline author, or rewrite history; the project rewrites nothing without the owner's explicit authorisation)",
+   "packet": "docs/review/source-history-review-packet.md",
+   "subjects": [
+    "docs/review/source-history-review-packet.md",
+    "docs/review/evidence/spline-text-comparison.txt",
+    "docs/review/worldline-spline-review-packet.md",
+    "host/native/effects-no-tension-spline.patch"
+   ],
+   "signoff": null
+  },
+  {
+   "id": "g2p-model-provenance",
+   "title": "Provenance and licence of the English g2p model (g2p.onnx of the plain pack) are accepted, or the build without the model is chosen; the sign-off states which variant (included/excluded) and the gate accepts only that build",
+   "kind": "review",
+   "required": true,
+   "who": "a qualified person, or the owner with the OpenUtau maintainers' written answer; the decision is the owner's",
+   "packet": "docs/g2p-model-provenance.md",
+   "decision_field": "g2p_model",
+   "decision_values": [
+    "included",
+    "excluded"
+   ],
+   "subjects": [
+    "docs/g2p-model-provenance.md",
+    "compliance/host-inventory.json",
+    "packaging/verify_host_inventory.py",
+    "host/patch_openutau.py"
+   ],
+   "signoff": null
+  },
+  {
+   "id": "ai-code-authorship",
+   "title": "Review of the AI-assisted authorship of BLT's own code: copyright notice, licence and diligence about reproduced third-party text",
+   "kind": "review",
+   "required": true,
+   "who": "a qualified person (licensing counsel)",
+   "packet": "docs/review/ai-authorship-review-packet.md",
+   "subjects": [
+    "docs/review/ai-authorship-review-packet.md"
+   ],
+   "signoff": null
+  },
+  {
+   "id": "native-dependencies-review",
+   "title": "Review of the licence conclusions for every compiled dependency in the package (worldline.dll and its static libraries, onnxruntime, Qt, CPython, OpenBLAS, .NET, ...)",
+   "kind": "review",
+   "required": true,
+   "who": "a qualified person (licensing counsel or an open-source compliance reviewer)",
+   "packet": "docs/review/native-dependencies-review-packet.md",
+   "subjects": [
+    "docs/review/native-dependencies-review-packet.md",
+    "packaging/components.json"
+   ],
    "signoff": null
   },
   {

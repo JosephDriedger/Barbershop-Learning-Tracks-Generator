@@ -12,7 +12,7 @@ on:
         default: "10"
       threshold:
         description: "collect garbage every N allocations (small = often; empty = Python's default)"
-        default: "5"
+        default: "100"
 
 jobs:
   stress:

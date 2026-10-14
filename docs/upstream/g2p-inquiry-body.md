@@ -11,13 +11,17 @@ pronunciations came from: not in the commit messages (`ba93f8b3` ... `8b8104ae`)
 (Cadlaxa/Syllable-Based-ARPAsing-Phonemizer, which has no licence file either). The zip also holds a g2p model (`g2p.onnx`, 1,779,659 bytes).
 
 **B. `g2p-arpabet.zip`** (added by @stakira in `eebdf6cd`, "add g2p packs", 2022-02-24). Its dictionary is exactly CMUdict 0.7b (thank you: that is clear from its header), but
-its `g2p.onnx` (1,769,706 bytes, used for words that are not in the dictionary) and `phones.txt` come with no description of how they were produced.
+its `g2p.onnx` (1,769,706 bytes, used for words that are not in the dictionary) and `phones.txt` come with no description of how they were produced. What I could find: the model was
+exported with PyTorch 1.10 (ONNX IR 7, opset 11); its weights have exactly the dimensions of `py/g2p/en_us/cfg.yaml` in the same tree (`d_model: 64`, `d_hidden: 128`, 2 + 2 layers,
+32 graphemes, 43 phonemes), and that recipe (`py/g2p/train.py`, added in `4dca53d7`, 2023-04) trains from `cmudict-0.7b`; the model reproduces CMUdict at PER 8.2 % / WER 32 % on dictionary words, which is the range
+the g2p trainer reports for validation. So I *think* the shipped model is that recipe trained on CMUdict 0.7b only, but nothing in the repository says so.
 
 Could @Cadlaxa (for A) and @stakira (for B), or whoever knows, please answer:
 
 1. **Provenance.** Which sources were the additional dictionary entries and pronunciations of A taken or derived from (another dictionary, a word list, scraped pages, output
    of a trained model, written by hand)? How was each `g2p.onnx` produced (which toolkit, which training script)?
-2. **Training data.** On which data was each `g2p.onnx` (the plain pack's and the plus pack's) trained and validated: CMUdict only, or something else?
+2. **Training data.** On which data was each `g2p.onnx` (the plain pack's and the plus pack's) trained and validated: CMUdict only, or something else? For the plain pack, is my reading above right
+   (the `py/g2p` recipe, `cmudict-0.7b`, no other data)?
 3. **Licence.** Under which licence is each of those sources and training data, and were any used under a licence that restricts redistribution or derived models?
    What is the licence of each trained model itself?
 4. **Redistribution rights.** Do you agree that the dictionary additions in A and both models may be redistributed under OpenUtau's MIT licence? If so, could a short note

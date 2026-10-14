@@ -17,6 +17,9 @@ questions about the plain English pack's `g2p.onnx`. Details checked on 2026-10-
 
 ## Evidence the inquiry rests on (reproducible)
 
+M17 added a first-party lead for the plain pack's model (`py/g2p` in the pinned tree trains from CMUdict; the weights match its configuration): see
+[g2p-model-provenance.md](g2p-model-provenance.md). Question B of the text below now says so and only asks for confirmation.
+
 `python scripts/analyze_g2p_plus.py <OpenUtau 0.1.565 checkout> --cmudict cmudict-0.7b` (read-only; CMU's original file, SHA-256 `209a8b4c…29e4`):
 
 * the plain pack's dictionary has exactly the 133,852 entries of CMUdict 0.7b (header: "CMUdict -- Major Version: 0.07");
@@ -46,11 +49,11 @@ gh issue create --repo openutau/OpenUtau --title "$(cat docs/upstream/g2p-inquir
 |---|---|
 | Sources and licences of A documented, redistribution allowed | `docs/g2p-plus-provenance.md` updated with the evidence; the owner may then decide to re-include A and the Arpasing+ and English C+V phonemizers (a small change to the patch), with the notices the licences need; a new review item in the release gate |
 | A restricted, or no answer | A stays excluded (it already is; nothing else depends on it) |
-| B: training data and licence documented and permissive | recorded in `docs/g2p-plus-provenance.md` and in `packaging/components.json` (component `onnxruntime-native` is unrelated; the model belongs to `openutau-core`); a licence note is added to the shipped notices |
-| B: no answer or restrictive | the owner decides: keep shipping B as an upstream-MIT file with the residual risk recorded, or regenerate the model from CMUdict |
+| B: training data and licence documented and permissive | recorded in `docs/g2p-model-provenance.md` and in `packaging/components.json` (component `g2p-arpabet-model`); the NOTICES paragraph is updated; the owner can then sign gate item `g2p-model-provenance` with `--decision included` |
+| B: no answer or restrictive | the owner decides among the options of `docs/g2p-model-provenance.md` section 6: keep the model with the residual risk recorded, ship the build without it (`-ExcludeG2pModel`, ready and tested), or have BLT train its own model from CMUdict with the upstream recipe (needs approval) |
 
 ## Submission record
 
-**NOT SUBMITTED.** On 2026-10-13 the owner approved submitting this inquiry (M16 decision 1). The attempt to post it with `gh issue create` was **denied by the
+**NOT SUBMITTED** (unchanged in M17: nothing new was asked, and nothing was posted). On 2026-10-13 the owner approved submitting this inquiry (M16 decision 1). The attempt to post it with `gh issue create` was **denied by the
 permission system of the coding session** (it blocks writes to external systems), so no issue exists and nothing was sent. The owner must submit it (command above) or
 allow the tool to do it; the issue URL and the time are then to be recorded here.

@@ -204,6 +204,10 @@ def test_one_unsupported_alias_among_good_ones_is_named(shared: Rig, tmp_path: P
         shared.backend().render(make_plan(("la", "zzz", "ba", "la")), tmp_path / "song")
     assert info.value.code == "STEM_NOTE_SILENT"
     assert info.value.details["notes"] == [1]
+    # since M17 the message names the lyric the host could not sing, from the host's own report
+    assert info.value.details["unsung_words"] == ["zzz"]
+    assert "'zzz'" in info.value.message
+    assert "pronunciation dictionary" in info.value.message
 
 
 # --- cancellation and timeout end the real host ---

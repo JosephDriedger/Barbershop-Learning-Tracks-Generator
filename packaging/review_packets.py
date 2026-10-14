@@ -1,8 +1,11 @@
-"""Assemble the two independent-review packets (worldline spline, Qt/PySide6) for human reviewers.
+"""Assemble the independent-review packets for human reviewers.
 
     python packaging/review_packets.py --out DIR [--package APP_DIR] [--compliance DIR] [--evidence DIR]
+        [--openutau-src DIR] [--inventory FILE] [--host-build FILE]
 
-``DIR`` receives ``worldline/`` and ``qt/`` folders, each with the narrative (``README.md``, from
+``DIR`` receives one folder per packet: ``checklist/`` (the reviewer's one page), ``qt/``, ``source-history/``,
+``g2p-model/``, ``ai-authorship/``, ``native-dependencies/`` and ``worldline/`` (the closing record of the retired
+spline item), each each with the narrative (``README.md``, from
 ``docs/review``), every file the reviewer needs, a ``MANIFEST.json`` with SHA-256 of everything, and the
 evidence logs named by ``--evidence``. Nothing is uploaded and nothing is signed: the packet is the
 material, the sign-off is a person's (``docs/release-gate.md``).
@@ -12,6 +15,9 @@ material, the sign-off is a person's (``docs/release-gate.md``).
   files, which shows they are unmodified.
 * ``--compliance`` the output of ``packaging/compliance.py`` (written offer, relinking text, checksums).
 * ``--evidence`` a folder of logs (build, replaceability test, ...); copied with their hashes.
+* ``--openutau-src`` the pinned OpenUtau checkout: the g2p model is read from it (``inspect_onnx.py``).
+* ``--inventory`` the build's ``inventory.json`` (every file of the package mapped to a component).
+* ``--host-build`` the host's ``blt-host-build.json`` (which native library, whether the g2p model is in).
 
 The tk::spline source is deliberately **not** in the worldline packet: the reviewer gets it from upstream.
 """
@@ -20,9 +26,12 @@ import argparse
 import base64
 import hashlib
 import importlib.metadata
+import importlib.util
 import json
 import shutil
+import subprocess
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -52,6 +61,46 @@ QT_FILES = (
     "src/barbershop_tracks/ui/main_window.py",
 )
 QT_DISTRIBUTIONS = ("PySide6", "PySide6_Essentials", "PySide6_Addons", "shiboken6")
+G2P_FILES = (
+    "docs/g2p-model-provenance.md",
+    "docs/g2p-plus-provenance.md",
+    "docs/upstream-g2p-plus-issue.md",
+    "docs/upstream/g2p-inquiry-title.txt",
+    "docs/upstream/g2p-inquiry-body.md",
+    "compliance/host-inventory.json",
+    "packaging/verify_host_inventory.py",
+    "packaging/verify_absent_data.py",
+    "host/patch_openutau.py",
+    "host/verify-host.ps1",
+    "scripts/research/inspect_onnx.py",
+    "scripts/research/eval_g2p_model.py",
+    "packaging/licenses/upstream_CMUdict_0.07_licence.txt",
+)
+HISTORY_FILES = (
+    "docs/review/worldline-spline-review-packet.md",
+    "docs/review/evidence/spline-text-comparison.txt",
+    "docs/worldline-provenance.md",
+    "host/native/effects-no-tension-spline.patch",
+    "host/native/verify_dll.py",
+    "scripts/research/compare_source_text.py",
+)
+HISTORY_PATHS = (
+    "host/native/patched/natural_spline.h",
+    "host/native/effects-natural-spline.patch",
+    "host/native/parity",
+)
+LAST_COMMIT_WITH_THE_FILE = "b4b99bb"
+NATIVE_FILES = (
+    "packaging/components.json",
+    "packaging/inventory.py",
+    "packaging/notices.py",
+    "packaging/verify_absent_data.py",
+    "packaging/verify_host_inventory.py",
+    "host/native/verify_dll.py",
+    "docs/worldline-provenance.md",
+    "docs/dependency-audit.md",
+)
+NATIVE_SUFFIXES = (".dll", ".pyd", ".exe")
 
 
 def sha256_of(path: Path) -> str:
@@ -250,6 +299,154 @@ def build_qt(
     return manifest
 
 
+def git(*arguments: str) -> str | None:
+    """Output of a git command in the repository, or None when git or the history is not there."""
+    try:
+        done = subprocess.run(
+            ["git", *arguments], cwd=REPO, capture_output=True, text=True, check=False, timeout=120
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return done.stdout if done.returncode == 0 else None
+
+
+def write_text(out: Path, name: str, text: str, manifest: dict[str, str]) -> None:
+    path = out / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    manifest[name] = sha256_of(path)
+
+
+def build_checklist(out: Path) -> dict[str, str]:
+    manifest: dict[str, str] = {}
+    copy_into(out, REPO / "docs/review/INDEPENDENT-REVIEWER-CHECKLIST.md", "README.md", manifest)
+    copy_into(out, REPO / "docs/release-gate.md", "docs/release-gate.md", manifest)
+    copy_into(out, REPO / "compliance/release-gate.json", "compliance/release-gate.json", manifest)
+    return manifest
+
+
+def build_history(out: Path) -> dict[str, str]:
+    manifest: dict[str, str] = {}
+    copy_into(out, REPO / "docs/review/source-history-review-packet.md", "README.md", manifest)
+    for name in HISTORY_FILES:
+        copy_into(out, REPO / name, name, manifest)
+    log = git("log", "--all", "--format=%H %cI %an %s", "--", *HISTORY_PATHS)
+    note = "git history is not available in this checkout (a shallow clone?); run the command on a full clone"
+    write_text(
+        out,
+        "evidence/git-history-of-the-replacement.txt",
+        "git log --all --format='%H %cI %an %s' -- "
+        + " ".join(HISTORY_PATHS)
+        + "\n\n"
+        + (log or note)
+        + "\n",
+        manifest,
+    )
+    old = git("show", f"{LAST_COMMIT_WITH_THE_FILE}:host/native/patched/natural_spline.h")
+    if old is not None:
+        write_text(
+            out, f"evidence/natural_spline.h.at-{LAST_COMMIT_WITH_THE_FILE}.txt", old, manifest
+        )
+    return manifest
+
+
+def build_g2p(
+    out: Path, openutau_src: Path | None, host_build: Path | None, evidence: Path | None
+) -> dict[str, str]:
+    manifest: dict[str, str] = {}
+    copy_into(out, REPO / "docs/g2p-model-provenance.md", "README.md", manifest)
+    for name in G2P_FILES:
+        copy_into(out, REPO / name, name, manifest)
+    if openutau_src is not None:
+        pack = openutau_src / "OpenUtau.Core" / "G2p" / "Data" / "g2p-arpabet.zip"
+        if pack.is_file():
+            spec = importlib.util.spec_from_file_location(
+                "inspect_onnx", REPO / "scripts" / "research" / "inspect_onnx.py"
+            )
+            assert spec is not None
+            assert spec.loader is not None
+            inspect_onnx = importlib.util.module_from_spec(spec)
+            sys.modules["inspect_onnx"] = (
+                inspect_onnx  # dataclass-free, but keeps tracebacks readable
+            )
+            spec.loader.exec_module(inspect_onnx)
+
+            with zipfile.ZipFile(pack) as archive, tempfile.TemporaryDirectory() as scratch:
+                target = Path(scratch) / "g2p.onnx"
+                target.write_bytes(archive.read("g2p.onnx"))
+                report = inspect_onnx.inspect(target)
+                members = {i.filename: i.file_size for i in archive.infolist()}
+            report["pack_members"] = members
+            report["pack_sha256"] = sha256_of(pack)
+            write_json(out, "g2p-onnx-report.json", report, manifest)
+    if host_build is not None and host_build.is_file():
+        copy_into(out, host_build, "evidence/blt-host-build.json", manifest)
+    if evidence and evidence.is_dir():
+        for log in sorted(evidence.glob("g2p-*.log")):
+            copy_into(out, log, f"evidence/{log.name}", manifest)
+    return manifest
+
+
+def build_authorship(out: Path) -> dict[str, str]:
+    manifest: dict[str, str] = {}
+    copy_into(out, REPO / "docs/review/ai-authorship-review-packet.md", "README.md", manifest)
+    copy_into(
+        out, REPO / "docs/review/evidence/spline-text-comparison.txt",
+        "evidence/spline-text-comparison.txt", manifest,
+    )  # fmt: skip
+    copy_into(
+        out,
+        REPO / "scripts/research/compare_source_text.py",
+        "scripts/compare_source_text.py",
+        manifest,
+    )
+    listing = git("ls-files")
+    if listing is not None:
+        sizes: dict[str, list[int]] = {}
+        for name in listing.splitlines():
+            file = REPO / name
+            if not file.is_file() or file.suffix.lower() not in {
+                ".py", ".cs", ".cpp", ".h", ".ps1", ".iss", ".md", ".yml", ".json", ".txt", ".patch",
+            }:  # fmt: skip
+                continue
+            top = name.split("/", 1)[0] if "/" in name else "(root)"
+            lines = sum(1 for _ in file.open(encoding="utf-8", errors="replace"))
+            entry = sizes.setdefault(top, [0, 0])
+            entry[0] += 1
+            entry[1] += lines
+        write_json(
+            out, "size-by-directory.json",
+            {k: {"files": v[0], "lines": v[1]} for k, v in sorted(sizes.items())}, manifest,
+        )  # fmt: skip
+    authors = git("log", "--format=%an")
+    if authors is not None:
+        counts: dict[str, int] = {}
+        for name in authors.splitlines():
+            counts[name] = counts.get(name, 0) + 1
+        write_json(out, "commit-authors.json", counts, manifest)
+    return manifest
+
+
+def build_native(out: Path, package: Path | None, inventory: Path | None) -> dict[str, str]:
+    manifest: dict[str, str] = {}
+    copy_into(out, REPO / "docs/review/native-dependencies-review-packet.md", "README.md", manifest)
+    for name in NATIVE_FILES:
+        copy_into(out, REPO / name, name, manifest)
+    if inventory is not None and inventory.is_file():
+        copy_into(out, inventory, "evidence/inventory.json", manifest)
+        files = json.loads(inventory.read_text(encoding="utf-8"))["files"]
+        native = [f for f in files if str(f["path"]).lower().endswith(NATIVE_SUFFIXES)]
+        write_json(out, "native-binaries.json", native, manifest)
+    if package is not None and package.is_dir():
+        present = sorted(
+            p.relative_to(package).as_posix()
+            for p in package.rglob("*")
+            if p.is_file() and p.suffix.lower() in NATIVE_SUFFIXES
+        )
+        write_json(out, "native-files-in-package.json", present, manifest)
+    return manifest
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -258,13 +455,25 @@ def main() -> int:
     parser.add_argument("--package", type=Path)
     parser.add_argument("--compliance", type=Path)
     parser.add_argument("--evidence", type=Path)
+    parser.add_argument("--openutau-src", type=Path)
+    parser.add_argument("--inventory", type=Path)
+    parser.add_argument("--host-build", type=Path)
     args = parser.parse_args()
     if args.out.exists():
         shutil.rmtree(args.out)
     args.out.mkdir(parents=True)
     packets = {
-        "worldline": build_worldline(args.out / "worldline", args.evidence),
+        "checklist": build_checklist(args.out / "checklist"),
         "qt": build_qt(args.out / "qt", args.package, args.compliance, args.evidence),
+        "source-history": build_history(args.out / "source-history"),
+        "g2p-model": build_g2p(
+            args.out / "g2p-model", args.openutau_src, args.host_build, args.evidence
+        ),
+        "ai-authorship": build_authorship(args.out / "ai-authorship"),
+        "native-dependencies": build_native(
+            args.out / "native-dependencies", args.package, args.inventory
+        ),
+        "worldline": build_worldline(args.out / "worldline", args.evidence),
     }
     for name, manifest in packets.items():
         (args.out / name / "MANIFEST.json").write_text(

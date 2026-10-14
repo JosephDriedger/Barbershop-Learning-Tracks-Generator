@@ -52,6 +52,8 @@ declares no licence, the upstream repository's licence was read and is cited as 
 * **onnxruntime.dll (MIT) is shipped** beside the host: the English phonemizers use a neural g2p model for words that are not in
   CMUdict. (M12 had removed it; that left the fallback depending on a Windows-supplied copy. Fixed in M14, proven by
   `blt-render-host --g2p-check`.) The supported renderer is still WORLDLINE-R; the neural renderers are not offered.
+  It exists only to run that model, whose training data and licence its authors never documented ([g2p-model-provenance.md](g2p-model-provenance.md), M17):
+  a build made with `-ExcludeG2pModel` ships neither the model nor this DLL, and `packaging/verify_host_inventory.py` enforces the pair.
 * **The Microsoft Visual C++ runtime is not shipped.** Setup requires Microsoft's own redistributable (detection, signed
   download or offline file); the build fails if any runtime file is in the package.
 * **OpenUtau.Core is a patched build** of the pinned source (no Voicevox classes, Vogen data or non-English dictionaries);
@@ -90,7 +92,7 @@ miniaudio, xxHash and Abseil inside `worldline.dll`.
 
 <!-- BEGIN GENERATED: python packaging/notices.py audit -->
 
-69 components are shipped in the package; **1 are release blockers** (unverified or conflicting licence obligations). A person must resolve each one before a public release; this table is regenerated from `packaging/components.json`.
+70 components are shipped in the package; **1 are release blockers** (unverified or conflicting licence obligations). A person must resolve each one before a public release; this table is regenerated from `packaging/components.json`.
 
 ### Release blockers
 
@@ -170,6 +172,7 @@ miniaudio, xxHash and Abseil inside `worldline.dll`.
 | YamlDotNet (NuGet package) | 15.1.2 | MIT | Copyright (c) 2008-2014 Antoine Aubry and contributors | ok |
 | ZstdSharp.Port (NuGet package) | 0.8.1 | MIT | Copyright Oleg Stepanischev 2024 | ok |
 | English 'ARPAbet plus' dictionary and model (OpenUtau g2p-arpabet-plus.zip): EXCLUDED from BLT's build | 0.1.565, added 2024-02 by Cadlaxa (commit ba93f8b3, PR openutau/OpenUtau#1038), updated until 2024-06 | UNKNOWN for the additions (the contributor's own repository has no licence file either) | Carnegie Mellon University (CMUdict entries); the contributor and unknown others (additions) | ok |
+| English pronunciation model for words outside CMUdict (g2p.onnx inside OpenUtau.Core's g2p-arpabet pack) | 0.1.565 (added 2022-02-24 by Sugita Akira, commit eebdf6cd; never changed since) | NOT STATED. The file is in OpenUtau's MIT-licensed repository, committed by its author; no document says what it was trained on or under which licence. The training recipe in the same source tree (py/g2p) uses CMUdict 0.7b, whose Carnegie Mellon licence is permissive | Copyright (c) 2014 StAkira (OpenUtau); Carnegie Mellon University (CMUdict, the probable training data) | ok |
 | ONNX Runtime native library (onnxruntime.dll, DirectML build; Microsoft.ML.OnnxRuntime.DirectML NuGet package) | 1.16.3 | MIT | Copyright (c) Microsoft Corporation | ok |
 
 ### Obligations and sources
@@ -244,7 +247,8 @@ miniaudio, xxHash and Abseil inside `worldline.dll`.
 | YamlDotNet (NuGet package) | https://www.nuget.org/packages/YamlDotNet/15.1.2 | Reproduce the copyright notice and licence text (shipped). |
 | ZstdSharp.Port (NuGet package) | https://www.nuget.org/packages/ZstdSharp.Port/0.8.1 | Reproduce the copyright notice and licence text (shipped). |
 | English 'ARPAbet plus' dictionary and model (OpenUtau g2p-arpabet-plus.zip): EXCLUDED from BLT's build | https://github.com/stakira/OpenUtau (OpenUtau.Core/G2p/Data/g2p-arpabet-plus.zip) | Not distributed. host/patch_openutau.py removes the pack, the Arpasing+, English C+V and DiffSinger English+ phonemizers, ArpabetPlusG2p and the English C+V template from the sources and the resource tables; host/verify-host.ps1 (reflection) and packaging/verify_absent_data.py (byte search of the whole package for the removed data) fail the build if any of it is present. Resolved by exclusion, not by provenance: the origin of the additions is still unknown (docs/g2p-plus-provenance.md; the upstream inquiry is a draft that has not been sent). Re-including it would need a documented answer first. The supported English phonemizers use the CMUdict pack (g2p-arpabet), which equals CMUdict 0.7b entry for entry. |
-| ONNX Runtime native library (onnxruntime.dll, DirectML build; Microsoft.ML.OnnxRuntime.DirectML NuGet package) | https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.DirectML/1.16.3 | MIT licence and the package's ThirdPartyNotices.txt (shipped verbatim: it lists the libraries inside onnxruntime.dll). Needed because the English phonemizers fall back to a neural g2p model for words that are not in CMUdict. M12 had pruned it as 'neural renderer only', which left that fallback depending on a Windows-supplied onnxruntime that does not exist on Windows 10; restored in M14 and proven by 'blt-render-host --g2p-check'. DirectML.dll is not shipped (the DirectML provider is never used). |
+| English pronunciation model for words outside CMUdict (g2p.onnx inside OpenUtau.Core's g2p-arpabet pack) | https://github.com/openutau/OpenUtau (OpenUtau.Core/G2p/Data/g2p-arpabet.zip, member g2p.onnx, SHA-256 10779eca9db25cab467f2a6271519c3f0c96f562845c393043fa5fa85ae06059) | MIT notice (shipped) and the CMUdict licence text (shipped). Provenance, training data and licence statement are NOT established (docs/g2p-model-provenance.md). Release gate item g2p-model-provenance makes a person decide: keep the model (included), or ship the variant without it (excluded); the gate then refuses a build of the other variant. packaging/verify_host_inventory.py compares the packaged host with compliance/host-inventory.json, which names the one model that may be present. Status 'ok' here means only that the files are inventoried and the notices are shipped; it does NOT say the provenance question is closed (it is not). Used only for words that CMUdict does not contain. The native onnxruntime.dll exists only to run this model. |
+| ONNX Runtime native library (onnxruntime.dll, DirectML build; Microsoft.ML.OnnxRuntime.DirectML NuGet package) | https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.DirectML/1.16.3 | MIT licence and the package's ThirdPartyNotices.txt (shipped verbatim: it lists the libraries inside onnxruntime.dll). Needed ONLY to run the English g2p model (component g2p-arpabet-model) for words that are not in CMUdict; the neural renderers are not offered. Restored in M14 and proven by 'blt-render-host --g2p-check'. DirectML.dll is not shipped (the DirectML provider is never used). In a build made with -ExcludeG2pModel this DLL is not shipped at all (packaging/verify_host_inventory.py fails such a build if it is). |
 
 ### Deliberately not shipped
 

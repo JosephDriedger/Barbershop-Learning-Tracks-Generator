@@ -1578,6 +1578,21 @@
    "extra_texts": []
   },
   {
+   "id": "g2p-arpabet-model",
+   "name": "English pronunciation model for words outside CMUdict (g2p.onnx inside OpenUtau.Core's g2p-arpabet pack)",
+   "version": "0.1.565 (added 2022-02-24 by Sugita Akira, commit eebdf6cd; never changed since)",
+   "license": "NOT STATED. The file is in OpenUtau's MIT-licensed repository, committed by its author; no document says what it was trained on or under which licence. The training recipe in the same source tree (py/g2p) uses CMUdict 0.7b, whose Carnegie Mellon licence is permissive",
+   "copyright": "Copyright (c) 2014 StAkira (OpenUtau); Carnegie Mellon University (CMUdict, the probable training data)",
+   "source": "https://github.com/openutau/OpenUtau (OpenUtau.Core/G2p/Data/g2p-arpabet.zip, member g2p.onnx, SHA-256 10779eca9db25cab467f2a6271519c3f0c96f562845c393043fa5fa85ae06059)",
+   "status": "ok",
+   "bundled": "yes, inside OpenUtau.Core.dll's resources; ABSENT in a build made with -ExcludeG2pModel (blt-host-build.json: g2p_model)",
+   "obligations": "MIT notice (shipped) and the CMUdict licence text (shipped). Provenance, training data and licence statement are NOT established (docs/g2p-model-provenance.md). Release gate item g2p-model-provenance makes a person decide: keep the model (included), or ship the variant without it (excluded); the gate then refuses a build of the other variant. packaging/verify_host_inventory.py compares the packaged host with compliance/host-inventory.json, which names the one model that may be present.",
+   "notes": "Status 'ok' here means only that the files are inventoried and the notices are shipped; it does NOT say the provenance question is closed (it is not). Used only for words that CMUdict does not contain. The native onnxruntime.dll exists only to run this model.",
+   "patterns": [],
+   "texts": [],
+   "extra_texts": []
+  },
+  {
    "id": "onnxruntime-native",
    "name": "ONNX Runtime native library (onnxruntime.dll, DirectML build; Microsoft.ML.OnnxRuntime.DirectML NuGet package)",
    "version": "1.16.3",
@@ -1587,7 +1602,7 @@
    "package": "Microsoft.ML.OnnxRuntime.DirectML",
    "status": "ok",
    "bundled": "yes",
-   "obligations": "MIT licence and the package's ThirdPartyNotices.txt (shipped verbatim: it lists the libraries inside onnxruntime.dll). Needed because the English phonemizers fall back to a neural g2p model for words that are not in CMUdict. M12 had pruned it as 'neural renderer only', which left that fallback depending on a Windows-supplied onnxruntime that does not exist on Windows 10; restored in M14 and proven by 'blt-render-host --g2p-check'. DirectML.dll is not shipped (the DirectML provider is never used).",
+   "obligations": "MIT licence and the package's ThirdPartyNotices.txt (shipped verbatim: it lists the libraries inside onnxruntime.dll). Needed ONLY to run the English g2p model (component g2p-arpabet-model) for words that are not in CMUdict; the neural renderers are not offered. Restored in M14 and proven by 'blt-render-host --g2p-check'. DirectML.dll is not shipped (the DirectML provider is never used). In a build made with -ExcludeG2pModel this DLL is not shipped at all (packaging/verify_host_inventory.py fails such a build if it is).",
    "notes": "",
    "patterns": [
     "host/onnxruntime.dll"

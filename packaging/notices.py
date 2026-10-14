@@ -45,6 +45,12 @@ host\\patch_openutau.py makes the change; the revision the host reports ends in 
 The native worldline.dll is built by this project from the pinned World / libpyin / libgvps sources
 without the tension effect, the only part that used the GPL-licensed tk::spline library; no spline
 code of any kind is in it (host\\native).
+The English dictionary (CMUdict 0.7b, Carnegie Mellon University licence, shipped in
+licenses\\) comes with a small neural model that guesses the pronunciation of words the
+dictionary lacks. The model was made by the OpenUtau project; its training data and licence
+are not documented by its authors (this project's record: docs\\g2p-model-provenance.md).
+Whether a build contains it is stated in host\\blt-host-build.json (g2p_model); a build
+without it also lacks the native onnxruntime.dll, which exists only to run it.
 Source:
   OpenUtau:         https://github.com/stakira/OpenUtau/tree/a60ca5830b9064556157245d4bf8f5920d93e5f8
   The changes:      the project source (host\\), included in the corresponding-source bundle.

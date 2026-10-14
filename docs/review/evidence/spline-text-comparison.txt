@@ -1,0 +1,54 @@
+Text comparison of BLT's former replacement spline with tk::spline (M17). Evidence for a reviewer, not a verdict.
+Tool: scripts/research/compare_source_text.py (comments and whitespace removed; tokens compared).
+A = host/native/patched/natural_spline.h as of commit b4b99bb (92 lines, SHA-256 of the file starting bc9ebdc7af55493c; the last version before its removal in 7d2e938).
+B = src/spline.h of ttk592/spline at 5894beaf91e9adbfdbe5c6c9a1c60770e380e8e8 (947 lines, GPL-2.0-or-later), the version the old build downloaded.
+Control = six unrelated C++ files of worldline (phrase_synth, worldline, resampler, synthesisplatinum, platinum, classic_args; 1,038 code lines, about the size of B).
+
+=============== A against B (the pair in question)
+A = natural_spline.h   B = tk_spline.h
+code_lines_a: 69
+code_lines_b: 683
+identical_code_lines: 7
+identical code lines:
+    endif
+    include < algorithm >
+    include < vector >
+    private :
+    public :
+    }
+    } ;
+longest_verbatim_run_tokens: 20
+tokens_verbatim: (783, 6655)
+verbatim_5gram_share_of_a_in_b_percent: 12.3
+verbatim_5gram_share_of_b_in_a_percent: 2.0
+verbatim_8gram_share_of_a_in_b_percent: 2.8
+verbatim_8gram_share_of_b_in_a_percent: 0.4
+tokens_structure: (783, 6655)
+structure_5gram_share_of_a_in_b_percent: 54.8
+structure_5gram_share_of_b_in_a_percent: 11.5
+structure_8gram_share_of_a_in_b_percent: 26.6
+structure_8gram_share_of_b_in_a_percent: 4.3
+
+=============== A against the control (what unrelated C++ of that size shares with A)
+A = natural_spline.h   B = control_big.cpp
+code_lines_a: 69
+code_lines_b: 1038
+identical_code_lines: 3
+identical code lines:
+    include < algorithm >
+    include < vector >
+    }
+longest_verbatim_run_tokens: 10
+tokens_verbatim: (783, 9616)
+verbatim_5gram_share_of_a_in_b_percent: 5.1
+verbatim_5gram_share_of_b_in_a_percent: 0.5
+verbatim_8gram_share_of_a_in_b_percent: 0.4
+verbatim_8gram_share_of_b_in_a_percent: 0.0
+tokens_structure: (783, 9616)
+structure_5gram_share_of_a_in_b_percent: 39.2
+structure_5gram_share_of_b_in_a_percent: 6.6
+structure_8gram_share_of_a_in_b_percent: 10.0
+structure_8gram_share_of_b_in_a_percent: 1.2
+
+Longest verbatim run shared by A and B (20 tokens): ( const std :: vector < double > & x , const std :: vector < double > & y
+(the parameter list of the constructor: the natural interface for 'a curve through these points').

@@ -70,7 +70,14 @@ def test_the_real_gate_file_is_well_formed_and_points_at_files_that_exist() -> N
         "clean-machine-verification",
         "code-signing-decision",
         "owner-release-approval",
+        "source-history-licensing",
+        "g2p-model-provenance",
+        "ai-code-authorship",
+        "native-dependencies-review",
     } <= required
+    g2p = next(i for i in gate["items"] if i["id"] == "g2p-model-provenance")
+    assert g2p["decision_field"] == "g2p_model"
+    assert g2p["decision_values"] == ["included", "excluded"]
 
 
 def test_an_item_without_a_signoff_is_open(tmp_path: Path) -> None:

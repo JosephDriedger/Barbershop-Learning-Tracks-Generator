@@ -114,7 +114,7 @@ Run $python $absentArgs
 
 # 3a2. the host that is IN the package must contain exactly what the reviewed allow-list names ---------------
 Step "Comparing the packaged host with the reviewed allow-list (phonemizers, embedded data, g2p model)"
-Run $python @("-I", "packaging/verify_host_inventory.py", (Join-Path $app "host"), "--g2p-model", $(if ($ExcludeG2pModel) { "excluded" } else { "included" }))
+RunLogged (Join-Path $evidence "g2p-host-inventory.log") $python @("-I", "packaging/verify_host_inventory.py", (Join-Path $app "host"), "--g2p-model", $(if ($ExcludeG2pModel) { "excluded" } else { "included" }))
 
 # 3b. the Microsoft runtime is required of the user's PC, never shipped ---------------------------------
 Step "Checking that no Microsoft runtime files are in the package"
@@ -153,8 +153,8 @@ if (-not $NoSmoke) {
 # 5b. the Qt/PySide6 corresponding-source bundle (prepared only; attaching it to the GitHub release is manual) ----
 Step "Preparing the corresponding-source bundle (not uploaded)"
 Run $python @("packaging/compliance.py", "--out", (Join-Path $OutDir "compliance"), "--version", $version)
-Step "Assembling the review packets for the licensing reviewers (not signed, not uploaded)"
-Run $python @("packaging/review_packets.py", "--out", (Join-Path $OutDir "review"), "--package", $app, "--compliance", (Join-Path $OutDir "compliance"), "--evidence", $evidence)
+Step "Assembling the review packets and the reviewer's checklist (not signed, not uploaded)"
+Run $python @("packaging/review_packets.py", "--out", (Join-Path $OutDir "review"), "--package", $app, "--compliance", (Join-Path $OutDir "compliance"), "--evidence", $evidence, "--openutau-src", $pinnedSource, "--inventory", (Join-Path $artifacts "inventory.json"), "--host-build", (Join-Path $hostOut "blt-host-build.json"))
 
 # 6. the installer ----------------------------------------------------------------------------------------
 $installer = $null
