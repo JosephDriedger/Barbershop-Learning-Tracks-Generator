@@ -19,8 +19,42 @@ Measured on CI by repeating the plain `pytest` run on the same runner image (eac
 | `99d1648` plus the workaround below | 20 | 0 |
 | `e2b6b68` (workaround in the suite) | 16 | 0 |
 
+| M17 diagnostics, current tree (`68ade49`), workaround off, whole suite, Python's default collector | 10 | 0 |
+| M17 diagnostics, `8e38928`, workaround off, `tests/unit` only, a collection every 100 allocations | 6 | 0 |
+| M17 diagnostics, **`99d1648`** (the commit that aborted), whole suite, with the trace | 10 | **2** |
+
 What that pattern says: the abort needs the GUI tests to run **after** other tests in the same process, and it depends on what those tests allocated, not on any single test. That is how the timing of Python's cycle
 collector behaves. Whether the collector is the cause or only the trigger is not known.
+
+## What the diagnostics showed (M17)
+
+The two aborts of the run on `99d1648` are identical: the same test (`test_a_second_click_cannot_start_a_second_generation`), the same place (the `rig` fixture waiting for the window, the main thread in `changeEvent`), and the same last lines of the
+collection trace, 46 ms after that test started:
+
+```
+426.250 test start tests/unit/ui/test_ui_window.py::test_a_second_click_cannot_start_a_second_generation
+426.296 gc start generation=1 thread=Dummy-384
+426.296 gc stop  generation=1 collected=3832 thread=Dummy-384
+(the process aborts)
+```
+
+`Dummy-384` is not a Python thread: Python gives that name to a thread it did not create, here a worker of the `QThreadPool` that runs the controller's jobs (`src/barbershop_tracks/ui/background.py`), because `Job.run` executes Python. So the
+last thing that happened before the abort was **a garbage collection of 3,832 objects that ran on a Qt worker thread**. Collections on worker threads are normal (68 to 99 per passing run, nearly all small); this one was large because it
+found the leftovers of earlier tests.
+
+What this supports, as a hypothesis and not as proof: a collection that is triggered by an allocation on a pool thread finalises PySide wrappers of Qt objects that belong to the GUI thread (windows, timers, dialogs the earlier tests left behind), and Qt aborts
+when such objects are destroyed from the wrong thread or while the GUI thread is dispatching events. It fits every observation: only the whole suite aborts (there are leftovers); it depends on allocation history (the current tree has more tests and
+does not abort in 16 runs); switching collection off during GUI tests prevents it; and so does collecting *between* tests on the main thread (10 of 10 passed), which leaves a worker thread nothing large to find.
+
+What it does **not** show: the name of the object whose destruction aborts; whether anything in the packaged program can do the same (it runs the same pool, and a collection on a worker thread could in principle finalise a PySide object, for instance
+a closed dialog without a parent; it has not been seen there); and that the pool thread is the only trigger.
+
+A candidate mitigation for the product, **not implemented** (it is a decision, and it needs the evidence in the next section first): turn automatic collection off in the application and run `gc.collect()` from a timer on the GUI thread, so that no PySide object is ever
+finalised on a worker thread.
+
+Two gaps of the first stress run, fixed in the tooling: the crash logs came out empty because pytest's own faulthandler plugin enabled itself after the diagnostics and took the dump (the abort traceback therefore went to the pytest log, for the current thread only);
+the diagnostics now set up last, so the next run's `crash-N.txt` holds all threads. And no Windows crash dump was written (`LocalDumps` is registered for `python.exe`, but a process ending in `abort()` after Python's handler apparently does not reach it); the native stack of the
+aborting thread therefore still has to come from somewhere else (WinDbg with `gflags` page-heap, or a run under `cdb`).
 
 ## The workaround (`tests/conftest.py`)
 
@@ -47,7 +81,7 @@ Locally:
 pytest tests/unit --gui-gc-stress --gui-gc-threshold 100 --gui-gc-trace research-output/gc.log --gui-crash-log research-output/crash.txt
 ```
 
-On CI: **Actions > gui-stress > Run workflow** (`.github/workflows/gui-stress.yml`; manual only, nothing triggers it, nothing depends on it). It repeats the unit tests *N* times without the workaround, enables Windows
+On CI: **Actions > gui-stress > Run workflow** (`.github/workflows/gui-stress.yml`; manual only, nothing triggers it, nothing depends on it; the input `ref` tests an older commit, where the abort happened, and loads the diagnostics into it as a plugin). It repeats the unit tests *N* times without the workaround, enables Windows
 crash dumps for `python.exe` (`HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps`, full dumps), and uploads `stress-logs/` (the per-run pytest output, GC traces, crash logs, dumps and a summary line)
 as an artifact kept for 14 days. A red run there is a finding, not a broken build.
 
@@ -61,4 +95,4 @@ as an artifact kept for 14 days. A red run there is a finding, not a broken buil
 ## What would count as a fix
 
 All of: (1) the object (or class of objects) whose lifetime is wrong is named from a crash log or dump; (2) a targeted test fails without the correction and passes with it; (3) the full suite passes
-**without** the workaround in at least 100 consecutive CI runs including runs at a small collection threshold; (4) the workaround is then removed in a change of its own. Until then it stays, and this page stays.
+**without** the workaround, **on the commits where it used to abort (`99d1648`) and on the current one,** in at least 100 consecutive CI runs including runs at a small collection threshold; (4) the workaround is then removed in a change of its own. Until then it stays, and this page stays.

@@ -106,3 +106,11 @@ def test_the_environment_variables_do_the_same(tmp_path: Path) -> None:
     done = run_pytest(BLT_GUI_GC_STRESS="1", BLT_GUI_GC_THRESHOLD="9", BLT_GUI_GC_TRACE=str(trace))
     assert done.returncode == 0, done.stdout + done.stderr
     assert " session start stress=True threshold=9" in trace.read_text(encoding="utf-8")
+
+
+def test_the_crash_log_is_set_up_after_pytests_own_faulthandler() -> None:
+    # pytest's faulthandler plugin enables faulthandler onto stderr in its own configure hook; ours
+    # must run after it, or the dump of an abort goes to the console and the crash log stays
+    # empty (observed on the first stress run of M17)
+    options = gd.pytest_configure.pytest_impl  # type: ignore[attr-defined]
+    assert options["trylast"] is True

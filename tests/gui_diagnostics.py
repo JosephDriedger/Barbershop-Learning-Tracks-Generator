@@ -151,6 +151,8 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
+# trylast: after pytest's own faulthandler plugin, which would otherwise take the crash dump back
+@pytest.hookimpl(trylast=True)
 def pytest_configure(config: pytest.Config) -> None:
     environ = os.environ
     stress = stress_requested(config.getoption("--gui-gc-stress"), environ)

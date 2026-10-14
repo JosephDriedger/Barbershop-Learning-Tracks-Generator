@@ -8,7 +8,7 @@ Things that are not done, not verified, or deliberately restricted. Nothing here
   refuses publication until people have signed off: a review of the Qt/PySide6 LGPL arrangement, with the source bundle attached to
   the release; the replacement spline that remains in the git history; the provenance of the English g2p model (or the choice of the build without it);
   the AI-assisted authorship of the code; the licence conclusions for the compiled dependencies ([review/INDEPENDENT-REVIEWER-CHECKLIST.md](review/INDEPENDENT-REVIEWER-CHECKLIST.md)); an English-voicebank listening test; a clean-machine test; and the owner's decisions on signing and release
-  ([m16-report.md](m16-report.md)). The native `worldline.dll` has no spline code at all (the tension effect, the only user of a GPL spline, is removed;
+  ([m16-report.md](m16-report.md), [m17-report.md](m17-report.md)). The native `worldline.dll` has no spline code at all (the tension effect, the only user of a GPL spline, is removed;
   [worldline-provenance.md](worldline-provenance.md)); an earlier replacement spline remains in the repository's git history. The English "plus" dictionary,
   whose origin is unknown, is **not** in the build.
 * **The English pronunciation model has no documented training data or licence.** Words outside CMUdict (poetic and dialect forms such as `ev'ry`, `o'er`, `'neath`, `mammy`) get their pronunciation from a small neural model
