@@ -5,11 +5,13 @@ import warnings
 import zipfile
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
-from typing import IO, NoReturn
+from typing import NoReturn
 
 import pytest
 
-import gui_diagnostics
+# The opt-in diagnostics for the GUI tests' garbage-collection workaround are a plugin, so that a
+# manual workflow can also load them into an OLDER checkout (docs/gui-gc-diagnostics.md).
+pytest_plugins = ["gui_diagnostics"]
 
 # Run any Qt code without a display (CI and headless machines).
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -133,7 +135,9 @@ def _no_garbage_collection_inside_a_gui_test(request: pytest.FixtureRequest) -> 
     tests without it (and keep the evidence if they abort): ``pytest --gui-gc-stress``
     (docs/gui-gc-diagnostics.md).
     """
-    if "ui" not in request.path.parts or request.config.stash.get(GC_STRESS, False):
+    import gui_diagnostics  # a plugin (above); imported late so that pytest can rewrite its asserts
+
+    if "ui" not in request.path.parts or request.config.stash.get(gui_diagnostics.GC_STRESS, False):
         yield
         return
     gc.collect()
@@ -143,74 +147,3 @@ def _no_garbage_collection_inside_a_gui_test(request: pytest.FixtureRequest) -> 
     finally:
         gc.enable()
         gc.collect()
-
-
-# --- opt-in diagnostics for that workaround (tests/gui_diagnostics.py, docs/gui-gc-diagnostics.md)
-
-GC_STRESS = pytest.StashKey[bool]()
-GC_TRACE = pytest.StashKey[gui_diagnostics.GcTrace]()
-CRASH_LOG = pytest.StashKey[IO[str]]()
-
-
-def pytest_addoption(parser: pytest.Parser) -> None:
-    group = parser.getgroup("blt-gui-diagnostics", "GUI garbage-collection diagnostics (opt-in)")
-    group.addoption(
-        "--gui-gc-stress",
-        action="store_true",
-        help="run the GUI tests WITHOUT the garbage-collection workaround (or BLT_GUI_GC_STRESS=1)",
-    )
-    group.addoption(
-        "--gui-gc-threshold",
-        type=int,
-        default=None,
-        help="collect garbage at this many allocations (small = often); or BLT_GUI_GC_THRESHOLD",
-    )
-    group.addoption(
-        "--gui-gc-trace",
-        default=None,
-        metavar="FILE",
-        help="log every test start and collection to FILE, flushed at once; or BLT_GUI_GC_TRACE",
-    )
-    group.addoption(
-        "--gui-crash-log",
-        default=None,
-        metavar="FILE",
-        help="write Python's fatal-error traceback (all threads) to FILE; or BLT_GUI_CRASH_LOG",
-    )
-
-
-def pytest_configure(config: pytest.Config) -> None:
-    environ = os.environ
-    stress = gui_diagnostics.stress_requested(config.getoption("--gui-gc-stress"), environ)
-    config.stash[GC_STRESS] = stress
-    threshold = gui_diagnostics.threshold_from(config.getoption("--gui-gc-threshold"), environ)
-    if threshold is not None:
-        gc.set_threshold(threshold, threshold, threshold)
-    trace_path = gui_diagnostics.option_or_env(
-        config.getoption("--gui-gc-trace"), "BLT_GUI_GC_TRACE", environ
-    )
-    if trace_path:
-        trace = gui_diagnostics.GcTrace(open(trace_path, "a", encoding="utf-8"))  # noqa: SIM115, PTH123
-        trace.write(f"session start stress={stress} threshold={threshold}")
-        trace.install()
-        config.stash[GC_TRACE] = trace
-    crash_path = gui_diagnostics.option_or_env(
-        config.getoption("--gui-crash-log"), "BLT_GUI_CRASH_LOG", environ
-    )
-    if crash_path:
-        config.stash[CRASH_LOG] = gui_diagnostics.enable_crash_log(crash_path)
-
-
-@pytest.hookimpl(tryfirst=True)
-def pytest_runtest_setup(item: pytest.Item) -> None:
-    trace = item.config.stash.get(GC_TRACE, None)
-    if trace is not None:
-        trace.test_started(item.nodeid)
-
-
-def pytest_unconfigure(config: pytest.Config) -> None:
-    trace = config.stash.get(GC_TRACE, None)
-    if trace is not None:
-        trace.write("session end")
-        trace.uninstall()
-        trace.handle.close()
