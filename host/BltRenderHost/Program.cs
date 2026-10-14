@@ -28,7 +28,7 @@ namespace Blt.RenderHost {
         static readonly Dictionary<string, long> timingsMs = new Dictionary<string, long>();
         static readonly HashSet<string> known = new HashSet<string> {
             "--project", "--out", "--base", "--singers-dir", "--phonemize-timeout-ms", "--render-timeout-ms",
-            "--g2p-check",
+            "--g2p-check", "--inventory",
         };
 
         static bool Pump(Func<bool> done, int timeoutMs) {
@@ -76,26 +76,133 @@ namespace Blt.RenderHost {
             return code;
         }
 
+        static string Sha256Hex(byte[] bytes) {
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            return Convert.ToHexString(sha.ComputeHash(bytes)).ToLowerInvariant();
+        }
+
+        static List<Dictionary<string, object>> ZipMembers(byte[] zip) {
+            var members = new List<Dictionary<string, object>>();
+            using var archive = new System.IO.Compression.ZipArchive(new MemoryStream(zip), System.IO.Compression.ZipArchiveMode.Read);
+            foreach (var entry in archive.Entries.OrderBy(e => e.FullName, StringComparer.Ordinal)) {
+                using var stream = entry.Open();
+                using var copy = new MemoryStream();
+                stream.CopyTo(copy);
+                members.Add(new Dictionary<string, object> {
+                    ["name"] = entry.FullName, ["size"] = copy.Length, ["sha256"] = Sha256Hex(copy.ToArray()),
+                });
+            }
+            return members;
+        }
+
+        /// <summary>Everything embedded in an assembly: each entry of its .resources sets and each other manifest resource.</summary>
+        static List<Dictionary<string, object>> EmbeddedResources(Assembly assembly) {
+            var list = new List<Dictionary<string, object>>();
+            string owner = assembly.GetName().Name;
+            foreach (var name in assembly.GetManifestResourceNames().OrderBy(n => n, StringComparer.Ordinal)) {
+                using var stream = assembly.GetManifestResourceStream(name);
+                if (name.EndsWith(".resources", StringComparison.Ordinal)) {
+                    using var reader = new System.Resources.ResourceReader(stream);
+                    var entries = new List<System.Collections.DictionaryEntry>();
+                    foreach (System.Collections.DictionaryEntry entry in reader) entries.Add(entry);
+                    foreach (var entry in entries.OrderBy(e => (string)e.Key, StringComparer.Ordinal)) {
+                        byte[] bytes = entry.Value as byte[] ?? (entry.Value is string text ? System.Text.Encoding.UTF8.GetBytes(text) : null);
+                        var item = new Dictionary<string, object> {
+                            ["assembly"] = owner, ["set"] = name, ["name"] = (string)entry.Key,
+                            ["size"] = bytes?.Length ?? 0,
+                            ["sha256"] = bytes != null ? Sha256Hex(bytes) : "(" + entry.Value?.GetType().Name + ")",
+                        };
+                        if (bytes != null && bytes.Length > 4 && bytes[0] == (byte)'P' && bytes[1] == (byte)'K') item["zip_members"] = ZipMembers(bytes);
+                        list.Add(item);
+                    }
+                } else {
+                    using var copy = new MemoryStream();
+                    stream.CopyTo(copy);
+                    list.Add(new Dictionary<string, object> {
+                        ["assembly"] = owner, ["set"] = "(manifest resource)", ["name"] = name,
+                        ["size"] = copy.Length, ["sha256"] = Sha256Hex(copy.ToArray()),
+                    });
+                }
+            }
+            return list;
+        }
+
+        static IEnumerable<Type> LoadableTypes(Assembly assembly) {
+            try { return assembly.GetTypes(); } catch (ReflectionTypeLoadException e) { return e.Types.Where(t => t != null); }
+        }
+
+        // What this host can phonemize with and what data it carries, read from the assemblies themselves (nothing of
+        // OpenUtau runs). packaging/verify_host_inventory.py compares it with compliance/host-inventory.json, an
+        // allow-list: a phonemizer or an embedded resource that is not listed there fails the package build, so a
+        // removed engine or dictionary cannot come back unnoticed.
+        static int Inventory() {
+            try {
+                var core = typeof(DocManager).Assembly;
+                var builtin = typeof(OpenUtau.Plugin.Builtin.ArpasingPhonemizer).Assembly;
+                var baseType = typeof(OpenUtau.Api.Phonemizer);
+                var phonemizers = new List<string>();
+                foreach (var assembly in new[] { core, builtin }) {
+                    foreach (var type in LoadableTypes(assembly)) {
+                        if (type.IsClass && !type.IsAbstract && baseType.IsAssignableFrom(type)) phonemizers.Add(type.FullName);
+                    }
+                }
+                phonemizers.Sort(StringComparer.Ordinal);
+                var resources = EmbeddedResources(core);
+                resources.AddRange(EmbeddedResources(builtin));
+                var english = resources.FirstOrDefault(r => (string)r["name"] == "g2p-arpabet");
+                var members = english != null && english.TryGetValue("zip_members", out var m) ? (List<Dictionary<string, object>>)m : null;
+                bool hasModel = members != null && members.Any(x => (string)x["name"] == "g2p.onnx");
+                result["phonemizers"] = phonemizers;
+                result["resources"] = resources;
+                result["g2p_model"] = hasModel ? "included" : "excluded";
+                result["openutau_commit"] = Metadata("OpenUtauCommit");
+                return Finish(0, "ok");
+            } catch (Exception e) {
+                return Finish(Exit.Environment, "inventory_failed", e.GetType().Name + ": " + e.Message);
+            }
+        }
+
+        static string LoadedOnnxRuntime() {
+            foreach (ProcessModule m in Process.GetCurrentProcess().Modules) {
+                if (m.ModuleName.StartsWith("onnxruntime", StringComparison.OrdinalIgnoreCase)) return m.FileName;
+            }
+            return null;
+        }
+
         // The English phonemizers look a word up in the CMU dictionary and, when it is not there, ask a neural
         // model to spell it out. That model runs on the ONNX Runtime, a native library that must sit beside the
         // host (otherwise it silently depends on whatever Windows happens to provide). This check makes both
         // visible: it phonemizes a word that is not in the dictionary and reports which onnxruntime was loaded.
+        // In a host built without the model (host/build.ps1 -ExcludeG2pModel) it checks the opposite: dictionary
+        // words still work, a word that is not in the dictionary gets no guess, and no onnxruntime is loaded.
         static int G2pCheck() {
             try {
-                var phonemes = new OpenUtau.Core.G2p.ArpabetG2p().Query("blorptastic");
-                string loaded = null;
-                foreach (ProcessModule m in Process.GetCurrentProcess().Modules) {
-                    if (m.ModuleName.StartsWith("onnxruntime", StringComparison.OrdinalIgnoreCase)) loaded = m.FileName;
-                }
+                var g2p = new OpenUtau.Core.G2p.ArpabetG2p();
+                var known = g2p.Query("hello");
+                var phonemes = g2p.Query("blorptastic");
+                string loaded = LoadedOnnxRuntime();
                 string here = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
+                var english = EmbeddedResources(typeof(DocManager).Assembly).First(r => (string)r["name"] == "g2p-arpabet");
+                bool hasModel = ((List<Dictionary<string, object>>)english["zip_members"]).Any(x => (string)x["name"] == "g2p.onnx");
+                result["g2p_model"] = hasModel ? "included" : "excluded";
+                result["g2p_known_word"] = "hello";
+                result["g2p_known_phonemes"] = known == null ? "" : string.Join(" ", known);
                 result["g2p_word"] = "blorptastic";
                 result["g2p_phonemes"] = phonemes == null ? "" : string.Join(" ", phonemes);
                 result["onnxruntime"] = loaded;
                 result["onnxruntime_beside_host"] = loaded != null &&
                     string.Equals(Path.GetDirectoryName(loaded), here, StringComparison.OrdinalIgnoreCase);
-                bool ok = phonemes != null && phonemes.Length > 0 && (bool)result["onnxruntime_beside_host"];
-                return Finish(ok ? 0 : Exit.Environment, ok ? "ok" : "g2p_failed",
-                    ok ? null : "the neural English g2p did not run with an onnxruntime.dll beside the host");
+                if (known == null || known.Length == 0) {
+                    return Finish(Exit.Environment, "g2p_failed", "a word of the dictionary got no phonemes");
+                }
+                if (hasModel) {
+                    bool ok = phonemes != null && phonemes.Length > 0 && (bool)result["onnxruntime_beside_host"];
+                    return Finish(ok ? 0 : Exit.Environment, ok ? "ok" : "g2p_failed",
+                        ok ? null : "the neural English g2p did not run with an onnxruntime.dll beside the host");
+                }
+                bool excludedOk = (phonemes == null || phonemes.Length == 0) && loaded == null;
+                return Finish(excludedOk ? 0 : Exit.Environment, excludedOk ? "ok" : "g2p_failed",
+                    excludedOk ? null : "this host is built without the g2p model, but a word outside the dictionary got phonemes or onnxruntime was loaded");
             } catch (Exception e) {
                 return Finish(Exit.Environment, "g2p_failed", e.GetType().Name + ": " + e.Message);
             }
@@ -114,6 +221,34 @@ namespace Blt.RenderHost {
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Phonemes the voicebank has no sound for. OpenUtau renders them as silence without any error. The usual cause
+        /// is a word the pronunciation dictionary does not have (the English phonemizers then pass the lyric itself on,
+        /// or the alias "word not found"); the other is an alias the voicebank lacks. BLT's stem check finds the silence afterwards;
+        /// this says why.
+        /// </summary>
+        static List<Dictionary<string, object>> UnsungPhonemes(UProject project) {
+            var found = new List<Dictionary<string, object>>();
+            foreach (var part in project.parts.OfType<UVoicePart>()) {
+                var track = project.tracks[part.trackNo];
+                var singer = track.Singer;
+                if (singer == null || !singer.Found || !singer.Loaded) continue;
+                foreach (var phoneme in part.phonemes) {
+                    string alias = phoneme.phoneme ?? phoneme.rawPhoneme;
+                    if (string.IsNullOrEmpty(alias) || singer.TryGetOto(alias, out _)) continue;
+                    found.Add(new Dictionary<string, object> {
+                        ["track"] = track.TrackName,
+                        ["lyric"] = phoneme.Parent?.lyric,
+                        ["alias"] = alias,
+                        // a phonemizer that cannot phonemize a word passes the lyric itself on (or "word not found")
+                        ["reason"] = alias == "word not found" || string.Equals(alias, phoneme.Parent?.lyric, StringComparison.OrdinalIgnoreCase)
+                            ? "lyric_has_no_sound" : "alias_not_in_voicebank",
+                    });
+                }
+            }
+            return found;
         }
 
         /// <summary>Deletes the phrases WORLDLINE-R rendered in earlier runs (wdl-*.wav in the cache); returns how many.</summary>
@@ -139,6 +274,7 @@ namespace Blt.RenderHost {
                 if (args[i].StartsWith("--") && !known.Contains(args[i])) return Finish(Exit.Usage, "usage", "unknown option " + args[i]);
             }
             if (Array.IndexOf(args, "--g2p-check") >= 0) return G2pCheck();
+            if (Array.IndexOf(args, "--inventory") >= 0) return Inventory();
             string projectPath = Arg(args, "--project"), outDir = Arg(args, "--out"), baseName = Arg(args, "--base");
             string singersDir = Arg(args, "--singers-dir");
             if (projectPath == null || outDir == null || baseName == null) {
@@ -253,6 +389,14 @@ namespace Blt.RenderHost {
                 return Finish(Exit.PhonemizeTimeout, "phonemize_timeout", $"{collector.Phonemized} of {voiceParts} parts phonemized");
             }
             Phase("phonemize");
+            var unsung = UnsungPhonemes(project);
+            result["unsung_phoneme_count"] = unsung.Count;
+            if (unsung.Count > 0) {
+                result["unsung_phonemes"] = unsung.Take(60).ToList();
+                Events.Emit("warning", new Dictionary<string, object> {
+                    ["message"] = $"{unsung.Count} phoneme(s) have no sound in the voicebank (for example '{unsung[0]["alias"]}' for '{unsung[0]["lyric"]}')",
+                });
+            }
 
             // 5b. never reuse a phrase rendered earlier. OpenUtau keeps every rendered phrase in its cache as a 16-bit file and
             //     reuses it; a reused phrase differs from a fresh render by one least-significant bit, so the same score gave

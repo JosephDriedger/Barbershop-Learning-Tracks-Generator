@@ -220,6 +220,7 @@ def test_a_release_build_must_be_clean_committed_and_blocker_free(
         "uncommitted_changes": False,
         "release_blockers": [],
         "worldline_spline_free": True,
+        "g2p_model": "included",
     }
     (artifacts / "release-info.json").write_text(json.dumps(info), encoding="utf-8")
     assert gate_module.package_problems(artifacts) == []
@@ -228,6 +229,7 @@ def test_a_release_build_must_be_clean_committed_and_blocker_free(
         commit="d" * 40,
         release_blockers=["pyside6"],
         worldline_spline_free=False,
+        g2p_model=None,
     )
     (artifacts / "release-info.json").write_text(json.dumps(info), encoding="utf-8")
     problems = " | ".join(gate_module.package_problems(artifacts))
@@ -235,6 +237,7 @@ def test_a_release_build_must_be_clean_committed_and_blocker_free(
     assert "not of the commit" in problems
     assert "blockers" in problems
     assert "no spline" in problems
+    assert "g2p model" in problems
 
 
 def test_sign_refuses_a_bot_and_records_a_person(
@@ -257,3 +260,65 @@ def test_sign_refuses_a_bot_and_records_a_person(
     assert saved["subjects"] == {
         "docs/subject.md": gate_module.text_sha256(root / "docs" / "subject.md")
     }
+
+
+def _decision_item(**extra: Any) -> dict[str, Any]:
+    return _item(decision_field="g2p_model", decision_values=["included", "excluded"], **extra)
+
+
+def test_an_item_that_records_a_decision_needs_one_of_the_allowed_values(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    item = _decision_item()
+    assert gate_module.check_item(_signed(root, item), root) == [
+        "the sign-off must state g2p_model as one of ['included', 'excluded'], not None"
+    ]
+    assert gate_module.check_item(_signed(root, item, g2p_model="excluded"), root) == []
+    assert gate_module.check_item(_signed(root, item, g2p_model="both"), root) != []
+
+
+@pytest.mark.parametrize(("approved", "built", "ok"), [
+    ("included", "included", True),
+    ("excluded", "excluded", True),
+    ("included", "excluded", False),
+    ("excluded", "included", False),
+])  # fmt: skip
+def test_the_build_released_must_be_the_variant_the_reviewer_approved(
+    tmp_path: Path, approved: str, built: str, ok: bool
+) -> None:
+    root = _repo(tmp_path)
+    item = _signed(root, _decision_item(id="g2p"), g2p_model=approved)
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    (artifacts / "release-info.json").write_text(json.dumps({"g2p_model": built}), encoding="utf-8")
+    problems = gate_module.decision_problems({"items": [item]}, artifacts)
+    assert (problems == []) is ok
+    if not ok:
+        assert f"approved for g2p_model='{approved}'" in problems[0]
+
+
+def test_signing_an_item_with_a_decision_records_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _repo(tmp_path)
+    gate_file = tmp_path / "gate.json"
+    gate_file.write_text(
+        json.dumps({"schema": "blt.release-gate/1", "items": [_decision_item()]}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(gate_module, "GATE", gate_file)
+    monkeypatch.setattr(gate_module, "REPO", root)
+    base = [
+        "sign",
+        "x",
+        "--by",
+        "Ada Reviewer",
+        "--role",
+        "counsel",
+        "--evidence",
+        "docs/evidence.md",
+    ]
+    with pytest.raises(SystemExit, match="g2p_model"):
+        gate_module.main(base)
+    assert gate_module.main([*base, "--decision", "excluded"]) == 0
+    saved = json.loads(gate_file.read_text(encoding="utf-8"))["items"][0]["signoff"]
+    assert saved["g2p_model"] == "excluded"

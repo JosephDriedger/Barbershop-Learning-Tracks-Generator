@@ -19,6 +19,9 @@
 #   -NoSmoke           skip the packaged-app smoke tests
 #   -NoInstaller       stop after the package folder (no Inno Setup needed)
 #   -FailOnBlockers    exit non-zero when the licence audit has open release blockers
+#   -ExcludeG2pModel   build the variant without the English pack's neural g2p model (docs/g2p-model-provenance.md):
+#                      words outside CMUdict get no pronunciation guess, and the native onnxruntime.dll is not shipped.
+#                      Use another -OutDir so that the two builds are never mixed up
 #   -ForRelease        refuse to build unless the release gate is open (docs/release-gate.md), and check the finished
 #                      build against it. Without it the artifacts are always marked NOT FOR RELEASE
 param(
@@ -28,7 +31,8 @@ param(
     [switch]$NoSmoke,
     [switch]$NoInstaller,
     [switch]$FailOnBlockers,
-    [switch]$ForRelease
+    [switch]$ForRelease,
+    [switch]$ExcludeG2pModel
 )
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -82,6 +86,7 @@ if (-not $SkipHost) {
     Step "Publishing the self-contained render host"
     $hostArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "host\build.ps1"), "-Publish", "-Out", $hostOut)
     if ($OpenUtauSrc) { $hostArgs += @("-OpenUtauSrc", $OpenUtauSrc) }
+    if ($ExcludeG2pModel) { $hostArgs += "-ExcludeG2pModel" }
     RunLogged (Join-Path $evidence "worldline-host-build.log") "powershell" $hostArgs
 }
 if (-not (Test-Path (Join-Path $hostOut "blt-render-host.exe"))) { throw "no published host in $hostOut (run without -SkipHost)" }
@@ -103,7 +108,13 @@ $global:LASTEXITCODE = 0
 
 # 3a. data that was decided against must not be anywhere in the package, whatever its name ---------------------
 Step "Searching the whole package for the removed data (English plus dictionary, C+V template, other packs)"
-Run $python @("-I", "packaging/verify_absent_data.py", $app, "--openutau-src", $pinnedSource)
+$absentArgs = @("-I", "packaging/verify_absent_data.py", $app, "--openutau-src", $pinnedSource)
+if ($ExcludeG2pModel) { $absentArgs += "--without-g2p-model" }
+Run $python $absentArgs
+
+# 3a2. the host that is IN the package must contain exactly what the reviewed allow-list names ---------------
+Step "Comparing the packaged host with the reviewed allow-list (phonemizers, embedded data, g2p model)"
+Run $python @("-I", "packaging/verify_host_inventory.py", (Join-Path $app "host"), "--g2p-model", $(if ($ExcludeG2pModel) { "excluded" } else { "included" }))
 
 # 3b. the Microsoft runtime is required of the user's PC, never shipped ---------------------------------
 Step "Checking that no Microsoft runtime files are in the package"
@@ -177,6 +188,7 @@ Copy-Item (Join-Path $hostOut "blt-host-build.json") (Join-Path $artifacts "blt-
 $info = [ordered]@{
     product = "BLT Music Generator"; version = $version; commit = $commit; uncommitted_changes = $dirty
     worldline_spline_free = [bool]$hostBuild.worldline_spline_free; worldline_sha256 = $hostBuild.worldline_sha256
+    g2p_model = $hostBuild.g2p_model
     openutau = "0.1.565 a60ca5830b9064556157245d4bf8f5920d93e5f8"; dotnet_runtime = $runtimeVersion
     python = (& $python --version); pyinstaller = ((& $python -m pip show pyinstaller | Select-String "^Version").ToString() -replace "Version: ", "")
     installer = if ($installer) { Split-Path $installer -Leaf } else { $null }

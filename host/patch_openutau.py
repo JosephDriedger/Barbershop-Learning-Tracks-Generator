@@ -1,7 +1,7 @@
 """A copy of the pinned OpenUtau source without the LGPL-derived Voicevox classes and without the
 embedded data whose licence is unknown (see docs/m13-compliance.md). ``host/build.ps1`` runs this.
 
-    python host/patch_openutau.py <pinned OpenUtau checkout> <output folder>
+    python host/patch_openutau.py <pinned OpenUtau checkout> <output folder> [--exclude-g2p-model]
 
 Changes to the copy (the pinned checkout itself is never touched):
 * delete ``OpenUtau.Core/Voicevox`` (code "partially based on" the LGPL-3.0 VOICEVOX engine) and
@@ -14,6 +14,11 @@ Changes to the copy (the pinned checkout itself is never touched):
   and English C+V phonemizers, the DiffSinger English+ phonemizer, ``ArpabetPlusG2p`` and its lyrics
   helper, and the 1.2 MB English C+V template. The data is removed from the sources and from the
   resource tables, so it is not in the built assemblies at all (host/verify-host.ps1 checks that).
+With ``--exclude-g2p-model`` (M17, docs/g2p-model-provenance.md) the neural fallback of the English
+pack is omitted as well: ``g2p-arpabet.zip`` keeps only ``dict.txt`` (CMUdict) and ``phones.txt``, and
+``G2pPack.LoadPack`` accepts a pack without ``g2p.onnx`` (no inference session). Words that are in
+CMUdict are phonemized exactly as before; a word that is not in it gets no guess and the phonemizers
+treat it as "not found" (a warning, the note stays silent unless the user gives a phonetic hint).
 Everything that BLT's supported rendering uses (the classic WORLDLINE-R path and the English
 phonemizers that run on the CMUdict pack: Arpasing, VCCV, X-SAMPA, ...) is untouched.
 """
@@ -75,11 +80,34 @@ def replace_once(path: Path, old: str, new: str) -> None:
     path.write_bytes((b"\xef\xbb\xbf" if bom else b"") + text.encode("utf-8"))
 
 
+def exclude_g2p_model(target: Path) -> None:
+    """Remove ``g2p.onnx`` from the English pack and let ``G2pPack`` work without a model."""
+    pack = target / "OpenUtau.Core" / "G2p" / "Data" / "g2p-arpabet.zip"
+    kept = io.BytesIO()
+    with zipfile.ZipFile(pack) as source, zipfile.ZipFile(kept, "w", zipfile.ZIP_DEFLATED) as out:
+        names = [info.filename for info in source.infolist()]
+        if sorted(names) != ["dict.txt", "g2p.onnx", "phones.txt"]:
+            raise SystemExit(
+                f"{pack}: unexpected members {names} (is this the pinned OpenUtau 0.1.565?)"
+            )
+        for info in source.infolist():
+            if info.filename != "g2p.onnx":
+                out.writestr(info, source.read(info.filename))
+    pack.write_bytes(kept.getvalue())
+    replace_once(
+        target / "OpenUtau.Core" / "Api" / "G2pPack.cs",
+        "            var session = new InferenceSession(g2pData);\n",
+        "            // BLT: a pack without g2p.onnx has no neural fallback (docs/g2p-model-provenance.md)\n"
+        "            var session = g2pData == null ? null : new InferenceSession(g2pData);\n",
+    )
+
+
 def main() -> int:
-    if len(sys.argv) != 3:
+    arguments = [a for a in sys.argv[1:] if a != "--exclude-g2p-model"]
+    if len(arguments) != 2 or len(sys.argv) - 1 - len(arguments) > 1:
         print(__doc__)
         return 2
-    source, target = Path(sys.argv[1]), Path(sys.argv[2])
+    source, target = Path(arguments[0]), Path(arguments[1])
     shutil.copytree(source, target, ignore=shutil.ignore_patterns(".git", "bin", "obj", ".vs"))
     shutil.rmtree(target / "OpenUtau.Core" / "Voicevox")
     (target / "OpenUtau.Plugin.Builtin" / "SimpleVoicevoxENtoJAPhonemizer.cs").unlink()
@@ -119,7 +147,12 @@ def main() -> int:
     for data in (target / "OpenUtau.Core" / "Vogen" / "Data").iterdir():
         if data.suffix in (".onnx", ".csv"):
             data.write_bytes(b"")
-    print(f"wrote {target}")
+    if "--exclude-g2p-model" in sys.argv[1:]:
+        exclude_g2p_model(target)
+    print(
+        f"wrote {target}"
+        + (" (without the g2p model)" if "--exclude-g2p-model" in sys.argv[1:] else "")
+    )
     return 0
 
 

@@ -25,6 +25,7 @@ from typing import Any
 
 from barbershop_tracks.core.rendering.cancel import CancelToken
 from barbershop_tracks.core.rendering.errors import (
+    OutputValidationError,
     ProjectValidationError,
     RenderCancelledError,
     RenderConfigurationError,
@@ -83,6 +84,52 @@ def _tail(text: str, limit: int = 4000) -> str:
     return text if len(text) <= limit else "…" + text[-limit:]
 
 
+def with_host_findings(
+    error: OutputValidationError, host_result: Mapping[str, Any]
+) -> OutputValidationError:
+    """Add what the host already knows to a "silent" verdict: which words or sounds have no sound.
+
+    OpenUtau renders a word its dictionary lacks, or an alias the voicebank lacks, as silence
+    without an error. The host lists such phonemes (``unsung_phonemes``); the stem check then finds
+    the silence. Without this the user is told only that "the voicebank cannot sing those lyrics".
+    """
+    samples = host_result.get("unsung_phonemes")
+    if error.code not in ("STEM_SILENT", "STEM_NOTE_SILENT") or not isinstance(samples, list):
+        return error
+    words = sorted(
+        {
+            str(s["lyric"])
+            for s in samples
+            if s.get("reason") == "lyric_has_no_sound" and s.get("lyric")
+        }
+    )
+    sounds = sorted(
+        {
+            str(s["alias"])
+            for s in samples
+            if s.get("reason") == "alias_not_in_voicebank" and s.get("alias")
+        }
+    )
+    said: list[str] = []
+    if words:
+        shown = ", ".join(repr(w) for w in words[:8]) + (", ..." if len(words) > 8 else "")
+        said.append(
+            f"the singing voice has no sound for the word(s) {shown} (a word that is missing from "
+            "the pronunciation dictionary, or a lyric this voice cannot sing)"
+        )
+    if sounds:
+        shown = ", ".join(repr(a) for a in sounds[:8]) + (", ..." if len(sounds) > 8 else "")
+        said.append(f"the voicebank has no recording named {shown}")
+    if not said:
+        return error
+    details = dict(
+        error.details, unsung_words=words, unsung_sounds=sounds, host_findings=samples[:60]
+    )
+    return OutputValidationError(
+        error.code, f"{error.message}. The singing engine reported that " + "; ".join(said), details
+    )
+
+
 def _parse_events(lines: list[str]) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
     for line in lines:
@@ -136,9 +183,12 @@ class OpenUtauRenderBackend:
             stems_dir = area.path / "stems"
             if on_event is not None:
                 on_event({"event": "blt_stage", "stage": "stem_validation", "status": "started"})
-            reports = validate_and_collect(
-                plan, area.path / "host-out", stems_dir, self.settings.stem_policy
-            )
+            try:
+                reports = validate_and_collect(
+                    plan, area.path / "host-out", stems_dir, self.settings.stem_policy
+                )
+            except OutputValidationError as invalid:
+                raise with_host_findings(invalid, host_result) from invalid
             if on_event is not None:
                 on_event({"event": "blt_stage", "stage": "stem_validation", "status": "finished"})
             if token.cancelled:  # cancelled while validating: honour it before publishing

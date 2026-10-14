@@ -122,10 +122,23 @@ function Scenario($name, $appDir, $profileDir, $data) {
     Check ($hostsAfter.Count -eq 1 -and $hostsAfter[0].CreationTimeUtc.Ticks -eq $created -and (Get-Item -LiteralPath $hostExe).LastWriteTimeUtc.Ticks -eq $stamp) "the second launch reused the host copy instead of reinstalling it"
 
     # the English phonemizers' neural g2p fallback must run on the onnxruntime.dll shipped beside the host
+    # (or, in the variant built without the model, there must be no guess and no onnxruntime at all)
     $g2p = Invoke-Clean $hostExe @("--g2p-check") $environment
     $g2pResult = $null
     foreach ($line in ($g2p.Out -split "`n")) { if ($line.StartsWith("{")) { $g2pResult = $line | ConvertFrom-Json } }
-    Check ($g2p.ExitCode -eq 0 -and $g2pResult -and $g2pResult.onnxruntime_beside_host -and $g2pResult.g2p_phonemes) "an English word outside the dictionary is phonemized with the onnxruntime.dll shipped beside the host ($($g2pResult.g2p_phonemes))"
+    $buildRecord = Get-Content -LiteralPath (Join-Path (Split-Path $hostExe) "blt-host-build.json") -Raw | ConvertFrom-Json
+    Check ($g2pResult -and $g2pResult.g2p_model -eq $buildRecord.g2p_model) "the host's g2p model state ($($g2pResult.g2p_model)) is the one its build record names ($($buildRecord.g2p_model))"
+    if ($g2pResult -and $g2pResult.g2p_model -eq "excluded") {
+        Check ($g2p.ExitCode -eq 0 -and -not $g2pResult.onnxruntime -and -not $g2pResult.g2p_phonemes -and $g2pResult.g2p_known_phonemes) "no g2p model: a dictionary word is phonemized ($($g2pResult.g2p_known_phonemes)), a word outside it gets no guess, onnxruntime is not loaded"
+    } else {
+        Check ($g2p.ExitCode -eq 0 -and $g2pResult -and $g2pResult.onnxruntime_beside_host -and $g2pResult.g2p_phonemes) "an English word outside the dictionary is phonemized with the onnxruntime.dll shipped beside the host ($($g2pResult.g2p_phonemes))"
+    }
+    # what the installed host copy contains: the same phonemizer list and resource count as the shipped host
+    $inventory = Invoke-Clean $hostExe @("--inventory") $environment
+    $inventoryResult = $null
+    foreach ($line in ($inventory.Out -split "`n")) { if ($line.StartsWith("{")) { $inventoryResult = $line | ConvertFrom-Json } }
+    $names = @($inventoryResult.phonemizers)
+    Check ($inventory.ExitCode -eq 0 -and $names.Count -gt 0 -and -not ($names -match "Plus|CpV|Voicevox")) "the installed host's own inventory lists $($names.Count) phonemizers, none of the removed ones (Arpasing+, English C+V, DiffSinger English+, Voicevox)"
 
     $after = Snapshot $appDir
     Check ($before -eq $after) "the program folder is unchanged after running (no caches, settings or temp files in it)"

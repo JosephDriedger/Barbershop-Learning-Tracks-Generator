@@ -5,8 +5,9 @@
 # Reads OpenUtau.Core.dll and OpenUtau.Plugin.Builtin.dll with reflection (no code of theirs runs) and
 # fails unless:
 #   * no type of either assembly belongs to the Voicevox classes (derived from the LGPL VOICEVOX engine);
-#   * the embedded English dictionary is byte-identical to the pinned OpenUtau's g2p-arpabet (= CMUdict
-#     0.07), the English "plus" dictionary (unverified origin) and everything that only serves it
+#   * the embedded English dictionary (dict.txt, phones.txt) is byte-identical to the pinned OpenUtau's
+#     g2p-arpabet (= CMUdict 0.07) and its neural model (g2p.onnx) is either identical to the pinned one
+#     or, in the variant built with -ExcludeG2pModel, absent (blt-host-build.json says which); the English "plus" dictionary (unverified origin) and everything that only serves it
 #     (Arpasing+, English C+V and their template) are absent, and every other g2p pack and every Vogen
 #     data file is empty;
 #   (packaging/verify_absent_data.py is the byte-level companion: it searches for the removed data itself)
@@ -36,6 +37,17 @@ function Resource-Sizes($path, $resourceFile) {
     foreach ($entry in $reader.GetEnumerator()) { $result[$entry.Key] = $entry.Value }
     return $result
 }
+function Zip-Members($bytes) {
+    Add-Type -AssemblyName System.IO.Compression
+    $archive = New-Object System.IO.Compression.ZipArchive((New-Object System.IO.MemoryStream(,$bytes)))
+    $members = @{}
+    foreach ($entry in $archive.Entries) {
+        $copy = New-Object System.IO.MemoryStream
+        $stream = $entry.Open(); $stream.CopyTo($copy); $stream.Dispose()
+        $members[$entry.FullName] = Sha ($copy.ToArray())
+    }
+    return $members
+}
 function Sha($bytes) { $sha = [System.Security.Cryptography.SHA256]::Create(); ([BitConverter]::ToString($sha.ComputeHash($bytes)) -replace "-", "").ToLower() }
 
 $core = Join-Path $HostDir "OpenUtau.Core.dll"
@@ -45,14 +57,27 @@ foreach ($dll in $core, $builtin) {
     if ($voicevox.Count) { $problems.Add("$(Split-Path $dll -Leaf) still has $($voicevox.Count) Voicevox type(s), e.g. $($voicevox[0].FullName)") }
 }
 
+$infoPath = Join-Path $HostDir "blt-host-build.json"
+$g2pModel = "included"
+if (Test-Path $infoPath) { $recordedModel = (Get-Content $infoPath -Raw | ConvertFrom-Json).g2p_model; if ($recordedModel) { $g2pModel = $recordedModel } }
 $g2p = Resource-Sizes $core "OpenUtau.Core.G2p.Data.Resources.resources"
 $pinned = Join-Path $OpenUtauSrc "OpenUtau.Core\G2p\Data"
 $english = @{ "g2p-arpabet" = "g2p-arpabet.zip" }
 if (-not $g2p) { $problems.Add("the g2p resources are missing") } else {
     foreach ($key in $g2p.Keys) {
         if ($english.ContainsKey($key)) {
-            $expected = Sha ([System.IO.File]::ReadAllBytes((Join-Path $pinned $english[$key])))
-            if ((Sha $g2p[$key]) -ne $expected) { $problems.Add("$key differs from the pinned OpenUtau's $($english[$key])") }
+            $reference = Zip-Members ([System.IO.File]::ReadAllBytes((Join-Path $pinned $english[$key])))
+            $built = Zip-Members $g2p[$key]
+            foreach ($member in "dict.txt", "phones.txt") {
+                if ($built[$member] -ne $reference[$member]) { $problems.Add("$key/$member differs from the pinned OpenUtau's $($english[$key])") }
+            }
+            if ($g2pModel -eq "excluded") {
+                if ($built.ContainsKey("g2p.onnx")) { $problems.Add("$key still has g2p.onnx, but this host was built without the model (blt-host-build.json)") }
+            } elseif ($built["g2p.onnx"] -ne $reference["g2p.onnx"]) {
+                $problems.Add("$key/g2p.onnx differs from the pinned OpenUtau's")
+            }
+            $extra = @($built.Keys | Where-Object { $_ -notin "dict.txt", "phones.txt", "g2p.onnx" })
+            if ($extra.Count) { $problems.Add("$key has unexpected members: $($extra -join ', ')") }
         } elseif ($key -match "plus") {
             $problems.Add("the English 'plus' dictionary ($key) is in the build: its origin is unverified (docs/g2p-plus-provenance.md)")
         } elseif ($g2p[$key].Length -gt 64) {
@@ -74,9 +99,11 @@ $crepe = Resource-Sizes $core "OpenUtau.Core.Analysis.Crepe.Resources.resources"
 if (-not $crepe -or -not $crepe.ContainsKey("tiny")) { $problems.Add("the CREPE model is missing") }
 
 # published host: beside the exe; a plain `dotnet build` (CI's dev host) keeps it under runtimes/win-x64/native
-if (-not ((Test-Path (Join-Path $HostDir "onnxruntime.dll")) -or (Test-Path (Join-Path $HostDir "runtimes/win-x64/native/onnxruntime.dll")))) { $problems.Add("onnxruntime.dll is missing: the English g2p fallback needs it (blt-render-host --g2p-check)") }
+$hasRuntime = (Test-Path (Join-Path $HostDir "onnxruntime.dll")) -or (Test-Path (Join-Path $HostDir "runtimes/win-x64/native/onnxruntime.dll"))
+if ($g2pModel -eq "excluded") {
+    if ($hasRuntime -and (Test-Path (Join-Path $HostDir "onnxruntime.dll"))) { $problems.Add("onnxruntime.dll is shipped although the host has no g2p model to run on it") }
+} elseif (-not $hasRuntime) { $problems.Add("onnxruntime.dll is missing: the English g2p fallback needs it (blt-render-host --g2p-check)") }
 
-$infoPath = Join-Path $HostDir "blt-host-build.json"
 if (-not (Test-Path $infoPath)) { $problems.Add("blt-host-build.json is missing") } else {
     $info = Get-Content $infoPath -Raw | ConvertFrom-Json
     $actual = (Get-FileHash (Join-Path $HostDir "worldline.dll") -Algorithm SHA256).Hash.ToLower()
@@ -88,4 +115,4 @@ if ($problems.Count) {
     $problems | ForEach-Object { Write-Output "FAIL: $_" }
     exit 1
 }
-Write-Output "host ok: no Voicevox types, CMUdict pack identical to the pinned source, no English plus dictionary or Arpasing+/English C+V, other dictionaries and Vogen data empty, BLT worldline.dll"
+Write-Output "host ok (g2p model $g2pModel): no Voicevox types, CMUdict pack identical to the pinned source, no English plus dictionary or Arpasing+/English C+V, other dictionaries and Vogen data empty, BLT worldline.dll"

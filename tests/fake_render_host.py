@@ -24,8 +24,14 @@ def emit(**fields: object) -> None:
     print(json.dumps(fields), flush=True)
 
 
-def finish(code: int, status: str, error: str | None = None) -> None:
-    emit(event="result", status=status, exit_code=code, **({"error": error} if error else {}))
+def finish(code: int, status: str, error: str | None = None, **extra: object) -> None:
+    emit(
+        event="result",
+        status=status,
+        exit_code=code,
+        **({"error": error} if error else {}),
+        **extra,
+    )
     sys.exit(code)
 
 
@@ -135,6 +141,26 @@ def main() -> None:
     if mode == "extra_file":
         (out / "surprise.txt").write_text("unexpected", encoding="utf-8")
     emit(event="phase", name="render", elapsed_ms=2)
+    if mode == "silent_note":  # what the real host reports for a word the dictionary lacks
+        finish(
+            0,
+            "ok",
+            unsung_phoneme_count=2,
+            unsung_phonemes=[
+                {
+                    "track": "Tenor",
+                    "lyric": "ev'ry",
+                    "alias": "ev'ry",
+                    "reason": "lyric_has_no_sound",
+                },
+                {
+                    "track": "Tenor",
+                    "lyric": "la",
+                    "alias": "l aa",
+                    "reason": "alias_not_in_voicebank",
+                },
+            ],
+        )
     finish(0, "ok")
 
 

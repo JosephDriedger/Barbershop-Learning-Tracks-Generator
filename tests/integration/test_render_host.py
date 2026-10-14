@@ -6,14 +6,18 @@ about the host contract: structured events, stable exit codes, and no silent fal
 
 import array
 import hashlib
+import json
 import shutil
+import subprocess
+import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from barbershop_tracks.core.synthesis import VoiceEngineRef
 from barbershop_tracks.core.synthesis.openutau import write_ustx
-from host_support import PINNED_COMMIT, HostRun, install_host, run_host
+from host_support import PINNED_COMMIT, REPO, HostRun, host_environment, install_host, run_host
 from synth_builders import ROLES, full_lyrics, plan_of
 from synthetic_voicebank import SINGER_ID, build_voicebank
 
@@ -160,6 +164,10 @@ def test_an_unsupported_alias_renders_empty_stems_without_any_host_error(
     )
     assert run.returncode == 0
     assert set(stems(tmp_path / "out").values()) == {46}  # a WAV header and no samples
+    # since M17 the host says why: the lyric has no recording in the voicebank
+    assert run.result["unsung_phoneme_count"] == 16  # four voices of four notes
+    assert {u["lyric"] for u in run.result["unsung_phonemes"]} == {"zzz"}
+    assert {u["reason"] for u in run.result["unsung_phonemes"]} == {"lyric_has_no_sound"}
 
 
 def _samples(path: Path) -> array.array[int]:
@@ -303,3 +311,78 @@ def test_the_same_project_renders_to_the_same_bytes_every_time(
     assert {n: digest(tmp_path / "out1" / n) for n in stems(tmp_path / "out1")} == {
         n: digest(second_dir / "out" / n) for n in stems(second_dir / "out")
     }
+
+
+# --- what the host contains (M17): the packaged artifact against the reviewed allow-list ---
+
+
+def inventory_of(exe: Path) -> dict[str, Any]:
+    done = subprocess.run(
+        [str(exe), "--inventory"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=host_environment(),
+        timeout=120,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    events: list[dict[str, Any]] = [
+        json.loads(line) for line in done.stdout.splitlines() if line.startswith("{")
+    ]
+    assert events[-1]["event"] == "result", events[-1]
+    assert events[-1]["status"] == "ok", events[-1]
+    return events[-1]
+
+
+def test_the_host_contains_exactly_what_the_reviewed_allow_list_names(exe: Path) -> None:
+    sys.path.insert(0, str(REPO / "packaging"))
+    import verify_host_inventory as vhi
+    from barbershop_tracks.core.pipeline.config import ENGLISH_PHONEMIZERS, REMOVED_PHONEMIZERS
+
+    expected = json.loads(vhi.EXPECTED.read_text(encoding="utf-8"))
+    actual = inventory_of(exe)
+    found = vhi.compare(
+        actual,
+        expected,
+        removed=REMOVED_PHONEMIZERS,
+        required=(*ENGLISH_PHONEMIZERS, vhi.DEFAULT_PHONEMIZER),
+    )
+    assert found == []
+    assert actual["g2p_model"] in ("included", "excluded")
+
+
+def test_the_g2p_check_agrees_with_what_the_host_contains(exe: Path) -> None:
+    done = subprocess.run(
+        [str(exe), "--g2p-check"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=host_environment(),
+        timeout=120,
+        check=False,
+    )
+    result = json.loads(done.stdout.strip().splitlines()[-1])
+    assert done.returncode == 0, result
+    assert result["g2p_model"] == inventory_of(exe)["g2p_model"]
+    assert result["g2p_known_phonemes"] == "hh ah l ow"  # a CMUdict word never needs the model
+    if result["g2p_model"] == "included":
+        assert result["g2p_phonemes"]
+        assert result["onnxruntime_beside_host"]
+    else:  # the variant without the model: no guess, and the native runtime is not even loaded
+        assert result["g2p_phonemes"] == ""
+        assert result["onnxruntime"] is None
+
+
+@pytest.mark.parametrize("word", ["hello", "blorptastic", "ev'ry"])
+def test_a_word_outside_cmudict_never_crashes_the_host(
+    exe: Path, singers: Path, tmp_path: Path, word: str
+) -> None:
+    case = project(
+        tmp_path,
+        words=("la", word, "la", "la"),
+        phonemizer="OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+    )
+    run = run_host(exe, case, tmp_path / "out", singers_dir=singers)
+    assert run.returncode == 0, run.result
+    assert len(stems(tmp_path / "out")) == 4

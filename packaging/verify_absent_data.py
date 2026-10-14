@@ -1,6 +1,6 @@
 """Fail if data BLT decided not to distribute is anywhere in a built folder.
 
-    python packaging/verify_absent_data.py <folder> --openutau-src <pinned OpenUtau checkout>
+    python packaging/verify_absent_data.py FOLDER --openutau-src PINNED [--without-g2p-model]
 
 The patch ``host/patch_openutau.py`` removes data from the OpenUtau sources: the English "plus"
 dictionary (unverified origin, docs/g2p-plus-provenance.md), the English C+V template, the other
@@ -10,11 +10,17 @@ are in the pinned source and searches every file below ``folder`` for them, byte
 embeds such files unchanged in the assemblies' resources, so a copy anywhere in the package (a DLL,
 a renamed file, a data folder) is found. Windows of data that the supported English pack
 (``g2p-arpabet.zip``, which is CMUdict) shares with a removed file are not used.
+
+With ``--without-g2p-model`` (the variant of docs/g2p-model-provenance.md) the neural model of the
+English pack, ``g2p.onnx``, is looked for as well, as loose bytes. Inside a zip it is compressed, so
+a copy embedded in the English pack is caught by ``verify_host_inventory.py`` (it reads the pack
+members); this scan catches a copy that is stored plainly, whatever the file is called.
 """
 
 import argparse
 import mmap
 import sys
+import zipfile
 from pathlib import Path
 
 WINDOW = 96
@@ -33,10 +39,15 @@ REMOVED = (
     "OpenUtau.Core/G2p/Data/g2p-ru.zip",
 )
 REMOVED_FOLDERS = (("OpenUtau.Core/Vogen/Data", (".onnx", ".csv")),)
+ENGLISH_PACK = "OpenUtau.Core/G2p/Data/g2p-arpabet.zip"
+MODEL_MEMBER = "g2p.onnx"
 
 
 def fingerprints(path: Path) -> list[bytes]:
-    data = path.read_bytes()
+    return fingerprints_of(path.read_bytes())
+
+
+def fingerprints_of(data: bytes) -> list[bytes]:
     if len(data) < WINDOW * 4:
         return []
     return [data[int(len(data) * f) : int(len(data) * f) + WINDOW] for f in FRACTIONS]
@@ -53,9 +64,20 @@ def removed_files(checkout: Path) -> list[Path]:
     return files
 
 
-def scan(folder: Path, checkout: Path) -> list[str]:
+def model_fingerprints(checkout: Path) -> list[bytes]:
+    """Windows of the English pack's neural model, taken from the pinned source."""
+    pack = checkout / ENGLISH_PACK
+    if not pack.is_file():
+        raise SystemExit(f"{pack} is missing: is --openutau-src the pinned OpenUtau 0.1.565?")
+    with zipfile.ZipFile(pack) as archive:
+        return fingerprints_of(archive.read(MODEL_MEMBER))
+
+
+def scan(folder: Path, checkout: Path, *, without_g2p_model: bool = False) -> list[str]:
     """One line per (file in folder, removed source file) pair whose bytes were found."""
     prints: dict[Path, list[bytes]] = {}
+    if without_g2p_model:
+        prints[checkout / ENGLISH_PACK / MODEL_MEMBER] = model_fingerprints(checkout)
     for source in removed_files(checkout):
         if not source.is_file():
             raise SystemExit(f"{source} is missing: is --openutau-src the pinned OpenUtau 0.1.565?")
@@ -83,13 +105,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", type=Path)
     parser.add_argument("--openutau-src", type=Path, required=True)
+    parser.add_argument("--without-g2p-model", action="store_true")
     args = parser.parse_args()
-    hits = scan(args.folder, args.openutau_src)
+    hits = scan(args.folder, args.openutau_src, without_g2p_model=args.without_g2p_model)
     if hits:
         for hit in hits:
             print("FOUND:", hit)
         return 1
-    print(f"no data of the {len(REMOVED)} removed files and the Vogen models in {args.folder}")
+    extra = " and the g2p model" if args.without_g2p_model else ""
+    print(
+        f"no data of the {len(REMOVED)} removed files and the Vogen models{extra} in {args.folder}"
+    )
     return 0
 
 

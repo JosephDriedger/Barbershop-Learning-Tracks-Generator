@@ -94,6 +94,20 @@ def test_a_missing_microsoft_runtime_tells_the_user_what_to_install() -> None:
     assert any("Without internet" in step for step in explanation.steps)
 
 
+def test_a_word_missing_from_the_dictionary_is_explained_with_what_to_do() -> None:
+    message = (
+        "Tenor: note(s) [3] render as silence. The singing engine reported that the singing "
+        "voice has no sound for the word(s) 'evry' (a word that is missing from the "
+        "pronunciation dictionary, or a lyric this voice cannot sing)"
+    )
+    error = PipelineError(ErrorCategory.AUDIO, "STEM_NOTE_SILENT", message)
+    explanation = explain(error)
+    assert explanation.kind == "audio_validation"
+    assert any("ev'ry" in step for step in explanation.steps)
+    plain = explain(PipelineError(ErrorCategory.AUDIO, "STEM_NOTE_SILENT", "Tenor: silence"))
+    assert not any("ev'ry" in step for step in plain.steps)
+
+
 def test_a_removed_pronunciation_engine_is_explained_with_what_to_use_instead() -> None:
     from barbershop_tracks.core.pipeline import ErrorCategory, PipelineError
     from barbershop_tracks.ui.explain import explain

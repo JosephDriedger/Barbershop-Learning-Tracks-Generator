@@ -64,6 +64,10 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "C4", "PT", "PTH", "RUF"]
 "packaging/compliance.py" = ["E501"]  # the legal texts it writes are long lines of prose
 "packaging/review_packets.py" = ["E501"]
 "packaging/runtime_copies.py" = ["E501"]  # docstring prose
+"packaging/verify_host_inventory.py" = ["E501"]  # docstring prose
+"scripts/research/*.py" = ["E501"]  # docstring prose and symbol tables
+"host/patch_openutau.py" = ["E501"]  # docstring prose
+"tests/gui_diagnostics.py" = ["E501"]  # docstring prose
 
 [tool.mypy]
 python_version = "3.12"
@@ -74,5 +78,5 @@ exclude = ["^research-output/"]  # downloaded research material (git-ignored), n
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["mido", "mido.*", "defusedxml", "defusedxml.*", "yaml", "yaml.*", "pefile"]
+module = ["mido", "mido.*", "defusedxml", "defusedxml.*", "yaml", "yaml.*", "pefile", "onnxruntime", "onnxruntime.*"]
 ignore_missing_imports = true

@@ -66,3 +66,39 @@ def test_a_checkout_without_the_removed_files_is_an_error_not_a_pass(tmp_path: P
     (tmp_path / "empty-src").mkdir()
     with pytest.raises(SystemExit):
         vad.scan(package, tmp_path / "empty-src")
+
+
+def _english_pack(root: Path) -> bytes:
+    """The pinned English pack (dict.txt, phones.txt and a g2p.onnx); returns the model's bytes."""
+    import zipfile
+
+    model = os.urandom(4096)
+    pack = root / vad.ENGLISH_PACK
+    pack.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(pack, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("dict.txt", "hello  hh ah l ow\n" * 400)
+        archive.writestr("phones.txt", "aa\tvowel\n")
+        archive.writestr(vad.MODEL_MEMBER, model)
+    return model
+
+
+def test_the_g2p_model_is_only_looked_for_when_the_build_is_meant_to_lack_it(
+    tmp_path: Path,
+) -> None:
+    _checkout(tmp_path / "src")
+    model = _english_pack(tmp_path / "src")
+    package = tmp_path / "pkg"
+    package.mkdir()
+    (package / "loose.bin").write_bytes(os.urandom(500) + model + os.urandom(500))
+    assert vad.scan(package, tmp_path / "src") == []  # the default build ships the model
+    hits = vad.scan(package, tmp_path / "src", without_g2p_model=True)
+    assert hits == ["loose.bin contains data of OpenUtau.Core/G2p/Data/g2p-arpabet.zip/g2p.onnx"]
+
+
+def test_a_package_without_the_g2p_model_passes_the_stricter_scan(tmp_path: Path) -> None:
+    _checkout(tmp_path / "src")
+    _english_pack(tmp_path / "src")
+    package = tmp_path / "pkg"
+    package.mkdir()
+    (package / "app.dll").write_bytes(os.urandom(10000))
+    assert vad.scan(package, tmp_path / "src", without_g2p_model=True) == []

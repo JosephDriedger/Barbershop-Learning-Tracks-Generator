@@ -207,15 +207,22 @@ def _audio(error: PipelineError) -> Explanation:
             text,
         )
     if code.startswith("STEM_"):
+        steps = [
+            "Open 'Technical details' to see which part and notes.",
+            "Fix those lyrics in the lyric review, or choose another singing voice.",
+        ]
+        if "pronunciation dictionary" in error.message:
+            steps.insert(
+                1,
+                "If a word is missing from the pronunciation dictionary, write it the way it "
+                "sounds with ordinary words (for example 'every' for ev'ry) in the lyric review.",
+            )
         return Explanation(
             "audio_validation",
             "A voice came out silent or wrong",
             "The recording of one part did not pass checks, so nothing was saved. This usually "
             "means the chosen voice cannot sing one of the syllables.",
-            (
-                "Open 'Technical details' to see which part and notes.",
-                "Fix those lyrics in the lyric review, or choose another singing voice.",
-            ),
+            tuple(steps),
             text,
         )
     return Explanation(

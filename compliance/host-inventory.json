@@ -1,0 +1,255 @@
+{
+  "schema": "blt.host-inventory/1",
+  "about": "Reviewed allow-list of what blt-render-host may contain (packaging/verify_host_inventory.py). Generated from the pinned, patched OpenUtau build; edit only with a reviewer.",
+  "openutau_commit": "a60ca5830b9064556157245d4bf8f5920d93e5f8",
+  "phonemizers": [
+    "OpenUtau.Core.DefaultPhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerChinesePhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerEnglishPhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerGermanPhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerItalianPhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerJapanesePhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerJyutpingPhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerKoreanG2PPhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerKoreanPhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerPhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerPortuguesePhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerRhythmizerPhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerRussianPhonemizer",
+    "OpenUtau.Core.DiffSinger.DiffSingerSpanishPhonemizer",
+    "OpenUtau.Core.Enunu.EnunuEnglishPhonemizer",
+    "OpenUtau.Core.Enunu.EnunuKoreanPhonemizer",
+    "OpenUtau.Core.Enunu.EnunuPhonemizer",
+    "OpenUtau.Core.Vogen.VogenMandarinPhonemizer",
+    "OpenUtau.Core.Vogen.VogenYuePhonemizer",
+    "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+    "OpenUtau.Plugin.Builtin.BrazilianPortugueseCVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.CantoneseCVVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.CantoneseSyoPhonemizer",
+    "OpenUtau.Plugin.Builtin.ChineseCVVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.ChineseCVVMonophonePhonemizer",
+    "OpenUtau.Plugin.Builtin.ChineseCVVPlusPhonemizer",
+    "OpenUtau.Plugin.Builtin.ENtoJAPhonemizer",
+    "OpenUtau.Plugin.Builtin.EStoJAPhonemizer",
+    "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer",
+    "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.EnunuOnnxEnglishPhonemizer",
+    "OpenUtau.Plugin.Builtin.EnunuOnnxPhonemizer",
+    "OpenUtau.Plugin.Builtin.FILtoJAPhonemizer",
+    "OpenUtau.Plugin.Builtin.FilipinoPhonemizer",
+    "OpenUtau.Plugin.Builtin.FrenchCMUSphinxPhonemizer",
+    "OpenUtau.Plugin.Builtin.FrenchCVVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.FrenchVCCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.GermanDiphonePhonemizer",
+    "OpenUtau.Plugin.Builtin.GermanVCCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.ItalianCVVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.ItalianSyllableBasedPhonemizer",
+    "OpenUtau.Plugin.Builtin.JapaneseCVVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.JapanesePresampPhonemizer",
+    "OpenUtau.Plugin.Builtin.JapaneseVCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.KOtoJAPhonemizer",
+    "OpenUtau.Plugin.Builtin.KoreanCBNNPhonemizer",
+    "OpenUtau.Plugin.Builtin.KoreanCVCCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.KoreanCVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.KoreanCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.KoreanCVVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.KoreanVCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.PolishCVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.RussianCVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.RussianVCCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.SpanishMakkusanPhonemizer",
+    "OpenUtau.Plugin.Builtin.SpanishSyllableBasedPhonemizer",
+    "OpenUtau.Plugin.Builtin.SpanishVCCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.ThaiVCCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.TurkishCVVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.VietnameseCVVCPhonemizer",
+    "OpenUtau.Plugin.Builtin.VietnameseVCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.VietnameseVINAPhonemizer"
+  ],
+  "resources": [
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.Analysis.Crepe.Resources.resources",
+      "name": "tiny",
+      "size": 1955909,
+      "sha256": "3eb8c63ea074542ac09d47eec366b4f5817441fbaa563107a764cc3b0be8a9d7"
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.G2p.Data.Resources.resources",
+      "name": "g2p-arpabet",
+      "zip_members": [
+        {
+          "name": "dict.txt",
+          "size": 3850624,
+          "sha256": "7a1feef41b2fb34871608ba8d612e4a6bcf5a2a2a8bdad3ff14f7b7f0f0c0aae"
+        },
+        {
+          "name": "phones.txt",
+          "size": 421,
+          "sha256": "4614adcc7e91894210464874e305f054614ab38a85cd05730d0f8f4eae08c8a7"
+        }
+      ]
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.G2p.Data.Resources.resources",
+      "name": "g2p-de",
+      "size": 22,
+      "sha256": "8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85",
+      "zip_members": []
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.G2p.Data.Resources.resources",
+      "name": "g2p-es",
+      "size": 22,
+      "sha256": "8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85",
+      "zip_members": []
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.G2p.Data.Resources.resources",
+      "name": "g2p-fr",
+      "size": 22,
+      "sha256": "8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85",
+      "zip_members": []
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.G2p.Data.Resources.resources",
+      "name": "g2p-it",
+      "size": 22,
+      "sha256": "8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85",
+      "zip_members": []
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.G2p.Data.Resources.resources",
+      "name": "g2p-ja-mono",
+      "size": 22,
+      "sha256": "8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85",
+      "zip_members": []
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.G2p.Data.Resources.resources",
+      "name": "g2p-ko",
+      "size": 22,
+      "sha256": "8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85",
+      "zip_members": []
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.G2p.Data.Resources.resources",
+      "name": "g2p-pt",
+      "size": 22,
+      "sha256": "8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85",
+      "zip_members": []
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.G2p.Data.Resources.resources",
+      "name": "g2p-ru",
+      "size": 22,
+      "sha256": "8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85",
+      "zip_members": []
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.Vogen.Data.VogenRes.resources",
+      "name": "f0_man",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.Vogen.Data.VogenRes.resources",
+      "name": "f0_yue",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.Vogen.Data.VogenRes.resources",
+      "name": "g2p_man",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.Vogen.Data.VogenRes.resources",
+      "name": "g2p_yue",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.Vogen.Data.VogenRes.resources",
+      "name": "po_man",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.Vogen.Data.VogenRes.resources",
+      "name": "po_yue",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "assembly": "OpenUtau.Core",
+      "set": "OpenUtau.Core.Vogen.Data.VogenRes.resources",
+      "name": "yue",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "assembly": "OpenUtau.Plugin.Builtin",
+      "set": "OpenUtau.Plugin.Builtin.Data.Resources.resources",
+      "name": "arpasing_template",
+      "size": 1510,
+      "sha256": "2ae52a63d194ac22d8680fce4e78e57824641d501b352362acc51ff12be93ab1"
+    },
+    {
+      "assembly": "OpenUtau.Plugin.Builtin",
+      "set": "OpenUtau.Plugin.Builtin.Data.Resources.resources",
+      "name": "de_vccv_template",
+      "size": 2803,
+      "sha256": "d90e16fd5d33f9a3ee3e71ac987c678c28aa589cfb192977a072bc8c34571d4e"
+    },
+    {
+      "assembly": "OpenUtau.Plugin.Builtin",
+      "set": "OpenUtau.Plugin.Builtin.Data.Resources.resources",
+      "name": "en_xsampa_template",
+      "size": 4578,
+      "sha256": "a9e0b1fb21aaff4754fae22e75d9bd93f848583332577034d6da8c7631fc684b"
+    },
+    {
+      "assembly": "OpenUtau.Plugin.Builtin",
+      "set": "OpenUtau.Plugin.Builtin.Data.Resources.resources",
+      "name": "envccv_template",
+      "size": 2359,
+      "sha256": "fcb7e5b786265afe9cf1a428431286f503f966bcb7f5566b1ce1f890da2e9fd1"
+    },
+    {
+      "assembly": "OpenUtau.Plugin.Builtin",
+      "set": "OpenUtau.Plugin.Builtin.Data.Resources.resources",
+      "name": "filipino_template",
+      "size": 1705,
+      "sha256": "803a2dff3bd6bbb4d88c401e47f116218ca34fd82af4d5e57c938692ccc784c7"
+    },
+    {
+      "assembly": "OpenUtau.Plugin.Builtin",
+      "set": "OpenUtau.Plugin.Builtin.Data.Resources.resources",
+      "name": "german_template",
+      "size": 1741,
+      "sha256": "365d54c4e16e05d45920257261ac129302684739854c39ba99d3eddb05773891"
+    }
+  ],
+  "g2p_model": {
+    "name": "g2p.onnx",
+    "size": 1769706,
+    "sha256": "10779eca9db25cab467f2a6271519c3f0c96f562845c393043fa5fa85ae06059"
+  }
+}

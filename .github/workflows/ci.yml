@@ -58,12 +58,23 @@ jobs:
         run: powershell -NoProfile -ExecutionPolicy Bypass -File host/verify-host.ps1 -HostDir research-output/host/build -OpenUtauSrc research-output/openutau-src
       - name: No removed data (English plus dictionary, C+V template, other packs) anywhere in the host
         run: python -I packaging/verify_absent_data.py research-output/host/build --openutau-src research-output/openutau-src
+      - name: The host contains exactly what the reviewed allow-list names (phonemizers, embedded data, g2p model)
+        run: python -I packaging/verify_host_inventory.py research-output/host/build --g2p-model included
       - name: FFmpeg for the MP3 test (CI only; BLT never bundles it)
         run: |
           if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg -y --no-progress }
           ffmpeg -version | Select-Object -First 1
       - name: Host and rendering tests
         run: pytest -m integration tests/integration
+      - name: The alternative host without the neural g2p model (builds, matches the allow-list, renders)
+        env:
+          BLT_HOST_DIR: ${{ github.workspace }}/research-output/host/build-nog2p
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File host/build.ps1 -ExcludeG2pModel
+          powershell -NoProfile -ExecutionPolicy Bypass -File host/verify-host.ps1 -HostDir research-output/host/build-nog2p -OpenUtauSrc research-output/openutau-src
+          python -I packaging/verify_absent_data.py research-output/host/build-nog2p --openutau-src research-output/openutau-src --without-g2p-model
+          python -I packaging/verify_host_inventory.py research-output/host/build-nog2p --g2p-model excluded
+          pytest -m integration tests/integration/test_render_host.py
 
   package:
     # Builds the Windows package and installer from pinned inputs, audits every file in it against

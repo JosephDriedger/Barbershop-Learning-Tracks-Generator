@@ -4,6 +4,8 @@
     python packaging/release_gate.py check [--release --package-dir DIR]
     python packaging/release_gate.py sign ITEM --by NAME --role ROLE --evidence PATH [...]
 
+(``sign`` also takes ``--decision VALUE`` for an item that records one.)
+
 The gate's data is ``compliance/release-gate.json``. Every required item needs a recorded human
 sign-off that
 
@@ -13,6 +15,10 @@ sign-off that
 * points to evidence that exists (a file in the repository, or an https URL);
 * for acceptance items, names the SHA-256 of the installer that was tested, which must be the one
   being released (checked against the build's SHA256SUMS.txt in ``--release`` mode).
+
+* for an item that records a decision of the reviewer (``decision_field`` in the gate file, e.g.
+  which variant of the build was approved), carries one of the allowed values; in ``--release``
+  mode the build being released must be that variant (``release-info.json`` agrees).
 
 Passing CI is not an input here. The gate reads no test results: a green pipeline and a passing gate
 are independent facts, and publication needs both. ``check`` exits 1 on anything open, so any
@@ -114,6 +120,12 @@ def check_item(
         and not str(signoff.get("conditions", "")).strip()
     ):
         problems.append("approved-with-conditions needs the conditions written down")
+    field = item.get("decision_field")
+    if field and signoff.get(field) not in item.get("decision_values", []):
+        problems.append(
+            f"the sign-off must state {field} as one of {item.get('decision_values')}, "
+            f"not {signoff.get(field)!r}"
+        )
     recorded = signoff.get("subjects", {})
     for name, digest in subject_hashes(item, repo).items():
         if recorded.get(name) != digest:
@@ -169,8 +181,30 @@ def package_problems(package_dir: Path, repo: Path | None = None) -> list[str]:
         problems.append("the build is not of the commit that is checked out")
     if info.get("worldline_spline_free") is not True:
         problems.append("the build does not record that its worldline.dll has no spline in it")
+    if info.get("g2p_model") not in ("included", "excluded"):
+        problems.append("release-info.json does not say whether the g2p model is in the build")
     if info.get("release_blockers"):
         problems.append(f"the build lists licensing blockers: {info['release_blockers']}")
+    return problems
+
+
+def decision_problems(gate: dict[str, Any], package_dir: Path) -> list[str]:
+    """A reviewer who approved one variant of the build has not approved the other."""
+    info_path = package_dir / "release-info.json"
+    if not info_path.is_file():
+        return []
+    info = json.loads(info_path.read_text(encoding="utf-8"))
+    problems: list[str] = []
+    for item in gate["items"]:
+        field = item.get("decision_field")
+        signoff = item.get("signoff")
+        if not field or not item.get("required", True) or not isinstance(signoff, dict):
+            continue
+        if signoff.get(field) != info.get(field):
+            problems.append(
+                f"{item['id']} was approved for {field}={signoff.get(field)!r}, but this build "
+                f"has {field}={info.get(field)!r}"
+            )
     return problems
 
 
@@ -193,6 +227,7 @@ def evaluate(
         open_items["components.json"] = [f"components with status blocker: {', '.join(blockers)}"]
     if package_dir is not None:
         problems = package_problems(package_dir, repo)
+        problems += decision_problems(gate, package_dir)
         if problems:
             open_items["package"] = problems
     return open_items
@@ -231,6 +266,8 @@ def sign(args: argparse.Namespace) -> int:
         signoff["conditions"] = args.conditions
     if args.installer_sha256:
         signoff["installer_sha256"] = args.installer_sha256.lower()
+    if item.get("decision_field"):
+        signoff[item["decision_field"]] = args.decision
     item["signoff"] = signoff
     problems = check_item(item)
     if problems:
@@ -260,6 +297,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     sign_cmd.add_argument("--conditions", default="")
     sign_cmd.add_argument("--evidence", nargs="+", required=True)
     sign_cmd.add_argument("--installer-sha256", default="")
+    sign_cmd.add_argument("--decision", default="", help="the value of the item's decision_field")
     args = parser.parse_args(argv)
     if args.command == "sign":
         return sign(args)

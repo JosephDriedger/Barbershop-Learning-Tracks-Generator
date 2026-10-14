@@ -1,0 +1,72 @@
+name: gui-stress
+
+# Opt-in diagnostics for the GUI tests' garbage-collection workaround (docs/gui-gc-diagnostics.md).
+# Runs the unit tests WITHOUT the workaround, many times, and keeps what a crash leaves behind. It is started
+# by hand (Actions > gui-stress > Run workflow); nothing triggers it, nothing depends on it, and it publishes
+# nothing. A red run here is information, not a broken build. The ordinary CI job keeps the workaround.
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: "how many times to run the whole unit-test suite"
+        default: "10"
+      threshold:
+        description: "collect garbage every N allocations (small = often; empty = Python's default)"
+        default: "5"
+
+jobs:
+  stress:
+    runs-on: windows-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Let Windows keep a crash dump of python.exe (full dumps, into stress-logs/dumps)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force stress-logs/dumps | Out-Null
+          $key = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\python.exe"
+          New-Item -Path $key -Force | Out-Null
+          New-ItemProperty -Path $key -Name DumpFolder -Value "$PWD\stress-logs\dumps" -PropertyType ExpandString -Force | Out-Null
+          New-ItemProperty -Path $key -Name DumpType -Value 2 -PropertyType DWord -Force | Out-Null
+          New-ItemProperty -Path $key -Name DumpCount -Value 5 -PropertyType DWord -Force | Out-Null
+      - name: Run the unit tests without the workaround, repeatedly
+        shell: pwsh
+        run: |
+          $runs = [int]"${{ inputs.runs }}"
+          $aborted = 0
+          foreach ($i in 1..$runs) {
+            $env:BLT_GUI_GC_STRESS = "1"
+            $env:BLT_GUI_GC_TRACE = "stress-logs/gc-$i.log"
+            $env:BLT_GUI_CRASH_LOG = "stress-logs/crash-$i.txt"
+            if ("${{ inputs.threshold }}") { $env:BLT_GUI_GC_THRESHOLD = "${{ inputs.threshold }}" }
+            pytest tests/unit -p no:cacheprovider -q -x --no-header *> "stress-logs/pytest-$i.log"
+            $code = $LASTEXITCODE
+            if ($code -ne 0) { $aborted++ }
+            "run ${i}: exit $code"
+          }
+          "RESULT: $aborted of $runs runs did not pass" | Tee-Object -FilePath stress-logs/summary.txt
+        # a failing run is a finding, not a failing workflow
+        continue-on-error: true
+      - name: What the last lines of each trace say (a collection that never stopped = the process died inside one)
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($f in Get-ChildItem stress-logs/gc-*.log) {
+            $tail = Get-Content $f.FullName -Tail 2
+            "$($f.Name): $($tail -join ' | ')"
+          }
+      - name: Keep the logs and dumps (artifact, 14 days; not the installer, nothing else)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-stress-logs
+          path: stress-logs
+          retention-days: 14
+          if-no-files-found: warn

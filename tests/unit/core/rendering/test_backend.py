@@ -163,6 +163,30 @@ def test_a_successful_exit_with_bad_output_publishes_nothing(
     assert env.staging_entries() == []
 
 
+def test_a_silent_note_says_which_word_the_host_could_not_sing(env: Env) -> None:
+    with pytest.raises(OutputValidationError) as info:
+        env.backend("silent_note").render(plan(), env.destination)
+    error = info.value
+    assert error.code == "STEM_NOTE_SILENT"  # the code is unchanged
+    assert '"ev\'ry"' in error.message
+    assert "pronunciation dictionary" in error.message
+    assert "no recording named 'l aa'" in error.message
+    assert error.details["unsung_words"] == ["ev'ry"]
+    assert error.details["unsung_sounds"] == ["l aa"]
+    assert not env.destination.exists()
+
+
+def test_a_verdict_other_than_silence_is_left_alone() -> None:
+    from barbershop_tracks.core.rendering.backend import with_host_findings
+
+    error = OutputValidationError("STEM_DURATION", "too long")
+    found = {"unsung_phonemes": [{"lyric": "x", "alias": "x", "reason": "lyric_has_no_sound"}]}
+    assert with_host_findings(error, found) is error
+    silent = OutputValidationError("STEM_SILENT", "silent")
+    assert with_host_findings(silent, {}) is silent
+    assert with_host_findings(silent, {"unsung_phonemes": []}) is silent
+
+
 LATE_TENOR = {
     **full_lyrics(("la",) * 4),
     "tenor": sung(VoiceRole.TENOR, ["la"] * 4, start=4),  # four quarters of leading silence
