@@ -6,15 +6,22 @@ Things that are not done, not verified, or deliberately restricted. Nothing here
 
 * **Not cleared for public release.** Every build is marked NOT FOR RELEASE, and a release gate ([release-gate.md](release-gate.md))
   refuses publication until people have signed off: a review of the Qt/PySide6 LGPL arrangement, with the source bundle attached to
-  the release; the replacement spline that remains in the git history; the provenance of the English g2p model (or the choice of the build without it);
+  the release; the replacement spline that remains in the git history; the provenance of the English g2p model (the proposed release is the build without it; a person still has to sign that choice);
   the AI-assisted authorship of the code; the licence conclusions for the compiled dependencies ([review/INDEPENDENT-REVIEWER-CHECKLIST.md](review/INDEPENDENT-REVIEWER-CHECKLIST.md)); an English-voicebank listening test; a clean-machine test; and the owner's decisions on signing and release
   ([m16-report.md](m16-report.md), [m17-report.md](m17-report.md)). The native `worldline.dll` has no spline code at all (the tension effect, the only user of a GPL spline, is removed;
   [worldline-provenance.md](worldline-provenance.md)); an earlier replacement spline remains in the repository's git history. The English "plus" dictionary,
   whose origin is unknown, is **not** in the build.
-* **The English pronunciation model has no documented training data or licence.** Words outside CMUdict (poetic and dialect forms such as `ev'ry`, `o'er`, `'neath`, `mammy`) get their pronunciation from a small neural model
-  in OpenUtau's English pack. It is the OpenUtau author's own file in an MIT repository, and the training recipe in the same source tree uses CMUdict, but no document says what this binary was trained on
-  ([g2p-model-provenance.md](g2p-model-provenance.md); the upstream inquiry is drafted and not sent). A build without the model exists and is tested (`packaging/build.ps1 -ExcludeG2pModel`): then a
-  word outside CMUdict makes the singer silent on that note, generation stops with a message naming the word, and the user must respell it. The release gate makes a person choose.
+* **The proposed release has no English pronunciation model (M18).** The one in OpenUtau's English pack has no documented training data or licence ([g2p-model-provenance.md](g2p-model-provenance.md); the upstream inquiry
+  is drafted and not sent), so the release candidate omits it, together with `onnxruntime.dll`. The build with the model exists for internal research only (`-IncludeG2pModel`) and the release gate refuses it. Exact limits of the model-free build:
+  * Words are looked up in CMUdict. A word it lacks (poetic and dialect forms such as `ev'ry`, `o'er`, `'neath`, `mammy`, `lov'd`) **stops generation** before any track is rendered, naming the word, its voices and its bar. BLT never guesses
+    a pronunciation and never drops a syllable. The remedy today is to respell the word in the score (`every`); BLT does not change the score. A user-approved phonetic override is designed ([design/phonetic-overrides.md](design/phonetic-overrides.md)), not built.
+  * This holds for the Arpasing, English VCCV and English X-SAMPA engines (tested on the real host with the fixture scores of `docs/acceptance/fixtures`). The default engine does not look words up: the lyric is the sound, and a sound the
+    voicebank lacks is reported afterwards as silent notes.
+  * A word spread over several notes is sent whole only when the score gives the full chain of syllables (begin, middle, end). When a follower voice holds one note under several Lead syllables, only the first syllable fragment is sung;
+    if that fragment is not a dictionary word BLT stops and marks it `[a syllable of a longer word]`; the remedy is a lyric of its own for that voice in the score.
+  * A syllable engine can also answer "not enough extension notes" when a word has more vowels than notes; that too stops generation.
+  * A voicebank's own pronunciation dictionary is consulted when rendering, not by the dictionary lookup helper.
+  * The release gate makes a person choose and sign.
 * **Tension is not supported.** OpenUtau's per-note/curve "tension" voice effect is not in BLT's native library. BLT never writes it; a project that asks for it
   is refused by the host ("unsupported_tension") instead of being rendered without it.
 * **Two English phonemizers are missing.** Because the "plus" dictionary is excluded, upstream OpenUtau's *Arpasing+* and *English

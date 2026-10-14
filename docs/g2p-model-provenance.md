@@ -1,8 +1,9 @@
 # The English pronunciation model (`g2p.onnx` of the plain pack): provenance, licence, and what depends on it
 
-Written in M17. **Status: origin and use established; training data and licence statement NOT established. A person must decide** (gate item `g2p-model-provenance`,
-[release-gate.md](release-gate.md)). BLT can build with the model (default) or without it (`-ExcludeG2pModel`); both are tested. Nothing was substituted: the model BLT ships is
-byte-for-byte the one in the pinned OpenUtau.
+Written in M17, updated in M18. **Status: origin and use established; training data and licence statement NOT established. M18 decision (the owner's): the proposed release is the build WITHOUT the model**
+(gate item `g2p-model-provenance`, [release-gate.md](release-gate.md), now answerable only with `--decision excluded`). The model-free build is the default of `host/build.ps1` and `packaging/build.ps1`; the
+build with the model (`-IncludeG2pModel`) is kept for internal research only, its installer is named `...-RESEARCH-ONLY-Setup.exe`, and `-ForRelease` refuses it. Nothing was substituted: the model the research
+build carries is byte-for-byte the one in the pinned OpenUtau.
 
 ## 1. What the file is
 
@@ -41,14 +42,14 @@ Reproduce all of it from the file alone: `python scripts/research/inspect_onnx.p
   reviewer, not BLT, should say so.
 * The plus pack's model (`g2p-arpabet-plus.zip`, unknown origin) is not in BLT's build and is not discussed here.
 
-## 4. What genuinely depends on it
+## 4. What genuinely depends on it (in the research build; the release candidate has no model)
 
 The model is used in exactly one place: `G2pPack.Query` asks the dictionary first and calls `Predict` (the model) only for a word the dictionary does not have.
 
 | | needs the model? |
 |---|---|
 | Any word of CMUdict (133,852 entries incl. variants) | **no**: dictionary lookup, byte-identical with or without the model (tests below) |
-| A word outside CMUdict | **yes**: without it the phonemizer reports "word not found"; the note is phonemized to nothing |
+| A word outside CMUdict | **yes**: without it the phonemizer reports "word not found"; since M18 BLT turns that report into a refusal naming the word, the voice and the bar (section 5) |
 | BLT's supported engines: `DefaultPhonemizer`, `ArpasingPhonemizer`, `EnglishVCCVPhonemizer`, `EnXSampaPhonemizer` | the default never touches it; the three English ones only for words outside CMUdict |
 | Present in the host but not supported (non-English dictionaries are empty): ENtoJA, Enunu English, DiffSinger English | same single use |
 | Lyrics helper / Phonetic Assistant of the OpenUtau GUI | not in BLT's host |
@@ -58,34 +59,42 @@ Words outside CMUdict are not rare in this repertoire. A spot check of 33 words 
 `alabamy`, `mmm`. The model guesses `ev'ry → eh v r iy`, `heav'n → hh eh v ah n`, `o'er → ow er`, `'neath → ih n eh th`, `lov'd → l aa v d`, `mammy → m ae m iy`: usable, sometimes wrong, always reviewable by the singer.
 (Reproduce with the two scripts above; the 33-word list is only a spot check, not a measurement of any real repertoire.)
 
-## 5. The variant without the model (`host/build.ps1 -ExcludeG2pModel`, `packaging/build.ps1 -ExcludeG2pModel`)
+## 5. The model-free build (the default; `host/build.ps1`, `packaging/build.ps1`) and what changed in M18
 
-* `host/patch_openutau.py --exclude-g2p-model` rebuilds `g2p-arpabet.zip` with only `dict.txt` and `phones.txt` (their bytes unchanged) and lets `G2pPack.LoadPack` accept a pack without `g2p.onnx`
+* `host/patch_openutau.py --exclude-g2p-model` (passed unless `-IncludeG2pModel` is given) rebuilds `g2p-arpabet.zip` with only `dict.txt` and `phones.txt` (their bytes unchanged) and lets `G2pPack.LoadPack` accept a pack without `g2p.onnx`
   (one line: no inference session). Nothing else of OpenUtau changes, and no other model is put in its place.
 * The build drops `onnxruntime.dll` from the host: one fewer native library, and its long third-party notice list, in the package.
-* **Cost:** every word outside CMUdict now yields no phonemes. BLT already refuses silent notes, so a song with such a word is not generated quietly wrong: the stem check stops with
-  `STEM_NOTE_SILENT` ("note(s) … render as silence … the voicebank cannot sing those lyrics"), which is true but does not say that the cause is the dictionary. The user's remedy is the one OpenUtau offers: respell the word
-  with words CMUdict has, or give a phonetic hint. **BLT has no screen for this yet**; a new GUI feature was not added (M12/M13 rule). If this variant is chosen, an explanation for that case should be added first.
-* **Evidence it works:** the host integration tests of `tests/integration/test_render_host.py` pass on both builds (CI builds and runs both); `blt-render-host --g2p-check` proves in the variant that a dictionary word is
-  phonemized, a word outside it gets no guess and no onnxruntime is even loaded; `host/verify-host.ps1`, `packaging/verify_absent_data.py --without-g2p-model` and `packaging/verify_host_inventory.py --g2p-model excluded` pass on it.
+* **A word the dictionary lacks stops generation, with the word named (M18).** The always-applied patch adds `OpenUtau.Api.IMissingWordReporter`; the Arpasing, English VCCV and English X-SAMPA phonemizers record each
+  word their dictionary did not have; the host reads the list after phonemizing and stops with exit 11 (`pronunciation_unknown`) **before anything is rendered**. BLT maps the host's report onto the plan and says, for
+  example: `"ev'ry" (bar 1, beat 2; Tenor, Lead)`, adds `[a syllable of a longer word]` where a note carries only part of a word, and explains how to respell. It never guesses and never drops a syllable.
+  Before M18, Arpasing quietly treated such a word as a voicebank alias, and VCCV and X-SAMPA rendered **nothing at all** in the host (they load their dictionary on a background thread and returned empty notes until the host
+  set `Phonemizer.Testing`): both were defects found by the M18 phonemizer matrix and are fixed and tested on the real host.
+* Words on several notes are now sent to the dictionary phonemizers whole (`core/synthesis/openutau/words.py`: the first note carries `together`, the later syllable notes the extender `+`), so a multi-syllable word is looked
+  up as a word and not blocked as fragments.
+* **The default (alias) phonemizer** never looks words up: a lyric is the alias, and an alias the voicebank lacks is reported afterwards as silent notes (`STEM_NOTE_SILENT`), as before.
+* **Cost:** a word outside CMUdict must be respelled in the score with words CMUdict has (`every` for `ev'ry`). BLT does not edit the score. A user-approved phonetic override that keeps the score as written is designed in
+  [design/phonetic-overrides.md](design/phonetic-overrides.md) and **not implemented**.
+* **Evidence it works:** the English matrix of `tests/integration/test_render_host.py` (known words render; unknown words stop with exit 11 and name every voice; a hint renders; one unknown among known; lookup) and
+  `tests/integration/test_english_fixture.py` pass on the model-free host, and the host contract tests pass on both builds (CI builds the research host with `-IncludeG2pModel` as well). `blt-render-host --g2p-check` proves
+  in the model-free host that a dictionary word is phonemized, a word outside it gets no guess and no onnxruntime is even loaded; `host/verify-host.ps1`, `packaging/verify_absent_data.py --without-g2p-model` and
+  `packaging/verify_host_inventory.py --g2p-model excluded` pass on it. Results of the fixture runs per phonemizer: [m18-report.md](m18-report.md).
 
-## 6. Options for the owner (the gate item records the choice: `release_gate.py sign g2p-model-provenance … --decision included|excluded`)
+## 6. Options and the owner's choice
 
 | Option | What it takes | Consequence |
 |---|---|---|
-| **A. Keep the model** (default build) | a person accepts the evidence of §2, or upstream answers the inquiry (post it: command in `upstream-g2p-plus-issue.md`) | unchanged behaviour; a licence statement for the model still does not exist in writing |
-| **B. Ship without it** (`-ExcludeG2pModel`) | nothing more for the build; decide how users learn about words outside CMUdict (§5) | no model, no onnxruntime in the package; words outside CMUdict need respelling |
-| **C. A model BLT trains itself** from CMUdict with the upstream recipe (`py/g2p` at the pinned commit; MIT) | owner approval (this would be a different model, so it was not done or silently assumed), a GPU-less training run, an ONNX export, then the same evidence as this page | provenance fully under BLT's control; behaviour close to, not identical with, the shipped model |
+| A. Keep the model (`-IncludeG2pModel`) | a person accepts the evidence of section 2, or upstream answers the inquiry (post it: command in `upstream-g2p-plus-issue.md`) | **not the proposed release**; kept as an internal research build; the release gate refuses it |
+| **B. Ship without it (the default; chosen in M18)** | nothing more for the build | no model, no onnxruntime in the package; words outside CMUdict need respelling; a user-approved override is the proposed next step |
+| C. A model BLT trains itself from CMUdict with the upstream recipe (`py/g2p` at the pinned commit; MIT) | owner approval (a different model), a training run, an ONNX export, the same evidence as this page | not done |
 
-My recommendation, as a view and not a sign-off: A or B are both defensible; do not release while the item is unanswered. If no answer from upstream or counsel arrives in time, B is the conservative choice and costs
-a class of words that the singer can respell.
+The gate item stays **open until a person signs it with `--decision excluded`**: the choice of B was made in the milestone instruction, but nobody has recorded it as a sign-off, and BLT does not sign for a person.
 
 ## 7. How the build keeps this honest
 
-Three independent checks run on the **packaged** host, in `packaging/build.ps1`, in the smoke test (on the installed copy) and in CI, for both variants:
+Three independent checks run on the **packaged** host, in `packaging/build.ps1`, in the smoke test (on the installed copy) and in CI (the research variant only in CI):
 
 1. `packaging/verify_host_inventory.py` runs the host's own `--inventory` (it reads the assemblies, nothing of OpenUtau runs) and compares it with the reviewed allow-list `compliance/host-inventory.json`:
-   every phonemizer class, every embedded resource with its size and SHA-256 (and the members of the embedded archives), the **set of all 1,317 types** (count and hash), and the one model that may be present. It fails
+   every phonemizer class, every embedded resource with its size and SHA-256 (and the members of the embedded archives), the **set of all 1,321 types** (count and hash), and the one model that may be present. It fails
    on anything not on the list, on a changed byte, on a removed engine (Arpasing+, English C+V, DiffSinger English+, anything named Voicevox) coming back, on the model when the build was meant to lack it (or lacking when it was
    meant to have it), and on an `onnxruntime.dll` that does not match. It also searches the two OpenUtau assemblies for the removed class names as bytes, which needs no loading.
 2. `packaging/verify_absent_data.py` searches **every file** of the package, whatever it is called, for the bytes of the removed data (the plus pack, the C+V template, the other languages' packs, the Vogen models and, with

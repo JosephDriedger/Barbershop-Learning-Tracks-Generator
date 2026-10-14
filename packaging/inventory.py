@@ -148,7 +148,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     result = classify(args.dist, components, pack)
     problems = version_problems(components, args.deps_json)
-    # -ExcludeG2pModel is recorded in the build; components that only serve the model must be gone
+    # the model-free build (the default) is recorded in the build; components serving only the model must be gone
     record = args.dist / "host" / "blt-host-build.json"
     excluded = (
         record.is_file()

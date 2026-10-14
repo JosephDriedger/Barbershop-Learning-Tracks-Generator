@@ -16,7 +16,7 @@ the installer works on a clean PC. **Green CI is not an input to the gate and ca
 | `qt-lgpl-review` | review | a qualified person reviews BLT's LGPL-3.0 arrangement for Qt and PySide6 | [review/qt-pyside6-review-packet.md](review/qt-pyside6-review-packet.md) |
 | `qt-source-published` | publication | the corresponding-source bundle is attached to the release it accompanies and the link works (evidence: its https URL) | same packet, section 8 |
 | `source-history-licensing` | review | a qualified person judges the replacement spline that remains in the public git history (the binary is separately proven spline-free); nothing is rewritten without the owner's authorisation | [review/source-history-review-packet.md](review/source-history-review-packet.md) |
-| `g2p-model-provenance` | review + **decision** | a person accepts the provenance of the English g2p model **or** chooses the build without it; the sign-off states `included` or `excluded` and the gate accepts only a build of that variant | [g2p-model-provenance.md](g2p-model-provenance.md) |
+| `g2p-model-provenance` | review + **decision** | a person confirms the choice made in M18: the release ships **without** the English g2p model (`excluded`, the only decision the gate accepts). A build that contains the model is internal research and `check --release` and `-ForRelease` refuse it | [g2p-model-provenance.md](g2p-model-provenance.md) |
 | `ai-code-authorship` | review | a qualified person reviews the AI-assisted authorship of BLT's own code (notice, licence, diligence) | [review/ai-authorship-review-packet.md](review/ai-authorship-review-packet.md) |
 | `native-dependencies-review` | review | a qualified person reviews the licence conclusions for every compiled dependency | [review/native-dependencies-review-packet.md](review/native-dependencies-review-packet.md) |
 | `english-voicebank-acceptance` | acceptance | a tester who is not the developer listens to tracks made with a real English voicebank and the checklist is passed | [acceptance/english-voicebank-acceptance.md](acceptance/english-voicebank-acceptance.md) |
@@ -26,8 +26,8 @@ the installer works on a clean PC. **Green CI is not an input to the gate and ca
 | `upstream-plus-dictionary-answer` | review, **not required** | only if the English "plus" dictionary were ever re-included | [g2p-plus-provenance.md](g2p-plus-provenance.md) |
 
 The reviewer's one-page guide to the review items is [review/INDEPENDENT-REVIEWER-CHECKLIST.md](review/INDEPENDENT-REVIEWER-CHECKLIST.md).
-An item may record a *decision* of the reviewer (`decision_field` in the gate file): `g2p-model-provenance` records which variant of the build was approved, and `check --release` fails when the build
-being released is the other one (`release-info.json` has `g2p_model`; `sign ... --decision included|excluded`).
+An item may record a *decision* of the reviewer (`decision_field` in the gate file): `g2p-model-provenance` records which variant of the build was approved (since M18 only `excluded`), and `check --release` fails when the build
+being released contains the model (`release-info.json` has `g2p_model`; `sign ... --decision excluded`).
 
 Besides the items, `check` fails while any component in `packaging/components.json` has status `blocker`, and in `--release` mode
 it also fails unless the build being released is of the commit that is checked out, from a clean tree, with no blockers listed in its

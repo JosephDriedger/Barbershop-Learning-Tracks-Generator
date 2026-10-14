@@ -53,7 +53,7 @@ declares no licence, the upstream repository's licence was read and is cited as 
   CMUdict. (M12 had removed it; that left the fallback depending on a Windows-supplied copy. Fixed in M14, proven by
   `blt-render-host --g2p-check`.) The supported renderer is still WORLDLINE-R; the neural renderers are not offered.
   It exists only to run that model, whose training data and licence its authors never documented ([g2p-model-provenance.md](g2p-model-provenance.md), M17):
-  a build made with `-ExcludeG2pModel` ships neither the model nor this DLL, and `packaging/verify_host_inventory.py` enforces the pair.
+  the model-free build (the default since M18; the research build is `-IncludeG2pModel`) ships neither the model nor this DLL, and `packaging/verify_host_inventory.py` enforces the pair.
 * **The Microsoft Visual C++ runtime is not shipped.** Setup requires Microsoft's own redistributable (detection, signed
   download or offline file); the build fails if any runtime file is in the package.
 * **OpenUtau.Core is a patched build** of the pinned source (no Voicevox classes, Vogen data or non-English dictionaries);

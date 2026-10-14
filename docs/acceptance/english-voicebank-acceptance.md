@@ -1,13 +1,28 @@
 # English voicebank acceptance (a person listens)
 
-Checklist version 1 (M15). Read [README.md](README.md) first. **A result is only valid for the installer whose SHA-256 you write in
+Checklist version 3 (M18). Read [README.md](README.md) first. **A result is only valid for the installer whose SHA-256 you write in
 section 1.**
 
-What this decides: whether BLT's tracks, made with a real English voicebank from a real barbershop score, are good enough for
-singers to learn from: the right notes, understandable words, each part clearly audible when it should be. What it does **not**
-decide: licensing, installation on other PCs (that is [clean-machine-verification.md](clean-machine-verification.md)), or other voicebanks.
-Until someone has done this and a verdict of *accepted* has been recorded in the release gate, BLT's claim that it produces
-intelligible English singing is **unverified**.
+What this decides: whether BLT's tracks, made with a real English voicebank, are good enough for singers to learn from: the right notes,
+understandable words, each part clearly audible when it should be, every mix what its name says. What it does **not** decide: licensing,
+installation on other PCs (that is [clean-machine-verification.md](clean-machine-verification.md)), or other voicebanks. Until someone has
+done this and a verdict of *accepted* has been recorded in the release gate, BLT's claim that it produces intelligible English singing is
+**unverified**.
+
+**About this build.** It has **no pronunciation model**. English words are looked up in a dictionary (CMUdict). A word the dictionary does not
+have is **never guessed**: BLT stops before it renders anything and tells you the word, the voice and the bar. The cure is to respell the
+word in the score with ordinary words (`every` for `ev'ry`). Part B below tests exactly this, with scores that come in the kit.
+
+## How the test is organised
+
+| Part | What you do | Needs | About |
+|---|---|---|---|
+| **A. Pronunciation** (steps 1-9) | install; make tracks from the three **kit scores** with the fixed test voices; confirm BLT stops where it must and sings where it may | the kit's `scores\` folder and your voicebank | 40 min |
+| **B. The arithmetic check** (step 10) | run `Check-Outputs.ps1` on the folder BLT made. It proves, with numbers, that the 13 files line up and that every mix contains what it should. | PowerShell | 5 min |
+| **C. Listening** (steps 11-24) | the checklists for pitch, rhythm, synchronisation, pronunciation, predominant mixes, solos and minus-one mixes | headphones, the same output | 90 min |
+| **D. Your own score** (step 25) | optional but wanted: the same on a real arrangement of your own | an original or public-domain score | 60 min |
+
+The numbers of part B do not replace listening: they say that the tracks are *consistent*; only you can say they sound *right*.
 
 ## 1. What you record before you start
 
@@ -19,8 +34,8 @@ intelligible English singing is **unverified**.
 | Windows version (`winver`) | |
 | Headphones or speakers used | |
 | Voicebank: name, version, author, where you got it, the licence terms (do not send the voicebank to anyone) | |
-| Score: title, composer/arranger, where you got it, licence (use an original or public-domain arrangement; do not send copyrighted scores) | |
-| Score size: number of measures, tempo(s) | |
+| Is the voicebank built for ARPAbet ("ARPAsing"), English VCCV, English X-SAMPA, or plain syllables? (section 2) | |
+| Pronunciation engine you typed (or blank) | |
 
 ## 2. Choose a voicebank and a pronunciation engine that fit
 
@@ -28,12 +43,12 @@ BLT only makes the notes and words; **the voicebank must understand them.** Read
 way it is built. BLT's host supports these English engines (type the full name into *Advanced > Pronunciation engine*; leave it blank
 for banks whose sounds are named like the lyrics):
 
-| The bank is built as | Pronunciation engine to type |
-|---|---|
-| plain syllables that match the lyrics (`la`, `ba`, ...), or you are unsure | *(blank: the default `OpenUtau.Core.DefaultPhonemizer`)* |
-| "ARPAsing" (ARPAbet phonemes such as `k ae t`) | `OpenUtau.Plugin.Builtin.ArpasingPhonemizer` |
-| English VCCV | `OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer` |
-| English X-SAMPA | `OpenUtau.Plugin.Builtin.EnXSampaPhonemizer` |
+| The bank is built as | Pronunciation engine to type | Unknown dictionary word |
+|---|---|---|
+| plain syllables that match the lyrics (`la`, `ba`, ...), or you are unsure | *(blank: the default `OpenUtau.Core.DefaultPhonemizer`)* | not looked up: the syllable is the sound. A syllable the bank lacks is reported afterwards as silent notes |
+| "ARPAsing" (ARPAbet phonemes such as `k ae t`) | `OpenUtau.Plugin.Builtin.ArpasingPhonemizer` | **BLT stops and names the word** |
+| English VCCV | `OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer` | **BLT stops and names the word** |
+| English X-SAMPA | `OpenUtau.Plugin.Builtin.EnXSampaPhonemizer` | **BLT stops and names the word** |
 
 **Not available in this build:** the "Arpasing+" and "English C+V" engines (removed for licensing reasons, see
 `docs/g2p-plus-provenance.md`). A bank that *only* works with those cannot be accepted with this release; say so in the results and stop.
@@ -41,49 +56,104 @@ Neural renderers are not part of this build; leave *Rendering engine* blank (WOR
 
 If you try an engine and the program says it cannot find it ("did not resolve"), that is a result: write the exact message down.
 
-## 3. The score
+**If your bank is built for a dictionary engine (ARPAsing, VCCV or X-SAMPA), run all of part A. If it is plain syllables, run steps 1-8 and 11 onward;
+steps 9a-9c do not apply (nothing is looked up), and say so.**
 
-A four-part TTBB (Tenor, Lead, Baritone, Bass) arrangement exported from MuseScore as MusicXML (`.musicxml`, `.xml` or `.mxl`), with
-lyrics typed under the notes. It should contain at least:
+## 3. The three kit scores (part A) and your own score (part D)
 
-* every voice singing at some point, with the Lead carrying the words (the other parts may have no lyrics of their own: BLT then
-  uses the Lead's words, as is usual in barbershop);
-* one **melisma or slur** (one syllable held over several notes);
-* one place where the parts **enter at different times**;
-* a tempo that is **not 120**;
-* **two or three words that an English dictionary may lack**, the kind old songs have: `ev'ry`, `heav'n`, `o'er`, `'neath`, `mammy` (BLT's pronunciation dictionary is CMUdict, which lacks these; what happens to them depends on the build, see step 10b);
-* ordinary barbershop ranges (Bass low, Tenor high).
+The kit's `scores\` folder holds one tiny four-part piece (8 bars, 4/4, 88 beats per minute) in three versions. `english-quartet.words.json`
+lists every word, where it is, and whether the dictionary has it. Do not edit the files.
+
+| File | What it is | What BLT must do |
+|---|---|---|
+| `english-quartet-known-words.musicxml` | ordinary words, contractions (`don't`, `we'll`, `I'm`), an apostrophe at the start (`'cause`), a word over several notes (`together`), a melisma (`sing`), long notes (`know`, `round`, `home`) | make the 13 tracks |
+| `english-quartet-unknown-words.musicxml` | the same, with five words that CMUdict lacks: `lov'd` (bar 1, beat 1), `mammy` (bar 2, beat 4), `ev'ryone` (bar 4, beat 1), `'neath` (bar 6, beat 3), `o'er` (bar 7, beat 1) | **stop** before making any track, and name those words with their voices and bars |
+| `english-quartet-respelled-words.musicxml` | the unknown version with those words respelled: `loved`, `mommy`, `everyone`, `beneath`, `over` | make the 13 tracks |
+
+For your own score (part D): a four-part TTBB arrangement exported from MuseScore as MusicXML (`.musicxml`, `.xml` or `.mxl`), lyrics under the notes, with
+the Lead carrying the words (the other parts may have none of their own: BLT then uses the Lead's words, as is usual in barbershop). It should have
+one melisma or slur, an entrance at different times, a tempo that is not 120, and ordinary barbershop ranges. Use an original or public-domain arrangement.
+If it holds old-fashioned words (`ev'ry`, `heav'n`, `o'er`) BLT may stop and name them: that is part of the result.
 
 ## 4. Steps
 
-Mark each step **PASS**, **FAIL** or **COULD NOT RUN**, and write what you saw in "Notes". Number the problems you find (P1, P2, ...) with
-the measure number.
+Mark each step **PASS**, **FAIL** or **COULD NOT RUN**, and write what you saw in "Notes". Number the problems you find (P1, P2, ...) with the bar number.
+
+### Part A. Install and pronunciation
 
 | # | Step | Expected | Result | Notes |
 |---|---|---|---|---|
 | 1 | Install the installer you were given (per-user install, accept the defaults). Start **BLT Music Generator** from the Start menu. | Windows may warn about an unsigned program; you can continue (More info > Run anyway). The window opens. | | |
 | 2 | In the *Voices* section, point BLT at the folder that contains your voicebank (or put it in `Documents\OpenUtau\Singers`) and press *Refresh*. | Your voicebank is listed. If not, write the folder you used. | | |
-| 3 | *Choose score...* and open your score. | The parts are listed; no error. | | |
-| 4 | Assign Tenor, Lead, Baritone, Bass (try *Suggest voices*, then correct it). Choose your voicebank as the singer. If section 2 says so, type the pronunciation engine in *Advanced*. | The assignment is accepted. | | |
-| 5 | Open *Review lyrics...* | Notes of parts without lyrics of their own are listed as "Follows the Lead". Nothing you did not expect. Note anything that looks wrong, and anything you could not understand. | | |
-| 6 | Choose an output folder and WAV. Press **Generate**. | Stages finish without errors. Note the time it took. | | |
-| 7 | *Open output folder*. | A folder with **13 WAV files** and `manifest.json`. List the file names in the Notes. | | |
-| 8 | Play the **Full quartet** file all the way through. | All four voices sing; pitches match the score; the song ends where the score ends. | | |
-| 9 | Play each part's **Solo** file (Tenor, Lead, Baritone, Bass). | Each is that part alone, with the right notes (check the highest and lowest notes against a keyboard or tuner). | | |
-| 10 | For each part, follow the lyrics on paper while you listen to its Solo file. Score intelligibility 1-5 (see section 5). | Write four scores. | | |
-| 10b | Listen to the **unusual words** (the ones from section 3). Ask the owner which build you have: *with* the pronunciation model, or *without* it. | *With the model*: each is sung with a plausible pronunciation (note which are wrong; a wrong guess is a finding, not a failure). *Without the model*: generation **stops** with a message that names the word and says it is missing from the pronunciation dictionary; respell the word with ordinary words (`every` for `ev'ry`) in the lyric review and generate again; the respelled version is sung. A track that is silently silent at that word is a FAIL. | | |
-| 11 | Listen at the melisma/slur bars. | One vowel is held across the notes; the syllable is not sung again on every note. | | |
-| 12 | Listen where the parts enter at different times and where they release. | Entrances and releases line up in the Full quartet; no drift between parts over the whole song. | | |
-| 13 | Play each part's **Predominant** file. | That part is clearly the loudest and easy to follow, and the other three are present but quiet. Score 1-5 per part. | | |
-| 14 | Play each part's **Without** file. | Exactly the named part is missing and the other three are all there. | | |
-| 15 | Technical: open two or three WAVs in a normal player (and in an audio editor if you have one). | They play; no clicks, no clipping (no flat tops in the waveform), similar loudness between files. All 13 files are the same length. | | |
-| 16 | Optional (needs an FFmpeg you installed yourself): choose MP3, generate again into a new folder. | MP3 files play and sound like the WAVs. | | |
-| 17 | Close BLT, start it again. | Your folders and settings are remembered; a second generation starts quickly. | | |
-| 18 | Honest first impressions: could you have done steps 2 to 7 **without help**? Where did you hesitate, and what would you have clicked instead? | | | |
+| 3 | *Choose score...* and open `english-quartet-known-words.musicxml`. Assign Tenor, Lead, Baritone, Bass (try *Suggest voices*, then correct it). Choose your voicebank as the singer. If section 2 says so, type the pronunciation engine in *Advanced*. | The parts are listed; the assignment is accepted. | | |
+| 4 | Open *Review lyrics...* | Notes of parts without lyrics of their own are listed as "Follows the Lead". Nothing you did not expect. Note anything that looks wrong, and anything you could not understand. | | |
+| 5 | Choose an output folder and WAV. Press **Generate**. Note the time it took. | Stages finish without errors. | | |
+| 6 | *Open output folder*. | A folder with **13 WAV files** and `manifest.json`. List the file names in the Notes. Keep this folder: it is the *known* set. | | |
+| 7 | Open `english-quartet-unknown-words.musicxml` instead (same assignment). Press **Generate**. | Dictionary engines: generation **stops** with a message that says BLT does not know how to pronounce some words, and lists them: `lov'd` (bar 1, beat 1), `mammy` (bar 2, beat 4), `ev'ryone` (bar 4, beat 1), `'neath` (bar 6, beat 3), `o'er` (bar 7, beat 1), each with its voices (Tenor, Lead, Baritone, Bass). **No** 13 files are written. Write the message down word for word. Plain-syllable bank: no stop is expected; say what happened. | | |
+| 8 | Open `english-quartet-respelled-words.musicxml` (same assignment). Press **Generate** into a new folder. | 13 tracks. Keep this folder: it is the *respelled* set. | | |
+| 9a | Dictionary engines: of the words in step 7 which one was **not** listed, or which was listed that is **not** in the table of section 3? | The five words and no other. A word BLT should have stopped at and did not is a **FAIL** (note the word). | | |
+| 9b | In the *respelled* set listen to the five respelled words (`loved`, `mommy`, `everyone`, `beneath`, `over`, bars as in the table). | Each is sung as the word it is spelled as. A silent word is a FAIL. | | |
+| 9c | In the *known* set listen to `don't`, `we'll`, `I'm`, `'cause`, and `together` (one word over three notes). | Each is a single word, not two or three separate syllables. | | |
+
+### Part B. The arithmetic check
+
+| # | Step | Expected | Result | Notes |
+|---|---|---|---|---|
+| 10 | In PowerShell, in the kit folder: `powershell -ExecutionPolicy Bypass -File Check-Outputs.ps1 -Folder "<the known set>" -Report known-check.txt`. Repeat for the respelled set (`respelled-check.txt`). | The last line says every arithmetic check passed; no line says FAIL; all 13 files have the same length. A FAIL names the voice and the check: do not listen further to that set, send the report. | | |
+
+### Part C. Listening checklists
+
+Use the **known** set unless a step says otherwise. Use headphones. Play each file at least twice.
+
+**Pitch**
+
+| # | Step | Expected | Result | Notes |
+|---|---|---|---|---|
+| 11 | Play the **Full quartet** all the way through. | All four voices sing; the piece ends where the score ends; parallel thirds and octaves of the test piece are in tune with each other. | | |
+| 12 | Play each part's **Solo** file (Tenor, Lead, Baritone, Bass). Check the highest and lowest notes against a keyboard or tuner. | Each is that part alone, with the right notes. Write any wrong pitch with its bar. | | |
+
+**Rhythm and synchronisation**
+
+| # | Step | Expected | Result | Notes |
+|---|---|---|---|---|
+| 13 | Tap the beat (88 per minute) against the Full quartet; listen at the half notes and the whole note on `home`. | Note lengths match the score; long notes are held their full length and end together. | | |
+| 14 | Listen where the melisma is (`sing`, bar 2) in each Solo. | One vowel is held across the notes; the syllable is not sung again on every note. | | |
+| 15 | Listen where the parts start and where they release (bars 1, 3, 4, 8). Play two Solo files together in an audio editor if you have one (start both at 0:00). | Entrances and releases line up; no drift between parts over the whole piece; no part starts early or late. | | |
+
+**Pronunciation and intelligibility**
+
+| # | Step | Expected | Result | Notes |
+|---|---|---|---|---|
+| 16 | For each part, follow the words on paper while you listen to its Solo. Score intelligibility 1-5 (section 5). | Write four scores. A word that is silent, missing, or sung as a different word is a problem (P#), with its bar. | | |
+| 17 | Where a word is held over several notes (`together`, bar 3), listen for the syllables in order. | Each syllable once, in order, on the right notes. | | |
+
+**Predominant, solo and minus-one mixes**
+
+| # | Step | Expected | Result | Notes |
+|---|---|---|---|---|
+| 18 | Play each part's **Predominant** file. Score 1-5 per part (section 5). | That part is clearly the loudest and easy to follow; the other three are present but quiet. | | |
+| 19 | Play each part's **Solo** file again, now only for level. | The part alone, same loudness as the other Solos (within a few dB), not silent anywhere it sings. | | |
+| 20 | Play each part's **Without** (minus-one) file. | Exactly the named part is missing; the other three are all there, all the way through. Try to sing the missing part with it: can you hear your pitch from the others? | | |
+| 21 | Compare the Full quartet with the Without file of one part, then with that part's Solo. | Full sounds like Solo plus Without together. | | |
+
+**Files, program and your impressions**
+
+| # | Step | Expected | Result | Notes |
+|---|---|---|---|---|
+| 22 | Technical: open two or three WAVs in a normal player (and in an audio editor if you have one). | They play; no clicks, no clipping (no flat tops in the waveform), similar loudness between files. All 13 files are the same length. | | |
+| 23 | Optional (needs an FFmpeg you installed yourself): choose MP3, generate again into a new folder. | MP3 files play and sound like the WAVs. | | |
+| 24 | Close BLT, start it again. | Your folders and settings are remembered; a second generation starts quickly. | | |
+
+### Part D. Your own score
+
+| # | Step | Expected | Result | Notes |
+|---|---|---|---|---|
+| 25 | Repeat steps 3-6, 10 and 11-22 with your own score. If BLT stops at words, respell them in the score as the message says (it never changes your score itself), save, load again. | Same expectations. Record the words it stopped at and how you respelled them. | | |
+| 26 | Honest first impressions: could you have done steps 2 to 6 **without help**? Where did you hesitate, and what would you have clicked instead? Was the message at a word BLT did not know clear enough to act on? | | | |
 
 ## 5. Scoring guide
 
-| Score | Intelligibility (step 10) | Predominant clarity (step 13) |
+| Score | Intelligibility (step 16) | Predominant clarity (step 18) |
 |---|---|---|
 | 5 | every word understood | the part is easy to follow throughout |
 | 4 | one or two words unclear | easy except in a few spots |
@@ -93,31 +163,37 @@ the measure number.
 
 **Suggested rule for the verdict** (the tester decides; write your reasons):
 
-* *Accepted*: steps 1-9, 11-15 pass; every intelligibility and clarity score is at least 3 and the average at least 4; no problem
-  that would mislead a singer (wrong pitch, wrong word, a missing part).
-* *Accepted with known issues*: all of the above except some scores of 3 or minor problems that you list. The owner decides whether to
-  accept the issues.
-* *Rejected*: any wrong pitches, a part missing or wrong, a track that does not play, intelligibility below 3 for any part, or a crash.
+* *Accepted*: steps 1-6, 8-22 pass, **step 7 stops exactly as expected (dictionary engines)**; step 10 passes; every intelligibility and clarity score is at least 3 and the
+  average at least 4; no problem that would mislead a singer (wrong pitch, wrong word, a missing part).
+* *Accepted with known issues*: all of the above except some scores of 3 or minor problems that you list. The owner decides whether to accept the issues.
+* *Rejected*: any wrong pitches, a part missing or wrong, a track that does not play, **a word BLT should have stopped at and instead was sung wrongly or silently**, a failed arithmetic check
+  with no explanation, intelligibility below 3 for any part, or a crash.
 * *Not verified*: you could not complete the steps. Say which step and why.
 
 ## 6. Results block (copy into a text file and send it back)
 
 ```
 BLT ACCEPTANCE RESULT: English voicebank
-Checklist version: 2
+Checklist version: 3
 Tester / role / date:
 Installer file and SHA-256:
 Windows version:
 Voicebank (name, version, author, licence):
-Pronunciation engine used:
-Build: with / without the pronunciation model (as told by the owner):
-Unusual words (list; what you heard, or what BLT said and what you did):
-Score (title, source, licence, measures, tempo):
-Steps 1-18 (including 10b): PASS / FAIL / COULD NOT RUN with a note for each:
+Voicebank built for (ARPAbet / VCCV / X-SAMPA / plain syllables) and engine typed:
+Kit scores: step 7 message, word for word (and which words, voices and bars it named):
+Words BLT should have named but did not / named but should not have:
+Respelled set: any word silent or wrong (step 9b):
+Contractions and multi-note words (step 9c, 17):
+Check-Outputs.ps1: known set PASS/FAIL, respelled set PASS/FAIL (attach known-check.txt, respelled-check.txt):
+Own score (title, source, licence, measures, tempo), words BLT stopped at and how you respelled them:
+Steps 1-26: PASS / FAIL / COULD NOT RUN with a note for each:
+Pitch problems (bar, voice):
+Rhythm / synchronisation problems (bar, voices):
 Intelligibility per part (T/L/Bar/Bass, 1-5):
 Predominant clarity per part (T/L/Bar/Bass, 1-5):
-Problems found (P1.., with measure numbers):
-Could you do steps 2-7 without help? What confused you?
+Solos / minus-one mixes: anything missing or in the wrong mix:
+Problems found (P1.., with bar numbers):
+Could you do steps 2-6 without help? What confused you?
 VERDICT: accepted / accepted with known issues / rejected / not verified
 Reasons:
 ```

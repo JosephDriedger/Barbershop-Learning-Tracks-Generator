@@ -7,7 +7,7 @@
 #   * no type of either assembly belongs to the Voicevox classes (derived from the LGPL VOICEVOX engine);
 #   * the embedded English dictionary (dict.txt, phones.txt) is byte-identical to the pinned OpenUtau's
 #     g2p-arpabet (= CMUdict 0.07) and its neural model (g2p.onnx) is either identical to the pinned one
-#     or, in the variant built with -ExcludeG2pModel, absent (blt-host-build.json says which); the English "plus" dictionary (unverified origin) and everything that only serves it
+#     or, in the model-free build (the default; the research build is made with -IncludeG2pModel), absent (blt-host-build.json says which); the English "plus" dictionary (unverified origin) and everything that only serves it
 #     (Arpasing+, English C+V and their template) are absent, and every other g2p pack and every Vogen
 #     data file is empty;
 #   (packaging/verify_absent_data.py is the byte-level companion: it searches for the removed data itself)

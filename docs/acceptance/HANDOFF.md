@@ -11,7 +11,8 @@ tracks **sound right**, or whether it **installs and uninstalls cleanly on a PC 
 | `BLT-Music-Generator-0.1.0-Setup.exe` | the build under test |
 | `BLT-Music-Generator-0.1.1-Setup.exe` | the **same program with a higher number**, only so that you can test *upgrading* |
 | `SHA256SUMS.txt` | the checksums. **Compare them with the ones the developer sent you separately** (below) |
-| `Collect-Environment.ps1`, `Check-UserData.ps1` | two small helper scripts (they change nothing except `Check-UserData`'s clearly named marker files) |
+| `Collect-Environment.ps1`, `Check-UserData.ps1`, `Check-Outputs.ps1` | three small helper scripts (they change nothing except `Check-UserData`'s clearly named marker files; `Check-Outputs` only reads the 13 tracks and checks with arithmetic that they line up) |
+| `scores\` | three tiny English test scores (known words / words the dictionary lacks / the same respelled) and `english-quartet.words.json`, which lists every word. Use them with your voicebank before your own score |
 | `HANDOFF.md` (this page), `english-voicebank-acceptance.md`, `clean-machine-verification.md` | the instructions; this page is the short version, the other two have every step and the results blocks |
 
 You bring: a Windows 10/11 **64-bit** PC or VM that has never had BLT or developer tools (a VM snapshot lets you repeat steps); headphones; a legitimately obtained **English
@@ -26,7 +27,7 @@ Then run `powershell -ExecutionPolicy Bypass -File Collect-Environment.ps1 | Tee
 |---|---|---|---|
 | 1 | **Clean install, runtime present** | On a PC that has the Visual C++ runtime (the script says), install 0.1.0 per user, start BLT from the Start menu, run `blt.exe selftest` (also with the network off) | clean-machine **A1-A6** |
 | 2 | **Runtime missing** | On a PC/VM *without* the runtime: Install -> a dialog "Microsoft Visual C++ runtime needed" must appear with three buttons. Try: *Go back*; *Download*; *offline file beside the installer*; answering **No** to the Windows permission prompt; a wrong file; no network; a silent install. Record every window and message (screenshots) | clean-machine **B1-B13** |
-| 3 | **English singing** | Generate the 13 tracks from your score with your voicebank; listen to every part's Solo, Predominant and Without file; score intelligibility and clarity; check the melisma, entries and releases; sing a few unusual words (`ev'ry`, `o'er`) and say what happened (step 10b: ask which build you have) | english-voicebank **steps 1-18** |
+| 3 | **English singing** | This build has **no pronunciation model**. With your voicebank: (a) generate from the three kit scores: the *known* and *respelled* ones must make 13 tracks, the *unknown* one must **stop and name five words** (`lov'd`, `mammy`, `ev'ry`one, `'neath`, `o'er`) with their voices and bars; (b) run `Check-Outputs.ps1` on each set of tracks; (c) listen to every part's Solo, Predominant and Without file against the pitch, rhythm, synchronisation, pronunciation and mix checklists; (d) repeat with your own score | english-voicebank **steps 1-26** |
 | 4 | **Upgrade, data kept** | With 0.1.0 installed and a *real* generated track set: run `Check-UserData.ps1 -Mode Create`, add a text file of your own to the program folder, then run the **0.1.1** installer over it. Run `Check-UserData.ps1 -Mode Verify` | clean-machine **A9** |
 | 5 | **Uninstall, data kept** | Settings > Apps > BLT Music Generator > Uninstall. Run `Check-UserData.ps1 -Mode Verify` again; look at what is left in the program folder and in `%LOCALAPPDATA%\BarbershopLearningTracks`. Reinstall: are your settings remembered? | clean-machine **A10** |
 | 6 | **Report** | Fill the results sheet below and send it with `environment.txt`, the screenshots and your notes | |
@@ -43,13 +44,14 @@ working copy are removed on uninstall; a file you added to the program folder is
 ## Results sheet (copy, fill, send)
 
 ```
-BLT ACCEPTANCE RESULT: handoff sheet (checklist version 1)
+BLT ACCEPTANCE RESULT: handoff sheet (checklist version 2)
 Tester / date:
 Installer 0.1.0 SHA-256 (as you computed it):          matches the developer's number: yes / no
 Machine(s): (attach environment.txt for each)
 1 Clean install, runtime present:          PASS / FAIL / COULD NOT RUN   notes:
 2 Runtime missing (list B1-B13 separately): PASS / FAIL / COULD NOT RUN   notes:
 3 English singing: verdict accepted / accepted with known issues / rejected / not verified
+   (kit scores: the unknown-words score stopped at exactly the five words: yes / no; Check-Outputs.ps1 on the known and respelled sets: PASS / FAIL)
    intelligibility T/L/Bar/Bass (1-5):          predominant clarity T/L/Bar/Bass (1-5):
    voicebank (name, version, licence):          score (title, source, licence):
 4 Upgrade 0.1.0 -> 0.1.1, data KEPT / LOST:     notes:

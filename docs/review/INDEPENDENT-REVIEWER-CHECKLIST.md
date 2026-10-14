@@ -16,7 +16,7 @@ BLT's own tests prove that the program builds and works; they cannot say that it
 |---|---|---|---|---|
 | 1 | Qt / PySide6 under the LGPL-3.0 | `qt-lgpl-review`, then `qt-source-published` | [qt-pyside6-review-packet.md](qt-pyside6-review-packet.md) | whether the arrangement satisfies the LGPL, and whether the source bundle's publication does |
 | 2 | Source-history licensing | `source-history-licensing` | [source-history-review-packet.md](source-history-review-packet.md) | whether the replacement spline in the git history is a problem, and which remediation (if any) |
-| 3 | The g2p model's provenance | `g2p-model-provenance` | [../g2p-model-provenance.md](../g2p-model-provenance.md) | keep the model (`included`) or ship without it (`excluded`) |
+| 3 | The g2p model's provenance | `g2p-model-provenance` | [../g2p-model-provenance.md](../g2p-model-provenance.md) | confirm shipping without it (`excluded`); a build with the model is refused by the gate |
 | 4 | AI-assisted authorship | `ai-code-authorship` | [ai-authorship-review-packet.md](ai-authorship-review-packet.md) | whether the copyright notice, the licence and the diligence are adequate |
 | 5 | Remaining native dependencies | `native-dependencies-review` | [native-dependencies-review-packet.md](native-dependencies-review-packet.md) | whether the licence conclusions for every compiled component stand |
 
@@ -40,7 +40,7 @@ You may be asked for only some of these; each item is independent.
 ### 3. The g2p model
 
 - [ ] Read the evidence (§2) and what is *not* established (§3) of [../g2p-model-provenance.md](../g2p-model-provenance.md). You can reproduce the technical claims: `python scripts/research/inspect_onnx.py` and `eval_g2p_model.py`.
-- [ ] Is the provenance enough to redistribute the model under MIT with the CMUdict notice? If not, would you accept the variant built without it (`-ExcludeG2pModel`; what it costs is in §4-5)?
+- [ ] Is the provenance enough to redistribute the model under MIT with the CMUdict notice? If not, the proposed release is the variant built **without** it (the default build; the model only in the research build `-IncludeG2pModel`); do you confirm that choice (what it costs is in §4-5)?
 - [ ] State **`included` or `excluded`** in your letter. The gate then accepts only a build of that variant.
 
 ### 4. AI-assisted authorship
@@ -74,6 +74,6 @@ Reviewer: ______________________   Qualification: ______________________   Date:
 Kit SHA-256 checked: yes / no      Commit reviewed: ____________________
 Item: ____________________   Conclusion: approved / approved with conditions / cannot conclude
 Conditions or missing material: ________________________________________________________
-For g2p-model-provenance only: build to be released contains the model: included / excluded
+For g2p-model-provenance only: build to be released contains the model: excluded (the only value the gate accepts)
 What I verified myself, and what I relied on BLT's account for: ____________________________
 ```

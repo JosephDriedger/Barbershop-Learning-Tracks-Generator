@@ -220,7 +220,7 @@ namespace Blt.RenderHost {
         // model to spell it out. That model runs on the ONNX Runtime, a native library that must sit beside the
         // host (otherwise it silently depends on whatever Windows happens to provide). This check makes both
         // visible: it phonemizes a word that is not in the dictionary and reports which onnxruntime was loaded.
-        // In a host built without the model (host/build.ps1 -ExcludeG2pModel) it checks the opposite: dictionary
+        // In a host built without the model (the default of host/build.ps1) it checks the opposite: dictionary
         // words still work, a word that is not in the dictionary gets no guess, and no onnxruntime is loaded.
         static int G2pCheck() {
             try {

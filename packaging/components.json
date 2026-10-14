@@ -1585,7 +1585,7 @@
    "copyright": "Copyright (c) 2014 StAkira (OpenUtau); Carnegie Mellon University (CMUdict, the probable training data)",
    "source": "https://github.com/openutau/OpenUtau (OpenUtau.Core/G2p/Data/g2p-arpabet.zip, member g2p.onnx, SHA-256 10779eca9db25cab467f2a6271519c3f0c96f562845c393043fa5fa85ae06059)",
    "status": "ok",
-   "bundled": "yes, inside OpenUtau.Core.dll's resources; ABSENT in a build made with -ExcludeG2pModel (blt-host-build.json: g2p_model)",
+   "bundled": "yes, inside OpenUtau.Core.dll's resources; ABSENT in the model-free build, which is the default since M18 (blt-host-build.json: g2p_model); present only in the research build made with -IncludeG2pModel",
    "obligations": "MIT notice (shipped) and the CMUdict licence text (shipped). Provenance, training data and licence statement are NOT established (docs/g2p-model-provenance.md). Release gate item g2p-model-provenance makes a person decide: keep the model (included), or ship the variant without it (excluded); the gate then refuses a build of the other variant. packaging/verify_host_inventory.py compares the packaged host with compliance/host-inventory.json, which names the one model that may be present.",
    "notes": "Status 'ok' here means only that the files are inventoried and the notices are shipped; it does NOT say the provenance question is closed (it is not). Used only for words that CMUdict does not contain. The native onnxruntime.dll exists only to run this model.",
    "patterns": [],

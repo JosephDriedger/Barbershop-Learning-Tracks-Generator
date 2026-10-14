@@ -50,7 +50,7 @@ gh issue create --repo openutau/OpenUtau --title "$(cat docs/upstream/g2p-inquir
 | Sources and licences of A documented, redistribution allowed | `docs/g2p-plus-provenance.md` updated with the evidence; the owner may then decide to re-include A and the Arpasing+ and English C+V phonemizers (a small change to the patch), with the notices the licences need; a new review item in the release gate |
 | A restricted, or no answer | A stays excluded (it already is; nothing else depends on it) |
 | B: training data and licence documented and permissive | recorded in `docs/g2p-model-provenance.md` and in `packaging/components.json` (component `g2p-arpabet-model`); the NOTICES paragraph is updated; the owner can then sign gate item `g2p-model-provenance` with `--decision included` |
-| B: no answer or restrictive | the owner decides among the options of `docs/g2p-model-provenance.md` section 6: keep the model with the residual risk recorded, ship the build without it (`-ExcludeG2pModel`, ready and tested), or have BLT train its own model from CMUdict with the upstream recipe (needs approval) |
+| B: no answer or restrictive | the owner decides among the options of `docs/g2p-model-provenance.md` section 6: keep the model with the residual risk recorded, ship the build without it (the M18 decision: the default build; the model is built only with `-IncludeG2pModel` for research), or have BLT train its own model from CMUdict with the upstream recipe (needs approval) |
 
 ## Submission record
 
