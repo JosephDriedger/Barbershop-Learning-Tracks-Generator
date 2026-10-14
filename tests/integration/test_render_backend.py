@@ -331,7 +331,7 @@ def test_an_unknown_word_is_named_with_its_voices_and_its_bar_and_nothing_is_ren
         shared.backend().render(plan, tmp_path / "song")
     error = info.value
     assert error.code == "PRONUNCIATION_UNKNOWN"
-    assert "'ev'ry' (bar 1, beat 2; Tenor, Lead, Baritone, Bass)" in error.message
+    assert '"ev\'ry" (bar 1, beat 2; Tenor, Lead, Baritone, Bass)' in error.message
     found = error.details["unknown_words"]
     assert sorted(u["voice"] for u in found) == ["Baritone", "Bass", "Lead", "Tenor"]
     assert {u["where"] for u in found} == {"bar 1, beat 2"}

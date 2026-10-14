@@ -1,0 +1,388 @@
+{
+  "tempo_bpm": 88,
+  "meter": "4/4",
+  "bars": 8,
+  "versions": {
+    "known": {
+      "expected": "generates 13 tracks",
+      "words": [
+        {
+          "word": "Love",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "is",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "a",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "song",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 4",
+          "in_dictionary": true
+        },
+        {
+          "word": "we",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 2, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "sing",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 2, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "together",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 3, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "don't",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 4, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "you",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 4, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "know",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 4, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "'cause",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 5, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "we'll",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 5, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "always",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 5, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "I'm",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 6, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "here",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 6, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "'round",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 6, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "ne'er",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 7, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "mind",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 7, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "the",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 7, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "heart",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 7, beat 4",
+          "in_dictionary": true
+        },
+        {
+          "word": "home",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 8, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "dum",
+          "sung_by": "Bass only (its own words)",
+          "where": "bar 2, beat 4",
+          "in_dictionary": true
+        }
+      ]
+    },
+    "unknown": {
+      "expected": "BLT stops before rendering and names every word with in_dictionary false, with its voices and bar",
+      "words": [
+        {
+          "word": "lov'd",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 1",
+          "in_dictionary": false
+        },
+        {
+          "word": "is",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "a",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "song",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 4",
+          "in_dictionary": true
+        },
+        {
+          "word": "we",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 2, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "sing",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 2, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "together",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 3, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "ev'ryone",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 4, beat 1",
+          "in_dictionary": false
+        },
+        {
+          "word": "'cause",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 5, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "we'll",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 5, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "always",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 5, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "I'm",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 6, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "here",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 6, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "'neath",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 6, beat 3",
+          "in_dictionary": false
+        },
+        {
+          "word": "o'er",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 7, beat 1",
+          "in_dictionary": false
+        },
+        {
+          "word": "mind",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 7, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "the",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 7, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "heart",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 7, beat 4",
+          "in_dictionary": true
+        },
+        {
+          "word": "home",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 8, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "mammy",
+          "sung_by": "Bass only (its own words)",
+          "where": "bar 2, beat 4",
+          "in_dictionary": false
+        }
+      ]
+    },
+    "respelled": {
+      "expected": "generates 13 tracks",
+      "words": [
+        {
+          "word": "loved",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "is",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "a",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "song",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 1, beat 4",
+          "in_dictionary": true
+        },
+        {
+          "word": "we",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 2, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "sing",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 2, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "together",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 3, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "everyone",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 4, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "'cause",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 5, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "we'll",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 5, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "always",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 5, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "I'm",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 6, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "here",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 6, beat 2",
+          "in_dictionary": true
+        },
+        {
+          "word": "beneath",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 6, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "over",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 7, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "the",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 7, beat 3",
+          "in_dictionary": true
+        },
+        {
+          "word": "heart",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 7, beat 4",
+          "in_dictionary": true
+        },
+        {
+          "word": "home",
+          "sung_by": "Lead, followed by Tenor, Baritone and Bass",
+          "where": "bar 8, beat 1",
+          "in_dictionary": true
+        },
+        {
+          "word": "mommy",
+          "sung_by": "Bass only (its own words)",
+          "where": "bar 2, beat 4",
+          "in_dictionary": true
+        }
+      ]
+    }
+  }
+}

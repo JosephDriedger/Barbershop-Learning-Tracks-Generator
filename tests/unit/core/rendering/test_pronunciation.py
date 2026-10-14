@@ -45,8 +45,8 @@ def test_the_hosts_refusal_names_each_word_with_its_voices_and_its_bar(tmp_path:
     assert error.code == "PRONUNCIATION_UNKNOWN"
     assert "nothing was rendered" in error.message
     assert "BLT does not guess" in error.message
-    assert "'ev'ry' (bar 1, beat 2; Tenor, Lead)" in error.message
-    assert "'o'er'" in error.message
+    assert '"ev\'ry" (bar 1, beat 2; Tenor, Lead)' in error.message
+    assert '"o\'er"' in error.message
     found = error.details["unknown_words"]
     assert [(u["voice"], u["word"], u["where"]) for u in found] == [
         ("Tenor", "ev'ry", "bar 1, beat 2"),
@@ -70,7 +70,7 @@ def test_the_error_reaches_the_user_as_a_source_problem_with_a_plain_explanation
     explanation = explain(piped)
     assert explanation.kind == "pronunciation_unknown"
     assert "2 words" in explanation.summary
-    assert "'ev'ry': bar 1, beat 2 (Tenor, Lead)" in explanation.summary
+    assert '"ev\'ry": bar 1, beat 2 (Tenor, Lead)' in explanation.summary
     assert "nothing was generated" in explanation.summary
     assert any("every" in step and "over" in step for step in explanation.steps)
     assert any("never changes your score" in step for step in explanation.steps)
@@ -108,7 +108,7 @@ def test_many_places_are_summarised_with_a_count() -> None:
         {"track": "Lead", "position": 480 * n, "lyric": f"w{n}", "word": f"w{n}"} for n in range(12)
     ]
     text = pron.describe(pron.locate(plan, reported), limit=3)
-    assert text.count("'w") == 3
+    assert text.count('"w') == 3
     assert text.endswith("and 9 more")
     assert pron.group(pron.locate(plan, reported))[0][0] == "w0"
     assert Fraction(1) == pron.locate(plan, reported)[1].start

@@ -60,7 +60,9 @@ def locate(plan: SynthesisPlan, reported: Sequence[Mapping[str, Any]]) -> list[U
             sung = next((n for n in voice.notes if n.start == start), None)
             if sung is not None:
                 note_index = sung.index
-                fragment = is_word_fragment(sung)
+                # only the syllable as the score writes it is a fragment; a word that BLT assembled
+                # from all of its syllables (words.py) is a whole word
+                fragment = is_word_fragment(sung) and str(item.get("word", "")) == sung.lyric.text
         found.append(
             UnknownWord(
                 voice=track,
@@ -93,7 +95,7 @@ def group(found: Sequence[UnknownWord]) -> list[tuple[str, str, list[str]]]:
 def describe(found: Sequence[UnknownWord], limit: int = 8) -> str:
     pieces = {(item.word, item.where) for item in found if item.fragment}
     parts = [
-        f"'{word}' ({where}; {', '.join(voices)})"
+        f'"{word}" ({where}; {", ".join(voices)})'
         + (" [a syllable of a longer word]" if (word, where) in pieces else "")
         for word, where, voices in group(found)[:limit]
     ]

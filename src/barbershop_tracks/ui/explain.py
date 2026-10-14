@@ -50,7 +50,7 @@ def _pronunciation(error: PipelineError) -> Explanation:
         if i.get("fragment")
     }
     lines = [
-        f"'{word}': {where} ({', '.join(voices)})"
+        f'"{word}": {where} ({", ".join(voices)})'
         + (" [a syllable of a longer word]" if (word, where) in pieces else "")
         for (word, where), voices in places.items()
     ]
@@ -58,7 +58,7 @@ def _pronunciation(error: PipelineError) -> Explanation:
     shown = "\n".join(f"  {line}" for line in lines[:12])
     if len(lines) > 12:
         shown += f"\n  ... and {len(lines) - 12} more places"
-    which = f"'{words[0]}'" if len(words) == 1 else f"{len(words)} words"
+    which = f'"{words[0]}"' if len(words) == 1 else f"{len(words)} words"
     return Explanation(
         "pronunciation_unknown",
         "BLT does not know how to pronounce some words",
