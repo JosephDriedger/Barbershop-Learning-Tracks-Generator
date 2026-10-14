@@ -19,9 +19,12 @@
 #   -NoSmoke           skip the packaged-app smoke tests
 #   -NoInstaller       stop after the package folder (no Inno Setup needed)
 #   -FailOnBlockers    exit non-zero when the licence audit has open release blockers
-#   -ExcludeG2pModel   build the variant without the English pack's neural g2p model (docs/g2p-model-provenance.md):
-#                      words outside CMUdict get no pronunciation guess, and the native onnxruntime.dll is not shipped.
-#                      Use another -OutDir so that the two builds are never mixed up
+#   (default)          the MODEL-FREE build, the proposed release configuration (M18): the English pack has no g2p model,
+#                      words outside CMUdict get no guess (generation stops and names them), and the native onnxruntime.dll
+#                      is not shipped (docs/g2p-model-provenance.md)
+#   -IncludeG2pModel   INTERNAL RESEARCH ONLY: keep the g2p model of unknown provenance. The installer is named
+#                      ...-RESEARCH-ONLY-Setup.exe, release-info says so, no tester kit is made and -ForRelease refuses it.
+#                      Use another -OutDir (research-output\release-research) so that the two builds are never mixed up
 #   -ForRelease        refuse to build unless the release gate is open (docs/release-gate.md), and check the finished
 #                      build against it. Without it the artifacts are always marked NOT FOR RELEASE
 param(
@@ -32,7 +35,7 @@ param(
     [switch]$NoInstaller,
     [switch]$FailOnBlockers,
     [switch]$ForRelease,
-    [switch]$ExcludeG2pModel
+    [switch]$IncludeG2pModel
 )
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -76,6 +79,7 @@ $localNuget = Join-Path $root "research-output\spike\nuget"
 if (-not $env:NUGET_PACKAGES -and (Test-Path $localNuget)) { $env:NUGET_PACKAGES = $localNuget }
 $nuget = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path $HOME ".nuget\packages" }
 Write-Output "BLT Music Generator $version, commit $commit$(if ($dirty) { ' (working tree has uncommitted changes)' })"
+if ($ForRelease -and $IncludeG2pModel) { throw "-ForRelease refuses the research build: it contains the g2p model of unknown provenance" }
 if ($ForRelease) {
     Step "Release gate (-ForRelease)"
     Run $python @("packaging/release_gate.py", "check")
@@ -86,7 +90,7 @@ if (-not $SkipHost) {
     Step "Publishing the self-contained render host"
     $hostArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "host\build.ps1"), "-Publish", "-Out", $hostOut)
     if ($OpenUtauSrc) { $hostArgs += @("-OpenUtauSrc", $OpenUtauSrc) }
-    if ($ExcludeG2pModel) { $hostArgs += "-ExcludeG2pModel" }
+    if ($IncludeG2pModel) { $hostArgs += "-IncludeG2pModel" }
     RunLogged (Join-Path $evidence "worldline-host-build.log") "powershell" $hostArgs
 }
 if (-not (Test-Path (Join-Path $hostOut "blt-render-host.exe"))) { throw "no published host in $hostOut (run without -SkipHost)" }
@@ -109,12 +113,12 @@ $global:LASTEXITCODE = 0
 # 3a. data that was decided against must not be anywhere in the package, whatever its name ---------------------
 Step "Searching the whole package for the removed data (English plus dictionary, C+V template, other packs)"
 $absentArgs = @("-I", "packaging/verify_absent_data.py", $app, "--openutau-src", $pinnedSource)
-if ($ExcludeG2pModel) { $absentArgs += "--without-g2p-model" }
+if (-not $IncludeG2pModel) { $absentArgs += "--without-g2p-model" }
 Run $python $absentArgs
 
 # 3a2. the host that is IN the package must contain exactly what the reviewed allow-list names ---------------
 Step "Comparing the packaged host with the reviewed allow-list (phonemizers, embedded data, g2p model)"
-RunLogged (Join-Path $evidence "g2p-host-inventory.log") $python @("-I", "packaging/verify_host_inventory.py", (Join-Path $app "host"), "--g2p-model", $(if ($ExcludeG2pModel) { "excluded" } else { "included" }))
+RunLogged (Join-Path $evidence "g2p-host-inventory.log") $python @("-I", "packaging/verify_host_inventory.py", (Join-Path $app "host"), "--g2p-model", $(if ($IncludeG2pModel) { "included" } else { "excluded" }))
 
 # 3b. the Microsoft runtime is required of the user's PC, never shipped ---------------------------------
 Step "Checking that no Microsoft runtime files are in the package"
@@ -165,9 +169,10 @@ if (-not $NoInstaller) {
         "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe") | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
     if (-not $iscc) { throw "Inno Setup 6 not found (install it, or set BLT_ISCC; or use -NoInstaller)" }
     $isccArgs = @("/Qp", "/DAppVersion=$version", "/DSourceDir=$app", "/DOutputDir=$artifacts", "/DVcMajor=$($vcRequired[0])", "/DVcMinor=$($vcRequired[1])", "/DVcBuild=$($vcRequired[2])")
+    if ($IncludeG2pModel) { $isccArgs += "/DResearchBuild=1" }
     if ($hashedCopies.Count -eq 1) { $isccArgs += "/DNumpyMsvcp=$($hashedCopies[0])" } elseif ($hashedCopies.Count -gt 1) { throw "the installer handles one renamed runtime copy, found $($hashedCopies.Count)" }
     Run $iscc ($isccArgs + (Join-Path $root "packaging\installer.iss"))
-    $installer = Join-Path $artifacts "BLT-Music-Generator-$version-Setup.exe"
+    $installer = Join-Path $artifacts ("BLT-Music-Generator-$version-" + $(if ($IncludeG2pModel) { "RESEARCH-ONLY-" } else { "" }) + "Setup.exe")
     if (-not (Test-Path $installer)) { throw "installer was not produced" }
 }
 
@@ -189,6 +194,7 @@ $info = [ordered]@{
     product = "BLT Music Generator"; version = $version; commit = $commit; uncommitted_changes = $dirty
     worldline_spline_free = [bool]$hostBuild.worldline_spline_free; worldline_sha256 = $hostBuild.worldline_sha256
     g2p_model = $hostBuild.g2p_model
+    distribution = $hostBuild.distribution
     openutau = "0.1.565 a60ca5830b9064556157245d4bf8f5920d93e5f8"; dotnet_runtime = $runtimeVersion
     python = (& $python --version); pyinstaller = ((& $python -m pip show pyinstaller | Select-String "^Version").ToString() -replace "Version: ", "")
     installer = if ($installer) { Split-Path $installer -Leaf } else { $null }
@@ -197,7 +203,7 @@ $info = [ordered]@{
 }
 [System.IO.File]::WriteAllText((Join-Path $artifacts "release-info.json"), ($info | ConvertTo-Json), $utf8)
 Get-Content (Join-Path $artifacts "SHA256SUMS.txt")
-if ($installer) {
+if ($installer -and -not $IncludeG2pModel) {
     Step "Assembling the tester kit (not sent anywhere)"
     Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "packaging/tester_kit.ps1"), "-Artifacts", $artifacts, "-App", $app, "-Out", (Join-Path $OutDir "tester-kit"))
 }

@@ -23,10 +23,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from barbershop_tracks.core.rendering import pronunciation
 from barbershop_tracks.core.rendering.cancel import CancelToken
 from barbershop_tracks.core.rendering.errors import (
     OutputValidationError,
     ProjectValidationError,
+    PronunciationError,
     RenderCancelledError,
     RenderConfigurationError,
     RenderError,
@@ -176,9 +178,12 @@ class OpenUtauRenderBackend:
             ) from error
         try:
             with self._host_slot(token, on_event):
-                result = self._run(
-                    plan, area, project_text, command_prefix, environment, token, on_event
-                )
+                try:
+                    result = self._run(
+                        plan, area, project_text, command_prefix, environment, token, on_event
+                    )
+                except PronunciationError as unknown:
+                    raise pronunciation.with_findings(unknown, plan) from unknown
             host_result, events = result
             stems_dir = area.path / "stems"
             if on_event is not None:
@@ -366,6 +371,8 @@ class OpenUtauRenderBackend:
             raise RenderConfigurationError(
                 "HOST_USAGE" if code == 2 else "HOST_ENVIRONMENT", str(message), details
             )
+        if code == 11:
+            raise PronunciationError("PRONUNCIATION_UNKNOWN", str(message), details)
         if code in (7, 9):
             raise RenderTimeoutError(
                 "HOST_PHONEMIZE_TIMEOUT" if code == 7 else "HOST_RENDER_TIMEOUT",

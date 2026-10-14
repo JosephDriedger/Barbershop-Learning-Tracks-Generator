@@ -39,6 +39,11 @@ from barbershop_tracks.core.synthesis.openutau.target import (
     OpenUtauTarget,
     UstxError,
 )
+from barbershop_tracks.core.synthesis.openutau.words import (
+    DICTIONARY_PHONEMIZERS,
+    WordJoin,
+    assemble_words,
+)
 from barbershop_tracks.core.synthesis.openutau.yaml_emit import Flow, Quoted, emit
 from barbershop_tracks.core.synthesis.plan import (
     VOICE_ORDER,
@@ -297,6 +302,10 @@ def write_ustx(
         ref = plan.engine_ref(voice.role)
         _check_ref(name, ref, target)
         tracks.append(_track(name, ref))
+        # a dictionary phonemizer looks words up: the whole word goes on its first note (words.py)
+        joined = (
+            assemble_words(plan, voice) if ref.phonemizer in DICTIONARY_PHONEMIZERS else WordJoin()
+        )
         notes: list[dict[str, Any]] = []
         previous_has_lyric = False
         previous_end: int | None = None
@@ -311,7 +320,10 @@ def write_ustx(
                     f"{MIN_NOTE_TICKS}, so it is refused",
                 )
             lyric = note.lyric
-            if lyric.state in (LyricState.SCORE_CONTINUATION, LyricState.LEAD_SUSTAIN):
+            if (
+                lyric.state in (LyricState.SCORE_CONTINUATION, LyricState.LEAD_SUSTAIN)
+                or note.index in joined.follow
+            ):
                 if not previous_has_lyric:
                     raise UstxError("USTX_CONTINUATION_ORPHAN", f"{where} continues nothing")
                 if previous_end != start:
@@ -324,8 +336,8 @@ def write_ustx(
                     )
                 text = continuation.value
             elif lyric.text is not None:
-                validate_lyric_text(lyric.text)
-                text = lyric.text
+                text = joined.whole.get(note.index, lyric.text)
+                validate_lyric_text(text)
                 previous_has_lyric = True
             else:  # unreachable for a ready plan; kept so that nothing silently gets a default
                 raise UstxError("USTX_LYRIC_MISSING", f"{where} has no lyric decision")

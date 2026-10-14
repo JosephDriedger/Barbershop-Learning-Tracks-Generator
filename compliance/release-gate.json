@@ -1,6 +1,6 @@
 {
  "schema": "blt.release-gate/1",
- "note": "Every required item needs a person's recorded sign-off before anything is published. Only a human edits 'signoff' (python packaging/release_gate.py sign ...). Green CI does not satisfy any item. See docs/release-gate.md. Item worldline-spline-review was retired in M16 because the code it covered was removed; the release build must prove that (worldline_spline_free). M17 added source-history-licensing, g2p-model-provenance, ai-code-authorship and native-dependencies-review for the independent reviewer (docs/review/INDEPENDENT-REVIEWER-CHECKLIST.md); g2p-model-provenance records which variant of the build was approved (included/excluded) and the gate refuses the other.",
+ "note": "Every required item needs a person's recorded sign-off before anything is published. Only a human edits 'signoff' (python packaging/release_gate.py sign ...). Green CI does not satisfy any item. See docs/release-gate.md. Item worldline-spline-review was retired in M16 because the code it covered was removed; the release build must prove that (worldline_spline_free). M17 added source-history-licensing, g2p-model-provenance, ai-code-authorship and native-dependencies-review for the independent reviewer (docs/review/INDEPENDENT-REVIEWER-CHECKLIST.md); g2p-model-provenance records which variant of the build was approved (included/excluded) and the gate refuses the other. M18: the model-free build is the proposed release configuration; a build with the g2p model is internal research only and check --release refuses it.",
  "items": [
   {
    "id": "worldline-spline-review",
@@ -56,14 +56,13 @@
   },
   {
    "id": "g2p-model-provenance",
-   "title": "Provenance and licence of the English g2p model (g2p.onnx of the plain pack) are accepted, or the build without the model is chosen; the sign-off states which variant (included/excluded) and the gate accepts only that build",
+   "title": "The model-free configuration is confirmed for release: the g2p model of unknown provenance (g2p.onnx of the plain pack) stays out of every released build (the build and the gate enforce it); the sign-off states g2p_model=excluded",
    "kind": "review",
    "required": true,
-   "who": "a qualified person, or the owner with the OpenUtau maintainers' written answer; the decision is the owner's",
+   "who": "a qualified person, or the owner (the owner chose the model-free configuration in M18); the gate refuses any build that contains the model",
    "packet": "docs/g2p-model-provenance.md",
    "decision_field": "g2p_model",
    "decision_values": [
-    "included",
     "excluded"
    ],
    "subjects": [

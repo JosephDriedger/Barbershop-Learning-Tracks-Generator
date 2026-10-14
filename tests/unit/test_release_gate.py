@@ -77,7 +77,7 @@ def test_the_real_gate_file_is_well_formed_and_points_at_files_that_exist() -> N
     } <= required
     g2p = next(i for i in gate["items"] if i["id"] == "g2p-model-provenance")
     assert g2p["decision_field"] == "g2p_model"
-    assert g2p["decision_values"] == ["included", "excluded"]
+    assert g2p["decision_values"] == ["excluded"]
 
 
 def test_an_item_without_a_signoff_is_open(tmp_path: Path) -> None:
@@ -227,7 +227,7 @@ def test_a_release_build_must_be_clean_committed_and_blocker_free(
         "uncommitted_changes": False,
         "release_blockers": [],
         "worldline_spline_free": True,
-        "g2p_model": "included",
+        "g2p_model": "excluded",
     }
     (artifacts / "release-info.json").write_text(json.dumps(info), encoding="utf-8")
     assert gate_module.package_problems(artifacts) == []
@@ -244,7 +244,10 @@ def test_a_release_build_must_be_clean_committed_and_blocker_free(
     assert "not of the commit" in problems
     assert "blockers" in problems
     assert "no spline" in problems
-    assert "g2p model" in problems
+    assert "model-free build" in problems
+    info["g2p_model"] = "included"
+    (artifacts / "release-info.json").write_text(json.dumps(info), encoding="utf-8")
+    assert any("g2p model" in p for p in gate_module.package_problems(artifacts))
 
 
 def test_sign_refuses_a_bot_and_records_a_person(

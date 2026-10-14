@@ -14,6 +14,12 @@ Changes to the copy (the pinned checkout itself is never touched):
   and English C+V phonemizers, the DiffSinger English+ phonemizer, ``ArpabetPlusG2p`` and its lyrics
   helper, and the 1.2 MB English C+V template. The data is removed from the sources and from the
   resource tables, so it is not in the built assemblies at all (host/verify-host.ps1 checks that).
+Always (M18): the two dictionary-based phonemizer bases (``PhonemeBasedPhonemizer``, which Arpasing uses, and
+``SyllableBasedPhonemizer``, which English VCCV and X-SAMPA use) record the words their dictionary could not look up
+(``OpenUtau.Api.IMissingWordReporter``, a new file). Upstream silently turns such a word into a voicebank alias (Arpasing)
+or into the text "word not found" (the syllable phonemizers), i.e. into silence. The host reads the records after
+phonemizing and refuses to render (exit 11, naming each word and voice). How a word that IS found is phonemized is unchanged.
+
 With ``--exclude-g2p-model`` (M17, docs/g2p-model-provenance.md) the neural fallback of the English
 pack is omitted as well: ``g2p-arpabet.zip`` keeps only ``dict.txt`` (CMUdict) and ``phones.txt``, and
 ``G2pPack.LoadPack`` accepts a pack without ``g2p.onnx`` (no inference session). Words that are in
@@ -80,6 +86,77 @@ def replace_once(path: Path, old: str, new: str) -> None:
     path.write_bytes((b"\xef\xbb\xbf" if bom else b"") + text.encode("utf-8"))
 
 
+MISSING_WORDS_API = """// BLT patch (host/patch_openutau.py): phonemizers that look words up in a dictionary report the words
+// they could not find, so that the host can refuse to render instead of silently dropping them.
+using System.Collections.Generic;
+
+namespace OpenUtau.Api {
+    public struct MissingWord {
+        public int position;   // of the note, in ticks of the project
+        public string lyric;   // the note's lyric as the phonemizer saw it
+        public string word;    // the part of it that has no entry
+    }
+
+    public interface IMissingWordReporter {
+        List<MissingWord> MissingWords { get; }
+    }
+}
+"""
+
+
+def report_missing_words(target: Path) -> None:
+    """Make both dictionary phonemizer bases record the words their dictionary lacks."""
+    api = target / "OpenUtau.Core" / "Api" / "BltMissingWords.cs"
+    api.write_text(MISSING_WORDS_API, encoding="utf-8")
+    builtin = target / "OpenUtau.Plugin.Builtin"
+    phoneme_based = builtin / "PhonemeBasedPhonemizer.cs"
+    replace_once(
+        phoneme_based,
+        "    public abstract class PhonemeBasedPhonemizer : Phonemizer\n    {\n",
+        "    public abstract class PhonemeBasedPhonemizer : Phonemizer, IMissingWordReporter\n    {\n"
+        "        public List<MissingWord> MissingWords { get; } = new List<MissingWord>();\n"
+        "        void ReportMissing(Note note) {  // BLT patch\n"
+        "            if (string.IsNullOrEmpty(note.lyric) || !note.lyric.Any(char.IsLetterOrDigit)) return;\n"
+        "            lock (MissingWords) {\n"
+        "                if (!MissingWords.Any(m => m.position == note.position && m.lyric == note.lyric)) {\n"
+        "                    MissingWords.Add(new MissingWord { position = note.position, lyric = note.lyric, word = note.lyric });\n"
+        "                }\n"
+        "            }\n"
+        "        }\n",
+    )
+    replace_once(
+        phoneme_based,
+        "                return g2p.Query(note.lyric.ToLowerInvariant());\n",
+        "                var found = g2p.Query(note.lyric.ToLowerInvariant());\n"
+        "                if (found == null) {\n"
+        "                    ReportMissing(note);  // BLT patch\n"
+        "                }\n"
+        "                return found;\n",
+    )
+    syllable_based = builtin / "SyllableBasedPhonemizer.cs"
+    replace_once(
+        syllable_based,
+        "    public abstract class SyllableBasedPhonemizer : Phonemizer {\n",
+        "    public abstract class SyllableBasedPhonemizer : Phonemizer, IMissingWordReporter {\n"
+        "        public List<MissingWord> MissingWords { get; } = new List<MissingWord>();\n"
+        "        void ReportMissing(Note note, string word) {  // BLT patch\n"
+        "            if (string.IsNullOrEmpty(word) || !word.Any(char.IsLetterOrDigit)) return;\n"
+        "            lock (MissingWords) {\n"
+        "                if (!MissingWords.Any(m => m.position == note.position && m.word == word)) {\n"
+        "                    MissingWords.Add(new MissingWord { position = note.position, lyric = note.lyric, word = word });\n"
+        "                }\n"
+        "            }\n"
+        "        }\n",
+    )
+    replace_once(
+        syllable_based,
+        "                    if (subResult == null) {\n                        Log.Warning(",
+        "                    if (subResult == null) {\n"
+        "                        ReportMissing(note, subword);  // BLT patch\n"
+        "                        Log.Warning(",
+    )
+
+
 def exclude_g2p_model(target: Path) -> None:
     """Remove ``g2p.onnx`` from the English pack and let ``G2pPack`` work without a model."""
     pack = target / "OpenUtau.Core" / "G2p" / "Data" / "g2p-arpabet.zip"
@@ -139,6 +216,7 @@ def main() -> int:
         "    }\n",
         "",
     )
+    report_missing_words(target)
     empty = io.BytesIO()
     zipfile.ZipFile(empty, "w").close()
     for pack in (target / "OpenUtau.Core" / "G2p" / "Data").glob("*.zip"):

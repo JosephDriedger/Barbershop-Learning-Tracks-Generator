@@ -36,5 +36,10 @@ class RenderTimeoutError(RenderError):
     """The render exceeded its time limit (BLT's, or one of the host's own)."""
 
 
+class PronunciationError(RenderError):
+    """A word has no pronunciation in the dictionary. Nothing was rendered and nothing was guessed;
+    ``details['unknown_words']`` names each word with its voice and place in the score."""
+
+
 class OutputValidationError(RenderError):
     """The host reported success but its output is not acceptable; nothing was published."""

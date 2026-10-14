@@ -91,6 +91,19 @@ def main() -> None:
     if mode == "crash":
         print("Unhandled exception: boom", file=sys.stderr)
         sys.exit(134)
+    if mode == "pronunciation_unknown":  # what the real host answers when a dictionary lacks a word
+        words = [
+            {"track": "Tenor", "position": 480, "lyric": "ev'ry", "word": "ev'ry"},
+            {"track": "Lead", "position": 480, "lyric": "ev'ry", "word": "ev'ry"},
+            {"track": "Lead", "position": 1920, "lyric": "o'er", "word": "o'er"},
+        ]
+        finish(
+            11,
+            "pronunciation_unknown",
+            "the pronunciation dictionary has no entry for 2 word(s): Tenor: 'ev'ry'",
+            unknown_word_count=len(words),
+            unknown_words=words,
+        )
     project = yaml.safe_load(Path(argument("--project")).read_text(encoding="utf-8"))
     out = Path(argument("--out"))
     base = argument("--base")

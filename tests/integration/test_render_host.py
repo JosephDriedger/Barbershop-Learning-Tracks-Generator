@@ -379,15 +379,105 @@ def test_the_g2p_check_agrees_with_what_the_host_contains(exe: Path) -> None:
         assert result["onnxruntime"] is None
 
 
-@pytest.mark.parametrize("word", ["hello", "blorptastic", "ev'ry"])
-def test_a_word_outside_cmudict_never_crashes_the_host(
-    exe: Path, singers: Path, tmp_path: Path, word: str
+ENGLISH_PHONEMIZERS = [
+    "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+    "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer",
+]
+VOICES = ["Tenor", "Lead", "Baritone", "Bass"]
+
+
+def has_model(exe: Path) -> bool:
+    return bool(inventory_of(exe)["g2p_model"] == "included")
+
+
+@pytest.mark.parametrize("phonemizer", ENGLISH_PHONEMIZERS)
+def test_words_that_cmudict_has_render_with_every_english_phonemizer(
+    exe: Path, singers: Path, tmp_path: Path, phonemizer: str
 ) -> None:
-    case = project(
-        tmp_path,
-        words=("la", word, "la", "la"),
-        phonemizer="OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
-    )
+    case = project(tmp_path, words=("hello", "don't", "love", "heart"), phonemizer=phonemizer)
     run = run_host(exe, case, tmp_path / "out", singers_dir=singers)
     assert run.returncode == 0, run.result
+    assert run.result["unknown_word_count"] == 0
     assert len(stems(tmp_path / "out")) == 4
+
+
+@pytest.mark.parametrize("phonemizer", ENGLISH_PHONEMIZERS)
+@pytest.mark.parametrize("word", ["ev'ry", "o'er", "blorptastic"])
+def test_a_word_outside_cmudict_stops_the_run_and_is_named_for_every_voice(
+    exe: Path, singers: Path, tmp_path: Path, phonemizer: str, word: str
+) -> None:
+    case = project(tmp_path, words=("la", word, "la", "la"), phonemizer=phonemizer)
+    run = run_host(exe, case, tmp_path / "out", singers_dir=singers)
+    if has_model(exe):  # the internal research host guesses a pronunciation instead
+        assert run.returncode == 0, run.result
+        assert run.result["unknown_word_count"] == 0
+        return
+    assert run.returncode == 11, run.result
+    assert run.result["status"] == "pronunciation_unknown"
+    assert stems(tmp_path / "out") == {}  # nothing was rendered, nothing half-written
+    found = run.result["unknown_words"]
+    assert sorted(u["track"] for u in found) == sorted(VOICES)  # each voice sings it once
+    assert {u["word"] for u in found} == {word}
+    assert {u["lyric"] for u in found} == {word}
+    assert len({u["position"] for u in found}) == 1  # the same note position in every voice
+    assert word in run.result["error"]
+
+
+HINTS = {  # the symbols of the phonemizer's own alphabet for "ev'ry"
+    "OpenUtau.Plugin.Builtin.ArpasingPhonemizer": "eh v r iy",
+    "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer": "eh v r iy",
+    "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer": "E v r i",
+}
+
+
+@pytest.mark.parametrize("phonemizer", ENGLISH_PHONEMIZERS)
+def test_a_phonetic_hint_makes_an_unknown_word_pronounceable_and_is_never_invented(
+    exe: Path, singers: Path, tmp_path: Path, phonemizer: str
+) -> None:
+    # BLT's own USTX writer refuses a bracket in a lyric (a phonetic override is a design item
+    # of M18, not a feature), so the hint is added to the file the way OpenUtau writes it: the
+    # word, then the symbols in square brackets
+    case = project(tmp_path, words=("la", "ev'ry", "la", "la"), phonemizer=phonemizer)
+    text = case.read_text(encoding="utf-8")
+    plain = 'lyric: "ev\'ry"'
+    assert plain in text
+    hinted = f'lyric: "ev\'ry[{HINTS[phonemizer]}]"'
+    case.write_text(text.replace(plain, hinted), encoding="utf-8")
+    run = run_host(exe, case, tmp_path / "out", singers_dir=singers)
+    assert run.returncode == 0, run.result
+    assert run.result["unknown_word_count"] == 0
+    assert len(stems(tmp_path / "out")) == 4
+
+
+@pytest.mark.parametrize("phonemizer", ENGLISH_PHONEMIZERS)
+def test_one_unknown_word_among_known_ones_is_the_only_one_named(
+    exe: Path, singers: Path, tmp_path: Path, phonemizer: str
+) -> None:
+    if has_model(exe):
+        pytest.skip("the research host guesses instead of refusing")
+    case = project(tmp_path, words=("hello", "heav'n", "love", "heart"), phonemizer=phonemizer)
+    run = run_host(exe, case, tmp_path / "out", singers_dir=singers)
+    assert run.returncode == 11
+    assert {u["word"] for u in run.result["unknown_words"]} == {"heav'n"}
+
+
+def test_the_lookup_says_which_words_cmudict_has_and_invents_nothing(exe: Path) -> None:
+    done = subprocess.run(
+        [str(exe), "--lookup-words", "hello|don't|ev'ry|blorptastic"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=host_environment(),
+        timeout=120,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    result = json.loads(done.stdout.strip().splitlines()[-1])
+    found = result["lookup"]
+    assert found["hello"] == "hh ah l ow"
+    assert found["don't"] == "d ow n t"
+    if has_model(exe):
+        return  # the research host's lookup is the dictionary's too, but the phonemizers then guess
+    assert found["ev'ry"] is None
+    assert found["blorptastic"] is None

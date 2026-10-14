@@ -49,7 +49,11 @@
 AppId={{7A3B1E52-4C8D-4F6A-9B21-5D0E8C6F3A17}
 AppName={#AppName}
 AppVersion={#AppVersion}
+#ifdef ResearchBuild
+AppVerName={#AppName} {#AppVersion} (INTERNAL RESEARCH BUILD, not for distribution)
+#else
 AppVerName={#AppName} {#AppVersion}
+#endif
 AppPublisher=Joseph Driedger
 VersionInfoVersion={#AppVersion}
 VersionInfoDescription={#AppName} setup
@@ -66,7 +70,11 @@ UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName}
 LicenseFile={#SourceDir}\LICENSE.txt
 OutputDir={#OutputDir}
+#ifdef ResearchBuild
+OutputBaseFilename=BLT-Music-Generator-{#AppVersion}-RESEARCH-ONLY-Setup
+#else
 OutputBaseFilename=BLT-Music-Generator-{#AppVersion}-Setup
+#endif
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern

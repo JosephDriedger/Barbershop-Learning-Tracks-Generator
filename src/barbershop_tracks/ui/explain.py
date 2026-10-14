@@ -38,6 +38,52 @@ def _technical(error: PipelineError) -> str:
     return "\n".join(lines)
 
 
+def _pronunciation(error: PipelineError) -> Explanation:
+    """The words the dictionary lacks, with voice and bar; BLT never guesses or drops one."""
+    places: dict[tuple[str, str], list[str]] = {}
+    for item in error.details.get("unknown_words", []):
+        key = (str(item.get("word", "")), str(item.get("where", "")))
+        places.setdefault(key, []).append(str(item.get("voice", "")))
+    pieces = {
+        (str(i.get("word", "")), str(i.get("where", "")))
+        for i in error.details.get("unknown_words", [])
+        if i.get("fragment")
+    }
+    lines = [
+        f"'{word}': {where} ({', '.join(voices)})"
+        + (" [a syllable of a longer word]" if (word, where) in pieces else "")
+        for (word, where), voices in places.items()
+    ]
+    words = sorted({word for word, _ in places})
+    shown = "\n".join(f"  {line}" for line in lines[:12])
+    if len(lines) > 12:
+        shown += f"\n  ... and {len(lines) - 12} more places"
+    which = f"'{words[0]}'" if len(words) == 1 else f"{len(words)} words"
+    return Explanation(
+        "pronunciation_unknown",
+        "BLT does not know how to pronounce some words",
+        f"The pronunciation dictionary has no entry for {which}, and BLT will not guess or leave "
+        "a syllable out, so nothing was generated.\n" + (shown or "See the technical details."),
+        (
+            "Change each word in your score to a spelling the dictionary knows, written the way "
+            "it is sung (for example 'every' for ev'ry, 'over' for o'er), save the score and "
+            "choose it again.",
+            *(
+                (
+                    "A word marked 'a syllable of a longer word' is only part of a word this voice "
+                    "does not sing whole (for example it holds one note under several syllables of "
+                    "the Lead's word), so it cannot be looked up as the word. Give that voice its "
+                    "own lyric on that note, written as a word the dictionary knows.",
+                )
+                if any(i.get("fragment") for i in error.details.get("unknown_words", []))
+                else ()
+            ),
+            "BLT never changes your score's own words.",
+        ),
+        _technical(error) + "\n" + "\n".join(f"  {line}" for line in lines),
+    )
+
+
 def _source(error: PipelineError) -> Explanation:
     codes = {f["code"] for f in error.details.get("findings", [])}
     text = _technical(error)
@@ -236,6 +282,8 @@ def _audio(error: PipelineError) -> Explanation:
 
 def explain(error: PipelineError) -> Explanation:
     category = error.category
+    if error.code == "PRONUNCIATION_UNKNOWN":
+        return _pronunciation(error)
     text = _technical(error)
     if category is ErrorCategory.CANCELLED:
         return Explanation(

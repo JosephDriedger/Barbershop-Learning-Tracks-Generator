@@ -23,6 +23,7 @@ namespace Blt.RenderHost {
         public const int Environment = 8;        // native library, singers directory, initialisation
         public const int RenderTimeout = 9;
         public const int Internal = 10;          // unexpected exception in the host itself
+        public const int PronunciationUnknown = 11;  // a phonemizer's dictionary lacks a word: nothing is rendered
     }
 
     /// <summary>

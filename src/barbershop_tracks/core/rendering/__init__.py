@@ -9,6 +9,7 @@ from barbershop_tracks.core.rendering.cancel import CancelToken
 from barbershop_tracks.core.rendering.errors import (
     OutputValidationError,
     ProjectValidationError,
+    PronunciationError,
     RenderCancelledError,
     RenderConfigurationError,
     RenderError,
@@ -22,6 +23,7 @@ __all__ = [
     "OpenUtauRenderBackend",
     "OutputValidationError",
     "ProjectValidationError",
+    "PronunciationError",
     "RenderCancelledError",
     "RenderConfigurationError",
     "RenderError",

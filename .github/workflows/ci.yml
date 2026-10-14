@@ -57,9 +57,9 @@ jobs:
       - name: Verify what the host contains (no Voicevox types, no GPL spline, dictionaries)
         run: powershell -NoProfile -ExecutionPolicy Bypass -File host/verify-host.ps1 -HostDir research-output/host/build -OpenUtauSrc research-output/openutau-src
       - name: No removed data (English plus dictionary, C+V template, other packs) anywhere in the host
-        run: python -I packaging/verify_absent_data.py research-output/host/build --openutau-src research-output/openutau-src
+        run: python -I packaging/verify_absent_data.py research-output/host/build --openutau-src research-output/openutau-src --without-g2p-model
       - name: The host contains exactly what the reviewed allow-list names (phonemizers, embedded data, g2p model)
-        run: python -I packaging/verify_host_inventory.py research-output/host/build --g2p-model included
+        run: python -I packaging/verify_host_inventory.py research-output/host/build --g2p-model excluded
       - name: FFmpeg for the MP3 test (CI only; BLT never bundles it)
         run: |
           # chocolatey's community feed answered 504 on three runs in a row (not our code): try a few times before failing
@@ -73,14 +73,13 @@ jobs:
           ffmpeg -version | Select-Object -First 1
       - name: Host and rendering tests
         run: pytest -m integration tests/integration
-      - name: The alternative host without the neural g2p model (builds, matches the allow-list, renders)
+      - name: The INTERNAL RESEARCH host with the g2p model (still builds, matches the allow-list, renders; never packaged or released)
         env:
-          BLT_HOST_DIR: ${{ github.workspace }}/research-output/host/build-nog2p
+          BLT_HOST_DIR: ${{ github.workspace }}/research-output/host/build-g2p-research
         run: |
-          powershell -NoProfile -ExecutionPolicy Bypass -File host/build.ps1 -ExcludeG2pModel
-          powershell -NoProfile -ExecutionPolicy Bypass -File host/verify-host.ps1 -HostDir research-output/host/build-nog2p -OpenUtauSrc research-output/openutau-src
-          python -I packaging/verify_absent_data.py research-output/host/build-nog2p --openutau-src research-output/openutau-src --without-g2p-model
-          python -I packaging/verify_host_inventory.py research-output/host/build-nog2p --g2p-model excluded
+          powershell -NoProfile -ExecutionPolicy Bypass -File host/build.ps1 -IncludeG2pModel
+          powershell -NoProfile -ExecutionPolicy Bypass -File host/verify-host.ps1 -HostDir research-output/host/build-g2p-research -OpenUtauSrc research-output/openutau-src
+          python -I packaging/verify_host_inventory.py research-output/host/build-g2p-research --g2p-model included
           pytest -m integration tests/integration/test_render_host.py
       - name: Negative control - the checks must REFUSE a host built from the unpatched OpenUtau (Voicevox, plus dictionary, C+V)
         run: powershell -NoProfile -ExecutionPolicy Bypass -File host/negative-control.ps1

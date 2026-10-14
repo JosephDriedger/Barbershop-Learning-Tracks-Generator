@@ -7,6 +7,7 @@ jobs, and repeated cold and warm runs.
 """
 
 import array
+import json
 import shutil
 import subprocess
 import threading
@@ -301,3 +302,39 @@ def test_a_failed_second_attempt_keeps_the_first_result(rig: Rig, tmp_path: Path
     with pytest.raises(OutputValidationError):
         rig.backend().render(make_plan(("zzz",) * 4), destination, replace=True)
     assert {p.name: p.read_bytes() for p in destination.iterdir()} == before
+
+
+# --- a word the pronunciation dictionary lacks stops the run (M18) ---
+
+ENGLISH = [
+    "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+    "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer",
+    "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer",
+]
+
+
+def host_has_model() -> bool:
+    record = require_host() / "blt-host-build.json"
+    return bool(json.loads(record.read_text(encoding="utf-8")).get("g2p_model") == "included")
+
+
+@pytest.mark.parametrize("phonemizer", ENGLISH)
+def test_an_unknown_word_is_named_with_its_voices_and_its_bar_and_nothing_is_rendered(
+    shared: Rig, tmp_path: Path, phonemizer: str
+) -> None:
+    from barbershop_tracks.core.rendering import PronunciationError
+
+    if host_has_model():
+        pytest.skip("the internal research host guesses a pronunciation with its g2p model")
+    plan = make_plan(("la", "ev'ry", "la", "la"), phonemizer=phonemizer)
+    with pytest.raises(PronunciationError) as info:
+        shared.backend().render(plan, tmp_path / "song")
+    error = info.value
+    assert error.code == "PRONUNCIATION_UNKNOWN"
+    assert "'ev'ry' (bar 1, beat 2; Tenor, Lead, Baritone, Bass)" in error.message
+    found = error.details["unknown_words"]
+    assert sorted(u["voice"] for u in found) == ["Baritone", "Bass", "Lead", "Tenor"]
+    assert {u["where"] for u in found} == {"bar 1, beat 2"}
+    assert {u["note_index"] for u in found} == {1}
+    assert not (tmp_path / "song").exists()
+    assert shared.staging_entries() == []

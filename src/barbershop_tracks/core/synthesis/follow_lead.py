@@ -77,6 +77,7 @@ def follow_the_lead(voices: tuple[VoicePlan, ...]) -> tuple[VoicePlan, ...]:
             sustain = not together and touching
             provenance = replace(
                 note.lyric.provenance,
+                syllabic=origin.lyric.provenance.syllabic,  # keeps its place in the word
                 detail=(
                     f"follows the Lead's syllable {text!r} that starts at {origin.start}"
                     + (" (held)" if sustain else "")

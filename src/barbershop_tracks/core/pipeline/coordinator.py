@@ -59,7 +59,11 @@ from barbershop_tracks.core.rendering import (
     RenderTimeoutError,
     SynthesisError,
 )
-from barbershop_tracks.core.rendering.errors import OutputValidationError, ProjectValidationError
+from barbershop_tracks.core.rendering.errors import (
+    OutputValidationError,
+    ProjectValidationError,
+    PronunciationError,
+)
 from barbershop_tracks.core.runtime import StagingArea, StagingError
 from barbershop_tracks.core.runtime.staging import cleanup_stale, remove_staging
 from barbershop_tracks.core.runtime.vcruntime import DOWNLOAD_PAGE, runtime_status
@@ -179,6 +183,10 @@ def translate(error: BaseException) -> PipelineError:
         return PipelineError(cat.CANCELLED, "CANCELLED", error.message)
     if isinstance(error, RenderTimeoutError):
         return PipelineError(cat.TIMEOUT, error.code, error.message, error.details)
+    if isinstance(error, PronunciationError):
+        # the score has a word BLT cannot pronounce: the singer decides (a respelling in the
+        # score); BLT never guesses a pronunciation and never drops the syllable
+        return PipelineError(cat.SOURCE, error.code, error.message, error.details)
     if isinstance(error, ProjectValidationError):
         return PipelineError(cat.SOURCE, error.code, error.message, error.details)
     if isinstance(error, RenderConfigurationError):

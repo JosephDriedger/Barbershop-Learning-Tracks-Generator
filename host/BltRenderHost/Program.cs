@@ -14,6 +14,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using OpenUtau.Api;
 using OpenUtau.Core;
 using OpenUtau.Core.Format;
 using OpenUtau.Core.Ustx;
@@ -28,7 +29,7 @@ namespace Blt.RenderHost {
         static readonly Dictionary<string, long> timingsMs = new Dictionary<string, long>();
         static readonly HashSet<string> known = new HashSet<string> {
             "--project", "--out", "--base", "--singers-dir", "--phonemize-timeout-ms", "--render-timeout-ms",
-            "--g2p-check", "--inventory",
+            "--g2p-check", "--inventory", "--lookup-words", "--allow-unknown-words",
         };
 
         static bool Pump(Func<bool> done, int timeoutMs) {
@@ -169,6 +170,45 @@ namespace Blt.RenderHost {
             }
         }
 
+        // Which of the given words (separated by |) the English dictionary has, and their phonemes. Needs no project and no
+        // singer; it asks the same ArpabetG2p (CMUdict) the Arpasing, English VCCV and X-SAMPA phonemizers use. A voicebank's own
+        // dictionary file is not consulted here (the render check below does consult it, because the phonemizer itself reports).
+        static int LookupWords(string list) {
+            try {
+                var g2p = new OpenUtau.Core.G2p.ArpabetG2p();
+                var found = new Dictionary<string, object>();
+                foreach (var word in list.Split('|', StringSplitOptions.RemoveEmptyEntries)) {
+                    var phonemes = g2p.Query(word.ToLowerInvariant());
+                    found[word] = phonemes == null ? null : string.Join(" ", phonemes);
+                }
+                result["lookup"] = found;
+                result["g2p_model_loaded"] = LoadedOnnxRuntime() != null;
+                return Finish(0, "ok");
+            } catch (Exception e) {
+                return Finish(Exit.Environment, "lookup_failed", e.GetType().Name + ": " + e.Message);
+            }
+        }
+
+        /// <summary>
+        /// The words the tracks' dictionary phonemizers could not look up (see host/patch_openutau.py): after phonemizing, each
+        /// phonemizer instance lists them. Upstream turns such a word into a voicebank alias or into "word not found", which renders
+        /// as silence. A note with a phonetic hint ("word[w er d]") or a forced alias is not a missing word.
+        /// </summary>
+        static List<Dictionary<string, object>> UnknownWords(UProject project) {
+            var found = new List<Dictionary<string, object>>();
+            foreach (var track in project.tracks) {
+                if (!(track.Phonemizer is IMissingWordReporter reporter)) continue;
+                List<MissingWord> snapshot;
+                lock (reporter.MissingWords) { snapshot = reporter.MissingWords.ToList(); }
+                foreach (var missing in snapshot.OrderBy(m => m.position).ThenBy(m => m.word, StringComparer.Ordinal)) {
+                    found.Add(new Dictionary<string, object> {
+                        ["track"] = track.TrackName, ["position"] = missing.position, ["lyric"] = missing.lyric, ["word"] = missing.word,
+                    });
+                }
+            }
+            return found;
+        }
+
         static string LoadedOnnxRuntime() {
             foreach (ProcessModule m in Process.GetCurrentProcess().Modules) {
                 if (m.ModuleName.StartsWith("onnxruntime", StringComparison.OrdinalIgnoreCase)) return m.FileName;
@@ -282,6 +322,7 @@ namespace Blt.RenderHost {
             }
             if (Array.IndexOf(args, "--g2p-check") >= 0) return G2pCheck();
             if (Array.IndexOf(args, "--inventory") >= 0) return Inventory();
+            if (Array.IndexOf(args, "--lookup-words") >= 0) return LookupWords(Arg(args, "--lookup-words") ?? "");
             string projectPath = Arg(args, "--project"), outDir = Arg(args, "--out"), baseName = Arg(args, "--base");
             string singersDir = Arg(args, "--singers-dir");
             if (projectPath == null || outDir == null || baseName == null) {
@@ -349,6 +390,11 @@ namespace Blt.RenderHost {
             var expected = new List<string>();
             for (int i = 0; i < project.tracks.Count; i++) {
                 var t = project.tracks[i];
+                // The syllable phonemizers (English VCCV, X-SAMPA, ...) read their dictionary on a background task and answer
+                // "" for every note until it is loaded, expecting the GUI to phonemize again afterwards. This host phonemizes
+                // once, so without this the notes of those phonemizers were rendered EMPTY. Testing = true makes the load
+                // synchronous (it is what OpenUtau's own phonemizer tests do) and silences the GUI progress notifications.
+                if (t.Phonemizer != null) t.Phonemizer.Testing = true;
                 var stored = i < storedTracks.Count ? storedTracks[i] as Dictionary<object, object> : null;
                 string Stored(string key) => stored != null && stored.TryGetValue(key, out var v) ? v?.ToString() : null;
                 string storedRenderer = null;
@@ -396,6 +442,15 @@ namespace Blt.RenderHost {
                 return Finish(Exit.PhonemizeTimeout, "phonemize_timeout", $"{collector.Phonemized} of {voiceParts} parts phonemized");
             }
             Phase("phonemize");
+            // a word the dictionary lacks must stop the run BEFORE anything is rendered: never guess, never drop it silently
+            var unknown = UnknownWords(project);
+            result["unknown_word_count"] = unknown.Count;
+            if (unknown.Count > 0 && Array.IndexOf(args, "--allow-unknown-words") < 0) {
+                result["unknown_words"] = unknown.Take(200).ToList();
+                var shown = unknown.Take(6).Select(u => $"{u["track"]}: '{u["word"]}'");
+                return Finish(Exit.PronunciationUnknown, "pronunciation_unknown",
+                    $"the pronunciation dictionary has no entry for {unknown.Count} word(s): {string.Join("; ", shown)}{(unknown.Count > 6 ? "; ..." : "")}");
+            }
             var unsung = UnsungPhonemes(project);
             result["unsung_phoneme_count"] = unsung.Count;
             if (unsung.Count > 0) {
