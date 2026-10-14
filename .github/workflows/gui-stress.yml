@@ -1,18 +1,18 @@
 name: gui-stress
 
 # Opt-in diagnostics for the GUI tests' garbage-collection workaround (docs/gui-gc-diagnostics.md).
-# Runs the unit tests WITHOUT the workaround, many times, and keeps what a crash leaves behind. It is started
+# Runs the whole test suite (as CI does: plain `pytest`) WITHOUT the workaround, many times, and keeps what a crash leaves behind. It is started
 # by hand (Actions > gui-stress > Run workflow); nothing triggers it, nothing depends on it, and it publishes
 # nothing. A red run here is information, not a broken build. The ordinary CI job keeps the workaround.
 on:
   workflow_dispatch:
     inputs:
       runs:
-        description: "how many times to run the whole unit-test suite"
+        description: "how many times to run the whole test suite"
         default: "10"
       threshold:
-        description: "collect garbage every N allocations (small = often; empty = Python's default)"
-        default: "100"
+        description: "collect garbage every N allocations (small = often; empty = Python's default, which is what CI uses)"
+        default: ""
 
 jobs:
   stress:
@@ -36,7 +36,7 @@ jobs:
           New-ItemProperty -Path $key -Name DumpFolder -Value "$PWD\stress-logs\dumps" -PropertyType ExpandString -Force | Out-Null
           New-ItemProperty -Path $key -Name DumpType -Value 2 -PropertyType DWord -Force | Out-Null
           New-ItemProperty -Path $key -Name DumpCount -Value 5 -PropertyType DWord -Force | Out-Null
-      - name: Run the unit tests without the workaround, repeatedly
+      - name: Run the whole suite without the workaround, repeatedly
         shell: pwsh
         run: |
           $runs = [int]"${{ inputs.runs }}"
@@ -46,7 +46,7 @@ jobs:
             $env:BLT_GUI_GC_TRACE = "stress-logs/gc-$i.log"
             $env:BLT_GUI_CRASH_LOG = "stress-logs/crash-$i.txt"
             if ("${{ inputs.threshold }}") { $env:BLT_GUI_GC_THRESHOLD = "${{ inputs.threshold }}" }
-            pytest tests/unit -p no:cacheprovider -q -x --no-header *> "stress-logs/pytest-$i.log"
+            pytest -p no:cacheprovider -q -x --no-header *> "stress-logs/pytest-$i.log"
             $code = $LASTEXITCODE
             if ($code -ne 0) { $aborted++ }
             "run ${i}: exit $code"
