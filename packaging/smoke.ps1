@@ -138,7 +138,7 @@ function Scenario($name, $appDir, $profileDir, $data) {
     $inventoryResult = $null
     foreach ($line in ($inventory.Out -split "`n")) { if ($line.StartsWith("{")) { $inventoryResult = $line | ConvertFrom-Json } }
     $names = @($inventoryResult.phonemizers)
-    Check ($inventory.ExitCode -eq 0 -and $names.Count -gt 0 -and -not ($names -match "Plus|CpV|Voicevox")) "the installed host's own inventory lists $($names.Count) phonemizers, none of the removed ones (Arpasing+, English C+V, DiffSinger English+, Voicevox)"
+    Check ($inventory.ExitCode -eq 0 -and $names.Count -gt 0 -and -not ($names -match "ArpasingPlus|ARPAPlus|EnglishCpV|Voicevox")) "the installed host's own inventory lists $($names.Count) phonemizers, none of the removed ones (Arpasing+, English C+V, DiffSinger English+, Voicevox)"
 
     $after = Snapshot $appDir
     Check ($before -eq $after) "the program folder is unchanged after running (no caches, settings or temp files in it)"

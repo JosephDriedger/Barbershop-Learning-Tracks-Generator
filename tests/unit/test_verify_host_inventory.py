@@ -19,6 +19,13 @@ from barbershop_tracks.core.pipeline.config import (  # noqa: E402
 
 EXPECTED = json.loads((ROOT / "compliance" / "host-inventory.json").read_text(encoding="utf-8"))
 REQUIRED = (*ENGLISH_PHONEMIZERS, vhi.DEFAULT_PHONEMIZER)
+TYPES = [
+    "OpenUtau.Core.DefaultPhonemizer",
+    "OpenUtau.Core.Something",
+    "OpenUtau.Plugin.Builtin.Other",
+]
+# the allow-list of the real host, but with the type digest of the synthetic type list above
+EXPECTED_T = {**EXPECTED, "types": vhi.type_digest(TYPES)}
 
 
 def host_report(*, model: bool = True) -> dict[str, Any]:
@@ -34,13 +41,14 @@ def host_report(*, model: bool = True) -> dict[str, Any]:
     return {
         "phonemizers": list(EXPECTED["phonemizers"]),
         "resources": resources,
+        "types": list(TYPES),
         "g2p_model": "included" if model else "excluded",
     }
 
 
 def problems(actual: dict[str, Any], g2p_model: str = "auto") -> list[str]:
     return vhi.compare(
-        actual, EXPECTED, g2p_model=g2p_model, removed=REMOVED_PHONEMIZERS, required=REQUIRED
+        actual, EXPECTED_T, g2p_model=g2p_model, removed=REMOVED_PHONEMIZERS, required=REQUIRED
     )
 
 
@@ -70,6 +78,49 @@ def test_a_removed_phonemizer_coming_back_is_refused() -> None:
         found = problems(report)
         assert any("not on the allow-list" in p for p in found), class_name
         assert any("BLT removed" in p for p in found), class_name
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "OpenUtau.Core.Voicevox.VoicevoxSinger",
+        "OpenUtau.Core.G2p.ArpabetPlusG2p",
+        "OpenUtau.Plugin.Builtin.EnglishCpVPhonemizer",
+    ],
+)
+def test_a_removed_type_of_any_kind_coming_back_is_refused(name: str) -> None:
+    report = host_report()
+    report["types"].append(name)
+    found = problems(report)
+    assert any(f"type {name} is code BLT removed" in p for p in found)
+    assert any("set of types" in p for p in found)
+
+
+def test_any_change_to_the_set_of_types_is_refused() -> None:
+    report = host_report()
+    report["types"].append("Some.New.HarmlessLookingType")
+    assert problems(report) == [
+        "the set of types of OpenUtau.Core and OpenUtau.Plugin.Builtin changed: "
+        "4 types, the reviewed list has 3"
+    ]
+    report = host_report()
+    report["types"].remove("OpenUtau.Core.Something")
+    assert any("changed" in p for p in problems(report))
+
+
+def test_removed_names_in_the_assembly_bytes_are_found_without_running_anything(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "OpenUtau.Core.dll").write_bytes(b"MZ\x00" + b"Voicevox\x00 enum member is fine")
+    (tmp_path / "OpenUtau.Plugin.Builtin.dll").write_bytes(b"MZ\x00" + b"x" * 50)
+    assert vhi.file_problems(tmp_path, model_present=False) == []
+    (tmp_path / "OpenUtau.Core.dll").write_bytes(b"MZ\x00 ... VoicevoxRenderer ...")
+    assert vhi.file_problems(tmp_path, model_present=False) == [
+        "OpenUtau.Core.dll contains the name VoicevoxR: removed code is in the build"
+    ]
+    (tmp_path / "OpenUtau.Core.dll").write_bytes(b"MZ\x00")
+    (tmp_path / "OpenUtau.Plugin.Builtin.dll").write_bytes(b"MZ\x00 ArpasingPlusPhonemizer")
+    assert any("ArpasingPlus" in p for p in vhi.file_problems(tmp_path, model_present=False))
 
 
 def test_an_unlisted_phonemizer_is_refused_whatever_it_is_called() -> None:
@@ -175,3 +226,8 @@ def test_building_the_allow_list_requires_hosts_that_differ_only_by_the_model() 
     next(r for r in other["resources"] if r["name"] == "g2p-de")["size"] = 5
     with pytest.raises(SystemExit):
         vhi.build_expected(with_model, other)
+    types_differ = copy.deepcopy(without_model)
+    types_differ["types"].append("X.Y")
+    with pytest.raises(SystemExit):
+        vhi.build_expected(with_model, types_differ)
+    assert built["types"] == vhi.type_digest(TYPES)

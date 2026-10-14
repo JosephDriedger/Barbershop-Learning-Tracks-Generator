@@ -75,6 +75,8 @@ jobs:
           python -I packaging/verify_absent_data.py research-output/host/build-nog2p --openutau-src research-output/openutau-src --without-g2p-model
           python -I packaging/verify_host_inventory.py research-output/host/build-nog2p --g2p-model excluded
           pytest -m integration tests/integration/test_render_host.py
+      - name: Negative control - the checks must REFUSE a host built from the unpatched OpenUtau (Voicevox, plus dictionary, C+V)
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File host/negative-control.ps1
 
   package:
     # Builds the Windows package and installer from pinned inputs, audits every file in it against

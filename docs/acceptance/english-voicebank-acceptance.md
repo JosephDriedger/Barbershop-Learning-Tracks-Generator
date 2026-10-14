@@ -51,6 +51,7 @@ lyrics typed under the notes. It should contain at least:
 * one **melisma or slur** (one syllable held over several notes);
 * one place where the parts **enter at different times**;
 * a tempo that is **not 120**;
+* **two or three words that an English dictionary may lack**, the kind old songs have: `ev'ry`, `heav'n`, `o'er`, `'neath`, `mammy` (BLT's pronunciation dictionary is CMUdict, which lacks these; what happens to them depends on the build, see step 10b);
 * ordinary barbershop ranges (Bass low, Tenor high).
 
 ## 4. Steps
@@ -70,6 +71,7 @@ the measure number.
 | 8 | Play the **Full quartet** file all the way through. | All four voices sing; pitches match the score; the song ends where the score ends. | | |
 | 9 | Play each part's **Solo** file (Tenor, Lead, Baritone, Bass). | Each is that part alone, with the right notes (check the highest and lowest notes against a keyboard or tuner). | | |
 | 10 | For each part, follow the lyrics on paper while you listen to its Solo file. Score intelligibility 1-5 (see section 5). | Write four scores. | | |
+| 10b | Listen to the **unusual words** (the ones from section 3). Ask the owner which build you have: *with* the pronunciation model, or *without* it. | *With the model*: each is sung with a plausible pronunciation (note which are wrong; a wrong guess is a finding, not a failure). *Without the model*: generation **stops** with a message that names the word and says it is missing from the pronunciation dictionary; respell the word with ordinary words (`every` for `ev'ry`) in the lyric review and generate again; the respelled version is sung. A track that is silently silent at that word is a FAIL. | | |
 | 11 | Listen at the melisma/slur bars. | One vowel is held across the notes; the syllable is not sung again on every note. | | |
 | 12 | Listen where the parts enter at different times and where they release. | Entrances and releases line up in the Full quartet; no drift between parts over the whole song. | | |
 | 13 | Play each part's **Predominant** file. | That part is clearly the loudest and easy to follow, and the other three are present but quiet. Score 1-5 per part. | | |
@@ -102,14 +104,16 @@ the measure number.
 
 ```
 BLT ACCEPTANCE RESULT: English voicebank
-Checklist version: 1
+Checklist version: 2
 Tester / role / date:
 Installer file and SHA-256:
 Windows version:
 Voicebank (name, version, author, licence):
 Pronunciation engine used:
+Build: with / without the pronunciation model (as told by the owner):
+Unusual words (list; what you heard, or what BLT said and what you did):
 Score (title, source, licence, measures, tempo):
-Steps 1-18: PASS / FAIL / COULD NOT RUN with a note for each:
+Steps 1-18 (including 10b): PASS / FAIL / COULD NOT RUN with a note for each:
 Intelligibility per part (T/L/Bar/Bass, 1-5):
 Predominant clarity per part (T/L/Bar/Bass, 1-5):
 Problems found (P1.., with measure numbers):

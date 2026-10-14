@@ -25,7 +25,9 @@ change under compliance/.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -35,6 +37,13 @@ ROOT = Path(__file__).resolve().parent.parent
 EXPECTED = ROOT / "compliance" / "host-inventory.json"
 SCHEMA = "blt.host-inventory/1"
 ENGLISH_PACK = "g2p-arpabet"
+# type or file names that mean removed code or data has come back (Voicevox: LGPL-derived classes; the others
+# need the English "plus" dictionary or the C+V template, whose origin is unknown)
+FORBIDDEN_NAMES = re.compile(
+    r"Voicevox|ArpabetPlus|ArpasingPlus|EnglishCpV|ARPAPlus", re.IGNORECASE
+)
+ASSEMBLIES = ("OpenUtau.Core.dll", "OpenUtau.Plugin.Builtin.dll")
+FORBIDDEN_BYTES = re.compile(rb"Voicevox[A-Za-z_]|ArpabetPlus|ArpasingPlus|EnglishCpV|ARPAPlus")
 MODEL_MEMBER = "g2p.onnx"
 DEFAULT_PHONEMIZER = "OpenUtau.Core.DefaultPhonemizer"
 
@@ -63,6 +72,12 @@ def run_inventory(host_dir: Path) -> dict[str, Any]:
             f"{(done.stderr or done.stdout).strip()[-400:]}"
         )
     return result
+
+
+def type_digest(names: list[str]) -> dict[str, Any]:
+    """Count and SHA-256 of the sorted type names (one per line)."""
+    joined = "\n".join(sorted(names)).encode("utf-8")
+    return {"count": len(names), "sha256": hashlib.sha256(joined).hexdigest()}
 
 
 def resource_key(item: dict[str, Any]) -> tuple[str, str, str]:
@@ -111,6 +126,20 @@ def compare(
     for name in required:
         if name not in have:
             problems.append(f"{name} is a phonemizer BLT supports and the host lacks it")
+
+    # 1b. every type of the two assemblies: none that must not return, and the whole set as reviewed
+    names = actual.get("types")
+    if names is not None:
+        for name in sorted(n for n in names if FORBIDDEN_NAMES.search(n))[:10]:
+            problems.append(
+                f"type {name} is code BLT removed (Voicevox, or the English plus data) and it is back"
+            )
+        wanted = expected.get("types")
+        if wanted is not None and type_digest(names) != wanted:
+            problems.append(
+                f"the set of types of OpenUtau.Core and OpenUtau.Plugin.Builtin changed: "
+                f"{len(names)} types, the reviewed list has {wanted['count']}"
+            )
 
     # 2. embedded resources: exact set, exact bytes
     actual_resources = {resource_key(r): r for r in actual.get("resources", [])}
@@ -163,9 +192,18 @@ def compare(
 def file_problems(host_dir: Path, model_present: bool) -> list[str]:
     """Files beside the host that must agree with whether the neural model is there."""
     problems: list[str] = []
-    beside = (
-        host_dir / "onnxruntime.dll"
-    )  # the published host; a plain `dotnet build` keeps it under runtimes/
+    # independent of the host's own report: the names are in the assemblies' metadata if the code is.
+    # The bare word "Voicevox" stays (a member of the USingerType enum); the removed classes are
+    # VoicevoxSinger, VoicevoxRenderer, ...
+    for dll in ASSEMBLIES:
+        path = host_dir / dll
+        if path.is_file():
+            found = FORBIDDEN_BYTES.search(path.read_bytes())
+            if found:
+                name = found.group().decode("ascii")
+                problems.append(f"{dll} contains the name {name}: removed code is in the build")
+    # the published host keeps onnxruntime.dll beside the exe; a plain `dotnet build` under runtimes/
+    beside = host_dir / "onnxruntime.dll"
     nested = host_dir / "runtimes" / "win-x64" / "native" / "onnxruntime.dll"
     if model_present and not (beside.is_file() or nested.is_file()):
         problems.append("the g2p model is present but onnxruntime.dll is not beside the host")
@@ -189,6 +227,8 @@ def build_expected(with_model: dict[str, Any], without_model: dict[str, Any]) ->
     """The allow-list from two reports (host with and host without the model); they may differ only in the model."""
     if with_model["phonemizers"] != without_model["phonemizers"]:
         raise SystemExit("the two hosts have different phonemizers")
+    if type_digest(with_model.get("types", [])) != type_digest(without_model.get("types", [])):
+        raise SystemExit("the two hosts have different types")
     packs = []
     for report in (with_model, without_model):
         packs.append({k: v for k, v in resource_map(report).items() if k[2] != ENGLISH_PACK})
@@ -224,6 +264,7 @@ def build_expected(with_model: dict[str, Any], without_model: dict[str, Any]) ->
         ),
         "openutau_commit": str(with_model.get("openutau_commit", "")).split("+")[0],
         "phonemizers": with_model["phonemizers"],
+        "types": type_digest(with_model["types"]),
         "resources": resources,
         "g2p_model": {k: model[k] for k in ("name", "size", "sha256")},
     }

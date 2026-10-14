@@ -66,6 +66,10 @@
     "OpenUtau.Plugin.Builtin.VietnameseVCVPhonemizer",
     "OpenUtau.Plugin.Builtin.VietnameseVINAPhonemizer"
   ],
+  "types": {
+    "count": 1317,
+    "sha256": "f04d2f869cb82d07d81c3bfb0449e48884b38dd72335ae64a4e123e78c2de8cf"
+  },
   "resources": [
     {
       "assembly": "OpenUtau.Core",

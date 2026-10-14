@@ -52,6 +52,14 @@ function Sha($bytes) { $sha = [System.Security.Cryptography.SHA256]::Create(); (
 
 $core = Join-Path $HostDir "OpenUtau.Core.dll"
 $builtin = Join-Path $HostDir "OpenUtau.Plugin.Builtin.dll"
+# Windows PowerShell 5.1 cannot load .NET 8 assemblies for reflection, so the type checks below can see nothing there;
+# the names of the removed classes are also searched as bytes in the assemblies' metadata, which needs no loading.
+$latin1 = [System.Text.Encoding]::GetEncoding(28591)
+foreach ($dll in $core, $builtin) {
+    $text = $latin1.GetString([System.IO.File]::ReadAllBytes($dll))
+    $named = [regex]::Match($text, "Voicevox[A-Za-z_]|ArpabetPlus|ArpasingPlus|EnglishCpV|ARPAPlus")
+    if ($named.Success) { $problems.Add("$(Split-Path $dll -Leaf) contains the name $($named.Value): the removed Voicevox classes or the English plus code are in the build") }
+}
 foreach ($dll in $core, $builtin) {
     $voicevox = @(Load-Types $dll | Where-Object { $_.FullName -match "Voicevox" })
     if ($voicevox.Count) { $problems.Add("$(Split-Path $dll -Leaf) still has $($voicevox.Count) Voicevox type(s), e.g. $($voicevox[0].FullName)") }

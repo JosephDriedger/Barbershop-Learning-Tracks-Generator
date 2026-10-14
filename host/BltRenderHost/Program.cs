@@ -147,12 +147,19 @@ namespace Blt.RenderHost {
                     }
                 }
                 phonemizers.Sort(StringComparer.Ordinal);
+                // every type of the two assemblies: the checker hashes the list and refuses names it has been told must not return
+                var types = new List<string>();
+                foreach (var assembly in new[] { core, builtin }) {
+                    foreach (var type in LoadableTypes(assembly)) types.Add(type.FullName);
+                }
+                types.Sort(StringComparer.Ordinal);
                 var resources = EmbeddedResources(core);
                 resources.AddRange(EmbeddedResources(builtin));
                 var english = resources.FirstOrDefault(r => (string)r["name"] == "g2p-arpabet");
                 var members = english != null && english.TryGetValue("zip_members", out var m) ? (List<Dictionary<string, object>>)m : null;
                 bool hasModel = members != null && members.Any(x => (string)x["name"] == "g2p.onnx");
                 result["phonemizers"] = phonemizers;
+                result["types"] = types;
                 result["resources"] = resources;
                 result["g2p_model"] = hasModel ? "included" : "excluded";
                 result["openutau_commit"] = Metadata("OpenUtauCommit");
