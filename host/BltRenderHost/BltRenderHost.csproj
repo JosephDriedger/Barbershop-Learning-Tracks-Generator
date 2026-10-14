@@ -29,6 +29,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- only host\negative-control.ps1 sets this: the UNPATCHED OpenUtau has no IMissingWordReporter, so the control host gets a stub of it -->
+    <Compile Include="$(BltMissingWordsStub)" Condition="'$(BltMissingWordsStub)' != ''" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="$(OpenUtauSrc)\OpenUtau.Core\OpenUtau.Core.csproj" />
     <ProjectReference Include="$(OpenUtauSrc)\OpenUtau.Plugin.Builtin\OpenUtau.Plugin.Builtin.csproj" />
   </ItemGroup>

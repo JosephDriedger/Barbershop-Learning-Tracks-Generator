@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from barbershop_tracks.core.runtime.filelock import FileLock, LockWaitAbortedError
+from barbershop_tracks.core.runtime.filelock import (
+    FileLock,
+    LockWaitAbortedError,
+    _try_lock,
+)
 
 
 def test_a_second_holder_waits_until_the_first_releases(tmp_path: Path) -> None:
@@ -54,3 +58,20 @@ def test_release_is_idempotent_and_the_lock_is_reusable(tmp_path: Path) -> None:
     lock.release()
     lock.acquire()
     lock.release()
+
+
+def test_a_holder_that_locked_the_still_empty_file_makes_the_next_opener_wait(
+    tmp_path: Path,
+) -> None:
+    """A racing first opener must wait, not fail writing the initial byte into the held region."""
+    path = tmp_path / "render.lock"
+    path.touch()
+    holder = FileLock(path)
+    # the holder locked byte 0 of a file that is still empty (what a racing opener sees)
+    holder._handle = path.open("a+b")
+    assert _try_lock(holder._handle)
+    try:
+        with pytest.raises(LockWaitAbortedError):
+            FileLock(path, poll_seconds=0.01).acquire(should_stop=lambda: True)
+    finally:
+        holder.release()

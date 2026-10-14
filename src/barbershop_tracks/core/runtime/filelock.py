@@ -7,6 +7,7 @@ run: concurrent generations queue for the host stage only (mixing and everything
 concurrent), and the OS releases the lock if the holder dies.
 """
 
+import contextlib
 import sys
 import time
 from collections.abc import Callable
@@ -60,9 +61,13 @@ class FileLock:
         on_wait: Callable[[], None] | None = None,
     ) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        handle = self.path.open("a+b")
-        handle.write(b"\0") if handle.tell() == 0 and self.path.stat().st_size == 0 else None
-        handle.flush()
+        # unbuffered: a write that the OS refuses must not leave a byte behind that close() retries
+        handle = self.path.open("a+b", buffering=0)
+        if self.path.stat().st_size == 0:
+            # a concurrent opener may have seen the empty file too and locked the byte already
+            # (Windows locks are mandatory); locking that byte below works either way
+            with contextlib.suppress(OSError):
+                handle.write(b"\0")
         waited = False
         while not _try_lock(handle):
             if should_stop():

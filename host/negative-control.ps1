@@ -29,7 +29,12 @@ if (Test-Path $Out) { & $python -c "import shutil,sys; shutil.rmtree(sys.argv[1]
 New-Item -ItemType Directory -Force $Out | Out-Null
 $Out = (Resolve-Path $Out).Path
 Write-Output "building the host from the UNPATCHED $OpenUtauSrc ..."
-$build = dotnet build (Join-Path $PSScriptRoot "BltRenderHost\BltRenderHost.csproj") -c Release -o $Out "-p:OpenUtauSrc=$OpenUtauSrc" "-p:OpenUtauCommit=unpatched-control" 2>&1
+# the host reports words the dictionary lacks through an interface that only BLT's patch adds to OpenUtau; the control
+# host gets that interface as a stub (no phonemizer implements it there), nothing else of the patch
+$stub = Join-Path $Out "BltMissingWordsStub.cs"
+& $python -I -c "import sys; sys.path.insert(0, sys.argv[1]); import patch_openutau; open(sys.argv[2], 'w', encoding='utf-8').write(patch_openutau.MISSING_WORDS_API)" $PSScriptRoot $stub
+if ($LASTEXITCODE -ne 0) { throw "could not write the stub of the missing-word interface" }
+$build = dotnet build (Join-Path $PSScriptRoot "BltRenderHost\BltRenderHost.csproj") -c Release -o $Out "-p:OpenUtauSrc=$OpenUtauSrc" "-p:OpenUtauCommit=unpatched-control" "-p:BltMissingWordsStub=$stub" 2>&1
 if ($LASTEXITCODE -ne 0) { $build | Select-Object -Last 30; throw "the control host did not build" }
 # the checks read blt-host-build.json; this host has BLT's native library absent on purpose
 $info = [ordered]@{ schema = "blt.host-build/1"; worldline = "stock (control)"; worldline_sha256 = ""; g2p_model = "included" }
