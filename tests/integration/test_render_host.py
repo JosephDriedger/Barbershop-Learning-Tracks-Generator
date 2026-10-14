@@ -363,13 +363,18 @@ def test_the_g2p_check_agrees_with_what_the_host_contains(exe: Path) -> None:
         check=False,
     )
     result = json.loads(done.stdout.strip().splitlines()[-1])
-    assert done.returncode == 0, result
     assert result["g2p_model"] == inventory_of(exe)["g2p_model"]
     assert result["g2p_known_phonemes"] == "hh ah l ow"  # a CMUdict word never needs the model
     if result["g2p_model"] == "included":
-        assert result["g2p_phonemes"]
-        assert result["onnxruntime_beside_host"]
+        assert result["g2p_phonemes"]  # the model guessed a word that CMUdict lacks
+        assert result["onnxruntime"]  # ... on an onnxruntime.dll that was loaded
+        # the published host keeps it beside the exe (the check then insists on that); a plain
+        # `dotnet build` (CI's development host) keeps it under runtimes/win-x64/native
+        if (exe.parent / "onnxruntime.dll").is_file():
+            assert done.returncode == 0, result
+            assert result["onnxruntime_beside_host"]
     else:  # the variant without the model: no guess, and the native runtime is not even loaded
+        assert done.returncode == 0, result
         assert result["g2p_phonemes"] == ""
         assert result["onnxruntime"] is None
 

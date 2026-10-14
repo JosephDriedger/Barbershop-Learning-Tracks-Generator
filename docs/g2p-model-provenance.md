@@ -66,7 +66,7 @@ Words outside CMUdict are not rare in this repertoire. A spot check of 33 words 
 * **Cost:** every word outside CMUdict now yields no phonemes. BLT already refuses silent notes, so a song with such a word is not generated quietly wrong: the stem check stops with
   `STEM_NOTE_SILENT` ("note(s) … render as silence … the voicebank cannot sing those lyrics"), which is true but does not say that the cause is the dictionary. The user's remedy is the one OpenUtau offers: respell the word
   with words CMUdict has, or give a phonetic hint. **BLT has no screen for this yet**; a new GUI feature was not added (M12/M13 rule). If this variant is chosen, an explanation for that case should be added first.
-* **Evidence it works:** the same 28 host integration tests pass on both builds (`tests/integration/test_render_host.py`, run for each in CI); `blt-render-host --g2p-check` proves in the variant that a dictionary word is
+* **Evidence it works:** the host integration tests of `tests/integration/test_render_host.py` pass on both builds (CI builds and runs both); `blt-render-host --g2p-check` proves in the variant that a dictionary word is
   phonemized, a word outside it gets no guess and no onnxruntime is even loaded; `host/verify-host.ps1`, `packaging/verify_absent_data.py --without-g2p-model` and `packaging/verify_host_inventory.py --g2p-model excluded` pass on it.
 
 ## 6. Options for the owner (the gate item records the choice: `release_gate.py sign g2p-model-provenance … --decision included|excluded`)
@@ -82,6 +82,16 @@ a class of words that the singer can respell.
 
 ## 7. How the build keeps this honest
 
-`compliance/host-inventory.json` is a reviewed allow-list of every phonemizer class and every embedded resource of the host, with hashes, and of the one model that may be present. `packaging/verify_host_inventory.py` runs the
-**packaged** host's own `--inventory` and fails on anything not on the list, on a changed byte, on the model when the build was meant to lack it (or lacking when it was meant to have it), on `onnxruntime.dll` that
-does not match, and on a removed engine (Arpasing+, English C+V, DiffSinger English+) that has come back. It runs in `packaging/build.ps1`, in the package smoke test (on the installed copy) and in CI for both variants.
+Three independent checks run on the **packaged** host, in `packaging/build.ps1`, in the smoke test (on the installed copy) and in CI, for both variants:
+
+1. `packaging/verify_host_inventory.py` runs the host's own `--inventory` (it reads the assemblies, nothing of OpenUtau runs) and compares it with the reviewed allow-list `compliance/host-inventory.json`:
+   every phonemizer class, every embedded resource with its size and SHA-256 (and the members of the embedded archives), the **set of all 1,317 types** (count and hash), and the one model that may be present. It fails
+   on anything not on the list, on a changed byte, on a removed engine (Arpasing+, English C+V, DiffSinger English+, anything named Voicevox) coming back, on the model when the build was meant to lack it (or lacking when it was
+   meant to have it), and on an `onnxruntime.dll` that does not match. It also searches the two OpenUtau assemblies for the removed class names as bytes, which needs no loading.
+2. `packaging/verify_absent_data.py` searches **every file** of the package, whatever it is called, for the bytes of the removed data (the plus pack, the C+V template, the other languages' packs, the Vogen models and, with
+   `--without-g2p-model`, the model as a loose file).
+3. `host/verify-host.ps1` reflects on the built assemblies (and, since Windows PowerShell 5.1 cannot load .NET 8 assemblies, also scans their bytes) and compares the English pack member by member with the pinned source.
+
+**Proof that the checks can fail.** `host/negative-control.ps1` builds the host from the *unpatched* pinned OpenUtau (Voicevox classes, the plus dictionary, Arpasing+, English C+V, every language's dictionary) and requires all three
+checks to refuse it, each naming the specific things it must find (CI runs it). Finding it was worth doing: the first version showed that `verify-host.ps1`'s type check was blind under Windows PowerShell 5.1 (it saw no Voicevox
+type in a host full of them); the byte scan and the type list now cover that.
