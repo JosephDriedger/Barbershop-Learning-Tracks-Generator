@@ -38,13 +38,20 @@ if ($renamed.Count -eq 1) { $defines += "/DNumpyMsvcp=$($renamed[0])" }
 & $iscc @defines (Join-Path $root "packaging\installer.iss") | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "the upgrade-test installer could not be built" }
 
-foreach ($script in "Collect-Environment.ps1", "Check-UserData.ps1") { Copy-Item (Join-Path $root "packaging\tester-kit\$script") $Out }
+foreach ($script in "Collect-Environment.ps1", "Check-UserData.ps1", "Check-Outputs.ps1") { Copy-Item (Join-Path $root "packaging\tester-kit\$script") $Out }
 foreach ($doc in "HANDOFF.md", "english-voicebank-acceptance.md", "clean-machine-verification.md") { Copy-Item (Join-Path $root "docs\acceptance\$doc") $Out }
+# the three English scores of the pronunciation test (known / unknown / respelled words) and the list of their words
+$scores = Join-Path $Out "scores"
+New-Item -ItemType Directory -Force $scores | Out-Null
+Get-ChildItem (Join-Path $root "docs\acceptance\fixtures") -File | ForEach-Object { Copy-Item $_.FullName $scores }
 @"
 BLT Music Generator: release-candidate tester kit. NOT FOR RELEASE: do not share.
 Start with HANDOFF.md. Check the installers' SHA-256 against the numbers in the developer's message
 (Get-FileHash <file> -Algorithm SHA256) before running anything.
 BLT-Music-Generator-$next-Setup.exe is the same program with a higher version number, for the upgrade check only.
+This build has NO pronunciation model: a word that the English dictionary lacks stops generation and is named (scores\
+holds a score with such words, and the same score with them respelled). Check-Outputs.ps1 checks the 13 tracks with
+arithmetic; the listening is yours.
 "@ | Set-Content (Join-Path $Out "README.txt") -Encoding ascii
 $sums = Get-ChildItem $Out -Filter "*-Setup.exe" | Sort-Object Name | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()) *$($_.Name)" }
 Set-Content (Join-Path $Out "SHA256SUMS.txt") $sums -Encoding ascii
