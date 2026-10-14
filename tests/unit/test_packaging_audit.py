@@ -125,3 +125,10 @@ def test_version_drift_is_reported(tmp_path: Path) -> None:
 @pytest.mark.parametrize("version", [c["version"] for c in _components() if c.get("pypi")])
 def test_audited_python_versions_look_like_versions(version: str) -> None:
     assert re.fullmatch(r"\d+(\.\d+)+", version)
+
+
+def test_a_component_that_only_serves_the_g2p_model_must_be_absent_when_it_is_excluded() -> None:
+    components = {c["id"]: c for c in inventory.load_components()}
+    assert components["onnxruntime-native"]["absent_when_g2p_model_excluded"] is True
+    others = [c["id"] for c in components.values() if c.get("absent_when_g2p_model_excluded")]
+    assert others == ["onnxruntime-native"]

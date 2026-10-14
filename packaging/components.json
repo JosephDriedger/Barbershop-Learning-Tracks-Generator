@@ -1619,7 +1619,8 @@
      "label": "ONNX Runtime third-party notices",
      "path": "{nuget}/microsoft.ml.onnxruntime.directml/1.16.3/ThirdPartyNotices.txt"
     }
-   ]
+   ],
+   "absent_when_g2p_model_excluded": true
   }
  ],
  "excluded": [

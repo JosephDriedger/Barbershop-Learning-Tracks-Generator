@@ -3,7 +3,8 @@
 The licensing audit is only as good as its coverage, so the build fails when:
 
 * a file in the package belongs to no component (something was added without being audited),
-* a component lists files that are not in the package (the table is stale), or
+* a component lists files that are not in the package (the table is stale; except a component marked
+  ``absent_when_g2p_model_excluded``, which must be absent in a build without the g2p model), or
 * an installed Python package / NuGet package version differs from the one that was audited.
 
     python packaging/inventory.py DIST --runtime-pack DIR [--deps-json FILE] [--out FILE]
@@ -147,6 +148,21 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     result = classify(args.dist, components, pack)
     problems = version_problems(components, args.deps_json)
+    # -ExcludeG2pModel is recorded in the build; components that only serve the model must be gone
+    record = args.dist / "host" / "blt-host-build.json"
+    excluded = (
+        record.is_file()
+        and json.loads(record.read_text(encoding="utf-8")).get("g2p_model") == "excluded"
+    )
+    variant_problems: list[str] = []
+    only_for_model = {c["id"] for c in components if c.get("absent_when_g2p_model_excluded")}
+    if excluded:
+        present = sorted(only_for_model & set(result["owners"].values()))
+        for component_id in present:
+            variant_problems.append(
+                f"{component_id} is in the package, but the g2p model is excluded"
+            )
+        result["stale"] = [c for c in result["stale"] if c not in only_for_model]
 
     failed = False
     if result["unowned"]:
@@ -160,6 +176,11 @@ def main(argv: list[str] | None = None) -> int:
             "components whose files are not in the package (stale audit entries):",
             ", ".join(result["stale"]),
         )
+    if variant_problems:
+        failed = True
+        print("the build without the g2p model still contains:")
+        for line in variant_problems:
+            print("   ", line)
     if problems:
         failed = True
         print("version drift since the audit:")
