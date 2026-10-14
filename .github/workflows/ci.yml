@@ -62,7 +62,14 @@ jobs:
         run: python -I packaging/verify_host_inventory.py research-output/host/build --g2p-model included
       - name: FFmpeg for the MP3 test (CI only; BLT never bundles it)
         run: |
-          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg -y --no-progress }
+          # chocolatey's community feed answered 504 on three runs in a row (not our code): try a few times before failing
+          foreach ($attempt in 1..5) {
+            if (Get-Command ffmpeg -ErrorAction SilentlyContinue) { break }
+            choco install ffmpeg -y --no-progress
+            if ($LASTEXITCODE -eq 0) { break }
+            Write-Host "attempt $attempt of 5 failed; waiting"
+            Start-Sleep -Seconds (20 * $attempt)
+          }
           ffmpeg -version | Select-Object -First 1
       - name: Host and rendering tests
         run: pytest -m integration tests/integration
