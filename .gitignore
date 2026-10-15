@@ -267,3 +267,6 @@ host/**/obj/
 
 # The one spec that is source: BLT's own PyInstaller recipe
 !packaging/blt.spec
+
+# local copy of the built installer (large binary, never committed)
+/installer/
