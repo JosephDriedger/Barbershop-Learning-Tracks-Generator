@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
 )
 
 from barbershop_tracks import __version__
+from barbershop_tracks.core.musicxml.source import wrong_file_advice
 from barbershop_tracks.core.pipeline import STAGES, GenerateResult, PipelineError
 from barbershop_tracks.diagnostics import collect
 from barbershop_tracks.ui.controller import AppController, LoadedScore, ValidationView
@@ -301,7 +302,9 @@ class MainWindow(QMainWindow):
         return None
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
-        if self._score_from(event.mimeData()) is not None:
+        # any local file is accepted, so that a MuseScore project or a PDF dropped here is
+        # explained (on drop) instead of meeting a silent "no drop" cursor
+        if any(url.isLocalFile() for url in event.mimeData().urls()):
             event.acceptProposedAction()
         else:
             event.ignore()
@@ -315,8 +318,13 @@ class MainWindow(QMainWindow):
         mime.setUrls(urls)
         path = self._score_from(mime)
         if path is None:
+            local = next((u.toLocalFile() for u in urls if u.isLocalFile()), "")
+            advice = wrong_file_advice(Path(local).name) if local else None
             self.prompts.warn(
-                self, TITLE, "That is not a MusicXML score. Drop a .musicxml, .xml or .mxl file."
+                self,
+                TITLE,
+                (advice + "." if advice else "That is not a MusicXML score.")
+                + " Drop a .musicxml, .xml or .mxl file.",
             )
             return
         self.open_score(path)

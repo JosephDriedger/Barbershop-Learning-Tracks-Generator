@@ -94,6 +94,36 @@ def test_unsupported_extension(tmp_path: Path, minimal_score: bytes, name: str) 
         load_musicxml_source(path)
 
 
+@pytest.mark.parametrize(
+    ("name", "said"),
+    [
+        ("Hymn.mscz", "a MuseScore project"),
+        ("Hymn.MSCX", "a MuseScore project"),
+        ("Hymn.pdf", "a PDF, a picture of the music"),
+        ("scan.png", "a picture of the music"),
+        ("Hymn.mid", "a MIDI file"),
+    ],
+)
+def test_files_a_person_is_likely_to_hand_over_are_explained_by_kind(
+    tmp_path: Path, minimal_score: bytes, name: str, said: str
+) -> None:
+    path = tmp_path / name
+    path.write_bytes(minimal_score)  # whatever is inside, the kind is told by the extension
+    with pytest.raises(ScoreFileError) as error:
+        load_musicxml_source(path)
+    assert said in str(error.value)
+    assert "BLT opens .musicxml, .xml and .mxl files" in str(error.value)
+    assert error.value.path == path
+
+
+def test_advice_is_given_only_for_kinds_that_are_known() -> None:
+    from barbershop_tracks.core.musicxml.source import wrong_file_advice
+
+    assert wrong_file_advice("a.musicxml") is None
+    assert wrong_file_advice("a.docx") is None
+    assert wrong_file_advice("a.pdf") is not None
+
+
 def test_empty_xml_file(tmp_path: Path) -> None:
     path = tmp_path / "empty.musicxml"
     path.write_bytes(b"")

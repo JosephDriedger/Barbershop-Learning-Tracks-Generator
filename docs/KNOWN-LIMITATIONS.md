@@ -62,6 +62,7 @@ Things that are not done, not verified, or deliberately restricted. Nothing here
   and the mix check rejects it (`MIX_STEM_TOO_LONG`, seen with a real voicebank), so it is not offered. The neural renderers are not offered: Vogen and VOICEVOX are
   removed from the host (licensing), and ENUNU and DiffSinger have never been tested with BLT.
 * **MP3 needs an FFmpeg you install**; none is bundled. WAV needs nothing.
+* **Only MusicXML is read** (`.musicxml`, `.xml`, `.mxl`; MuseScore's own exports were tested, including the ones MuseScore 4.7 writes back after reading the test scores). A MuseScore project (`.mscz`, `.mscx`), a PDF or image of the music, and a MIDI file are refused with a message that says what to do (export MusicXML from MuseScore: File > Export). BLT does not read PDFs: a PDF holds no notes, words or voices, and BLT never guesses them.
 * **No playback or preview** inside the app yet (tracked separately). You open the output folder and play the files elsewhere.
 * One score at a time; no batch mode in the GUI (the command line scripts well).
 * Voicebanks are never included or downloaded; you must supply one and respect its licence.

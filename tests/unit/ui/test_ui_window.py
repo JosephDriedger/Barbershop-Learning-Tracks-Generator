@@ -216,7 +216,38 @@ def test_dropping_a_score_loads_it(rig: Rig) -> None:
 
 def test_dropping_something_else_is_refused_politely(rig: Rig) -> None:
     rig.window.handle_drop([QUrl.fromLocalFile(str(rig.tmp / "photo.png"))])
-    assert any("not a MusicXML score" in w for w in rig.prompts.warnings)
+    assert any(
+        "a picture of the music" in w and "Drop a .musicxml" in w for w in rig.prompts.warnings
+    )
+    rig.window.handle_drop([QUrl.fromLocalFile(str(rig.tmp / "notes.txt"))])
+    assert any("That is not a MusicXML score." in w for w in rig.prompts.warnings)
+
+
+def test_a_musescore_project_or_a_pdf_dropped_is_explained_not_ignored(rig: Rig) -> None:
+    rig.window.handle_drop([QUrl.fromLocalFile(str(rig.tmp / "Hymn.mscz"))])
+    said = rig.prompts.warnings[-1]
+    assert "Hymn.mscz is a MuseScore project" in said
+    assert "File > Export" in said
+    rig.window.handle_drop([QUrl.fromLocalFile(str(rig.tmp / "Hymn.pdf"))])
+    said = rig.prompts.warnings[-1]
+    assert "Hymn.pdf is a PDF" in said
+    assert "will not guess" in said
+    assert "export MusicXML" in said
+
+
+def test_any_local_file_may_be_dropped_so_that_it_can_be_explained(rig: Rig) -> None:
+    from PySide6.QtCore import QMimeData as Mime
+
+    mime = Mime()
+    mime.setUrls([QUrl.fromLocalFile(str(rig.tmp / "Hymn.pdf"))])
+    accepted: list[bool] = []
+    event: Any = SimpleNamespace(
+        mimeData=lambda: mime,
+        acceptProposedAction=lambda: accepted.append(True),
+        ignore=lambda: accepted.append(False),
+    )
+    rig.window.dragEnterEvent(event)
+    assert accepted == [True]
     assert rig.controller.score is None
 
 

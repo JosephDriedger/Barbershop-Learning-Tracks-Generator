@@ -46,6 +46,35 @@ class MusicXmlSource:
     size_bytes: int  # size of the score XML that was parsed
 
 
+_EXPORT = "export MusicXML from the notation program the score came from"
+_MUSESCORE = (
+    "a MuseScore project, which BLT cannot read: in MuseScore choose File > Export, pick MusicXML "
+    "(.musicxml) or Compressed MusicXML (.mxl), and open that file"
+)
+_PICTURE = (
+    "a picture of the music (it holds no notes, words or voices that BLT could read, and BLT will "
+    f"not guess them): {_EXPORT}; if only the picture exists, the music first has to be entered "
+    "in a notation program (scanning programs exist, but their result must be checked bar by bar)"
+)
+# what a person is likely to hand over instead of a MusicXML file, and what to do about it
+WRONG_FILE_KINDS: dict[str, str] = {
+    ".mscz": _MUSESCORE,
+    ".mscx": _MUSESCORE,
+    ".pdf": _PICTURE.replace("a picture of the music", "a PDF, a picture of the music", 1),
+    ".png": _PICTURE,
+    ".jpg": _PICTURE,
+    ".jpeg": _PICTURE,
+    ".mid": f"a MIDI file, which has no lyrics and no voice names: {_EXPORT}",
+    ".midi": f"a MIDI file, which has no lyrics and no voice names: {_EXPORT}",
+}
+
+
+def wrong_file_advice(name: str) -> str | None:
+    """What to do about a file that is not a score BLT reads, by its extension; None if unknown."""
+    kind = WRONG_FILE_KINDS.get(Path(name).suffix.lower())
+    return None if kind is None else f"{name} is {kind}"
+
+
 def load_musicxml_source(
     path: str | os.PathLike[str], limits: LoaderLimits = DEFAULT_LIMITS
 ) -> MusicXmlSource:
@@ -66,8 +95,11 @@ def load_musicxml_source(
         archive_score = read_score_from_mxl(file_path, limits)
         data, member_name = archive_score.data, archive_score.member_name
     else:
+        advice = wrong_file_advice(file_path.name)
         raise ScoreFileError(
-            f"{file_path.name} has an unsupported extension; expected .musicxml, .xml or .mxl",
+            f"{advice}. BLT opens .musicxml, .xml and .mxl files"
+            if advice is not None
+            else f"{file_path.name} has an unsupported extension; expected .musicxml, .xml or .mxl",
             path=file_path,
         )
     what = file_path.name if member_name is None else f"score '{member_name}'"
