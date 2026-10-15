@@ -435,7 +435,7 @@ HINTS = {  # for "blorptastic", in the notation of each engine (ARPAbet is accep
 def test_a_phonetic_hint_makes_an_unknown_word_pronounceable_and_is_never_invented(
     exe: Path, singers: Path, tmp_path: Path, phonemizer: str
 ) -> None:
-    # the hint is added to the project file the way OpenUtau writes it (the word, then the symbols in
+    # the hint is added to the project file the way OpenUtau writes it (the word, then symbols in
     # square brackets); BLT's own writer does this from a person's decision (tests/integration/
     # test_pronunciation_overrides_host.py). The word is consonant-initial: with the synthetic
     # voicebank English VCCV throws on a word that starts with a vowel, which the host reports.
