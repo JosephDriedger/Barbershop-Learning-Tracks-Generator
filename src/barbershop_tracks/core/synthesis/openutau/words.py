@@ -79,12 +79,12 @@ def is_word_fragment(note: PlannedNote) -> bool:
 
 
 def _chain(
-    notes: tuple[PlannedNote, ...], first: int, lead_order: dict[Fraction, int]
+    notes: tuple[PlannedNote, ...], first: int, orders: dict[str, dict[Fraction, int]]
 ) -> list[int] | None:
     """The note indices of the complete word that begins at ``first``, or None if it is not complete."""
     start = notes[first]
     chain = [first]
-    origins = [start.lyric.provenance.follows_start]
+    origins = [(start.lyric.provenance.follows_role, start.lyric.provenance.follows_start)]
     states = {start.lyric.state}
     current = first
     while True:
@@ -99,7 +99,9 @@ def _chain(
         if not _has_text(following) or _syllabic(following) not in ("middle", "end"):
             return None  # the next note does not continue the word
         chain.append(nxt)
-        origins.append(following.lyric.provenance.follows_start)
+        origins.append(
+            (following.lyric.provenance.follows_role, following.lyric.provenance.follows_start)
+        )
         states.add(following.lyric.state)
         current = nxt
         if _syllabic(following) == "end":
@@ -107,33 +109,41 @@ def _chain(
     if len(states) > 1:
         return None  # syllables from different sources
     if states == {LyricState.LEAD_SYLLABLE}:
-        ordinals = [lead_order.get(o) if o is not None else None for o in origins]
+        roles = {role or VoiceRole.LEAD.value for role, _ in origins}
+        if len(roles) != 1:
+            return None  # syllables followed from different parts
+        order = orders.get(next(iter(roles)), {})
+        ordinals = [order.get(o) if o is not None else None for _, o in origins]
         first_ordinal = ordinals[0]
         if first_ordinal is None or ordinals != list(
             range(first_ordinal, first_ordinal + len(ordinals))
         ):
-            return None  # this part sings only some of the Lead's syllables of the word
+            return None  # this part sings only some of the followed part's syllables of the word
     return chain
 
 
 def assemble_words(plan: SynthesisPlan, voice: VoicePlan) -> WordJoin:
     """The complete words of ``voice``, whole on their first note; everything else is left as written."""
-    lead_order: dict[Fraction, int] = {}
-    lead = next((v for v in plan.voices if v.role is VoiceRole.LEAD), None)
-    if lead is not None:
-        syllables = [
-            n
-            for n in lead.notes
-            if n.lyric.state in (LyricState.SCORE_LYRIC, LyricState.USER_APPROVED) and _has_text(n)
-        ]
-        lead_order = {n.start: k for k, n in enumerate(syllables)}
+    # the order of each part's own syllables: what a part that follows it must sing consecutively
+    orders = {
+        v.role.value: {
+            n.start: k
+            for k, n in enumerate(
+                n
+                for n in v.notes
+                if n.lyric.state in (LyricState.SCORE_LYRIC, LyricState.USER_APPROVED)
+                and _has_text(n)
+            )
+        }
+        for v in plan.voices
+    }
     notes = voice.notes
     whole: dict[int, str] = {}
     follow: set[int] = set()
     i = 0
     while i < len(notes):
         if _has_text(notes[i]) and _syllabic(notes[i]) == "begin":
-            chain = _chain(notes, i, lead_order)
+            chain = _chain(notes, i, orders)
             if chain is not None:
                 whole[i] = engine_text(
                     "".join(notes[k].lyric.text or "" for k in chain if _has_text(notes[k]))

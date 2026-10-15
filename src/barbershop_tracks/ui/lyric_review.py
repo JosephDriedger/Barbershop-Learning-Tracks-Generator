@@ -38,7 +38,7 @@ class RowState(Enum):
     DRAFT = "Not approved yet"
     APPROVED = "Approved"
     INVALID = "Cannot be sung"
-    FOLLOWS = "Follows the Lead"
+    FOLLOWS = "Follows another part"
 
 
 @dataclass(slots=True)
@@ -93,6 +93,13 @@ def has_rows(plan: SynthesisPlan) -> bool:
     return bool(plan.review_items) or any(
         n.lyric.state in FOLLOWING_STATES for v in plan.voices for n in v.notes
     )
+
+
+def _follows_text(role: str | None) -> str:
+    """Whose words a rule-decided note sings: the Lead's, or the part whose same note has them."""
+    if role is None or role == VoiceRole.LEAD.value:
+        return "Follows the Lead"
+    return f"Follows the {VoiceRole(role).display_name} (the same note, written once)"
 
 
 def default_approver() -> str:
@@ -152,7 +159,7 @@ class LyricReviewState:
                         where=position_label(note.start, baseline.meter, baseline.measures),
                         length=duration_label(note.duration),
                         pitch=note_name(note.midi_pitch),
-                        reason="Follows the Lead",
+                        reason=_follows_text(lyric.provenance.follows_role),
                         detail=lyric.provenance.detail,
                         proposal=None,
                         lead_text=sung,

@@ -415,8 +415,9 @@ class MainWindow(QMainWindow):
                 items.append(
                     (
                         "info",
-                        f"{n} note{'s' if n != 1 else ''} sing the Lead's words (the usual "
-                        "barbershop convention). Open the lyric review to change any.",
+                        f"{n} note{'s' if n != 1 else ''} sing words written for another part, "
+                        "usually the Lead's (the usual barbershop convention). Open the lyric "
+                        "review to change any.",
                     )
                 )
             if view.generatable:

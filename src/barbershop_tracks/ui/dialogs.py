@@ -183,8 +183,9 @@ class LyricReviewDialog(QDialog):
         self.summary = QLabel()
         self.summary.setWordWrap(True)
         note = QLabel(
-            "These notes have no lyric of their own in the score. Notes marked “Follows the Lead” "
-            "sing what the Lead sings (the usual barbershop convention) and need nothing from you; "
+            "These notes have no lyric of their own in the score. Notes marked “Follows another "
+            "part” sing what the Lead sings, or what another part sings on the very same note (the "
+            "usual barbershop convention), and need nothing from you; "
             "to change one, type what it should sing and approve it. Notes that need a lyric must "
             "be decided before generating. Words the score already provides are not listed here."
         )

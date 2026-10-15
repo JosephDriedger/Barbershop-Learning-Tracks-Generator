@@ -101,7 +101,8 @@ class LyricProvenance:
     melisma_origin_start: Fraction | None = None  # start of the note that opened the melisma
     melisma_basis: str | None = None
     detail: str = ""  # why a lyric is unsupported or in conflict, or whom it follows
-    follows_start: Fraction | None = None  # start of the Lead note whose syllable is followed
+    follows_start: Fraction | None = None  # start of the note whose syllable is followed
+    follows_role: str | None = None  # whose words are followed (a role name); None means the Lead
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

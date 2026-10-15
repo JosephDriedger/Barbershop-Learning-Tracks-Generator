@@ -325,7 +325,7 @@ def test_parts_follow_the_lead_by_default_and_generation_is_not_blocked(
         window.validation_section.list.item(i).text()
         for i in range(window.validation_section.list.count())
     ]
-    assert any("sing the Lead's words" in t for t in texts)
+    assert any("sing words written for another part" in t for t in texts)
     assert window.validation_section.review.isEnabled()  # the notes can still be looked at
     review = rig.controller.review
     assert review is not None
