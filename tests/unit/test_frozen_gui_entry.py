@@ -7,7 +7,7 @@ from pathlib import Path
 
 ENTRY = Path(__file__).resolve().parents[2] / "packaging" / "entry_gui.py"
 
-# a Python process in which PySide6.QtWidgets cannot be imported, as when a package lost Qt6Widgets.dll
+# a Python process in which PySide6.QtWidgets cannot be imported (a package without Qt6Widgets.dll)
 RUN_WITHOUT_QT = textwrap.dedent(
     f"""
     import runpy, sys
