@@ -50,8 +50,9 @@ Start with HANDOFF.md. Check the installers' SHA-256 against the numbers in the 
 (Get-FileHash <file> -Algorithm SHA256) before running anything.
 BLT-Music-Generator-$next-Setup.exe is the same program with a higher version number, for the upgrade check only.
 This build has NO pronunciation model: a word that the English dictionary lacks stops generation and is named (scores\
-holds a score with such words, and the same score with them respelled). Check-Outputs.ps1 checks the 13 tracks with
-arithmetic; the listening is yours.
+holds a score with such words, the same score with them respelled, and sample pronunciations for it: BLT lets a person
+say how such a word is sung without changing the score). Check-Outputs.ps1 checks the 13 tracks with arithmetic;
+the listening is yours.
 "@ | Set-Content (Join-Path $Out "README.txt") -Encoding ascii
 $sums = Get-ChildItem $Out -Filter "*-Setup.exe" | Sort-Object Name | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()) *$($_.Name)" }
 Set-Content (Join-Path $Out "SHA256SUMS.txt") $sums -Encoding ascii

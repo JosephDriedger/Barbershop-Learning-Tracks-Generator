@@ -72,8 +72,9 @@ Words outside CMUdict are not rare in this repertoire. A spot check of 33 words 
 * Words on several notes are now sent to the dictionary phonemizers whole (`core/synthesis/openutau/words.py`: the first note carries `together`, the later syllable notes the extender `+`), so a multi-syllable word is looked
   up as a word and not blocked as fragments.
 * **The default (alias) phonemizer** never looks words up: a lyric is the alias, and an alias the voicebank lacks is reported afterwards as silent notes (`STEM_NOTE_SILENT`), as before.
-* **Cost:** a word outside CMUdict must be respelled in the score with words CMUdict has (`every` for `ev'ry`). BLT does not edit the score. A user-approved phonetic override that keeps the score as written is designed in
-  [design/phonetic-overrides.md](design/phonetic-overrides.md) and **not implemented**.
+* **Cost, and the remedy (M19):** a word outside CMUdict needs a person's decision: either respell it in the score with words CMUdict has (`every` for `ev'ry`), or give its pronunciation for that voice and place (File > Pronunciations, or
+  `--approve-pronunciations`), which keeps the score as written. BLT does not edit the score and does not guess; the engine checks the symbols before rendering and the package records the decision. See
+  [design/phonetic-overrides.md](design/phonetic-overrides.md).
 * **Evidence it works:** the English matrix of `tests/integration/test_render_host.py` (known words render; unknown words stop with exit 11 and name every voice; a hint renders; one unknown among known; lookup) and
   `tests/integration/test_english_fixture.py` pass on the model-free host, and the host contract tests pass on both builds (CI builds the research host with `-IncludeG2pModel` as well). `blt-render-host --g2p-check` proves
   in the model-free host that a dictionary word is phonemized, a word outside it gets no guess and no onnxruntime is even loaded; `host/verify-host.ps1`, `packaging/verify_absent_data.py --without-g2p-model` and
@@ -84,7 +85,7 @@ Words outside CMUdict are not rare in this repertoire. A spot check of 33 words 
 | Option | What it takes | Consequence |
 |---|---|---|
 | A. Keep the model (`-IncludeG2pModel`) | a person accepts the evidence of section 2, or upstream answers the inquiry (post it: command in `upstream-g2p-plus-issue.md`) | **not the proposed release**; kept as an internal research build; the release gate refuses it |
-| **B. Ship without it (the default; chosen in M18)** | nothing more for the build | no model, no onnxruntime in the package; words outside CMUdict need respelling; a user-approved override is the proposed next step |
+| **B. Ship without it (the default; chosen in M18)** | nothing more for the build | no model, no onnxruntime in the package; words outside CMUdict need a decision: a respelling or a user-given pronunciation (M19) |
 | C. A model BLT trains itself from CMUdict with the upstream recipe (`py/g2p` at the pinned commit; MIT) | owner approval (a different model), a training run, an ONNX export, the same evidence as this page | not done |
 
 The gate item stays **open until a person signs it with `--decision excluded`**: the choice of B was made in the milestone instruction, but nobody has recorded it as a sign-off, and BLT does not sign for a person.
@@ -94,7 +95,7 @@ The gate item stays **open until a person signs it with `--decision excluded`**:
 Three independent checks run on the **packaged** host, in `packaging/build.ps1`, in the smoke test (on the installed copy) and in CI (the research variant only in CI):
 
 1. `packaging/verify_host_inventory.py` runs the host's own `--inventory` (it reads the assemblies, nothing of OpenUtau runs) and compares it with the reviewed allow-list `compliance/host-inventory.json`:
-   every phonemizer class, every embedded resource with its size and SHA-256 (and the members of the embedded archives), the **set of all 1,321 types** (count and hash), and the one model that may be present. It fails
+   every phonemizer class, every embedded resource with its size and SHA-256 (and the members of the embedded archives), the **set of all 1,324 types** (count and hash), and the one model that may be present. It fails
    on anything not on the list, on a changed byte, on a removed engine (Arpasing+, English C+V, DiffSinger English+, anything named Voicevox) coming back, on the model when the build was meant to lack it (or lacking when it was
    meant to have it), and on an `onnxruntime.dll` that does not match. It also searches the two OpenUtau assemblies for the removed class names as bytes, which needs no loading.
 2. `packaging/verify_absent_data.py` searches **every file** of the package, whatever it is called, for the bytes of the removed data (the plus pack, the C+V template, the other languages' packs, the Vogen models and, with

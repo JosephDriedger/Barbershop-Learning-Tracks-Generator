@@ -1,55 +1,74 @@
-# Design and compatibility assessment: user-approved phonetic overrides
+# Pronunciation overrides: design, and what M19 built
 
-Written in M18. **A design, not an implementation.** It answers: can a singer who is stopped by "BLT does not know how to pronounce this word" give BLT the pronunciation themselves,
-through the existing lyric-review workflow, without BLT ever changing the lyrics the score provides? Short answer: **yes, with a small, contained change; no editor is needed.** It is recommended as the
-next milestone and is **not** a condition of the release candidate (the respelling route below works today).
+Designed in M18 (an assessment, nothing built), **implemented in M19**. This page keeps the design and says, in section 6, where the implementation differs from it and what it does not do. Short version: a singer who is stopped
+by "BLT does not know how to pronounce this word" can say how that word is pronounced **at that place of that score, for that voice**, in the notation of the chosen pronunciation engine, in the GUI or in a file; the
+score's own lyrics are never changed, the engine itself checks the decision before anything is rendered, and the package records the score's words and the decision side by side.
 
-## 1. What exists today
+## 1. What exists
 
 | Piece | Fact (checked in this repository and in the pinned OpenUtau) |
 |---|---|
-| The block | M18: when the dictionary lacks a word, the host stops (exit 11) and BLT reports each word with voice, bar and beat (`core/rendering/pronunciation.py`); nothing is rendered |
-| The way out today | **Respell the word in the score** with words the dictionary knows (`every` for `ev'ry`), save, load again. BLT never changes the score's own words (`PLAN_APPROVAL_OVERRIDES_SCORE`). The fixture `docs/acceptance/fixtures` shows the three states (known / unknown / respelled) |
-| OpenUtau's own mechanism | a note's lyric may carry its pronunciation: `ev'ry[eh v r iy]`. OpenUtau splits it (`phoneticHintPattern = \[(.*)\]`, `UNote.ToPhonemizerNote`): the phonemizer receives the lyric `ev'ry` and the hint `eh v r iy`, and does **not** look the word up. The M18 host tests prove this for Arpasing, English VCCV and X-SAMPA |
-| What the hint is made of | **the phonemizer's own symbols**: ARPAbet (`eh v r iy`) for Arpasing and English VCCV, X-SAMPA (`E v r i`) for X-SAMPA. Arpasing silently drops a symbol it does not know (`Where(g2p.IsValidSymbol)`), so a mistyped symbol would shorten the word without any message |
-| BLT's USTX writer | refuses a bracket in a lyric (`USTX_LYRIC_TEXT`), by design: it is how a hint would sneak in unreviewed |
-| The lyric review | `blt.lyric-review/1` (report) and `blt.lyric-approvals/1` (what a person writes back, bound to the score's SHA-256). An approval may only target a note **without** a score lyric; a GUI dialog edits the same data (`ui/lyric_review.py`) |
-| Words across notes | since M18 a word on several touching notes is sent whole on its first note (`core/synthesis/openutau/words.py`); a hint therefore belongs on that first note |
+| The block | when the dictionary lacks a word, the host stops (exit 11) and BLT reports each word with voice, bar and beat (`core/rendering/pronunciation.py`); nothing is rendered |
+| OpenUtau's mechanism | a note's lyric may carry its pronunciation: `ev'ry[eh v r iy]`. OpenUtau splits it (`phoneticHintPattern = \[(.*)\]`, `UNote.ToPhonemizerNote`): the phonemizer receives the lyric `ev'ry` and the hint `eh v r iy`, and does **not** look the word up |
+| What the hint is made of | the phonemizer's own symbols. **Arpasing**: ARPAbet from its g2p (`IsValidSymbol`), and it **drops** a symbol it does not know without a word. **English VCCV** and **X-SAMPA**: the hint is taken **as written**; the engine's own symbols (VCCV `E`, `@`, `9`...; X-SAMPA `E`, `{`, `I\`...) and also ARPAbet, which the two engines translate with the same table they apply to the dictionary (so `eh v r iy` and `E v r i` give the same sounds) |
+| BLT's USTX writer | still refuses a bracket in a **score** lyric (`USTX_LYRIC_TEXT`): that is how a hint would sneak in unreviewed. A decided pronunciation is the one exception, written only from a validated, scoped override |
+| The lyric review | unchanged. `blt.lyric-approvals/1` still only approves notes that have no score lyric. Pronunciations are a **separate** kind of decision with a separate file |
 
-## 2. The design
+## 2. The design as built
 
-**A pronunciation override is a new, separate kind of approval. It never edits a lyric.**
+**A pronunciation override is a person's decision about one word at one place of one score. It never edits a lyric.**
 
-1. **What it is.** A decision "in this score, the word *W* is pronounced *symbols*", made by a named person, bound to the score's SHA-256 and to a **pronunciation alphabet** (`arpabet` or `xsampa`, taken from the chosen
-   phonemizer). Keyed by the word (lower-case, as the host reports it), so one decision covers every voice and every occurrence; an optional narrower key (voice and start) can override it in one place.
-2. **Where it is stored.** The approvals file gains an optional second list next to `approvals`:
-   `{"schema": "blt.lyric-approvals/1", "source_sha256": "...", "approvals": [...], "pronunciations": [{"word": "ev'ry", "alphabet": "arpabet", "symbols": "eh v r iy", "approved_by": "..."}]}`.
-   A reader that does not know `pronunciations` ignores it (the file stays valid for older versions), and the score-hash binding rejects decisions made for another version of the score, exactly as for lyrics.
-3. **How it reaches the singer.** The refusal already lists the words. BLT adds `blt.pronunciation-template/1`: the same words with empty `symbols` and the alphabet filled in, written next to the lyric-review
-   report. The singer fills in the symbols (a text file; the symbol list for the alphabet is printed in the template header), or, in the GUI, the dialog that shows the refusal gets a *Pronunciations...* button that opens the same
-   file in the existing file chooser. No phonetic editor, no playback, no new window.
-4. **Where it takes effect.** Only in the plan-to-USTX step (`write_ustx`), and only for the dictionary phonemizers: the first note of each occurrence of *W* gets the lyric `W[symbols]`. The plan's lyric text is unchanged
-   (`NoteLyric.text` stays what the score says); the override rides in a new field (`NoteLyric.pronunciation`) so that reports, manifests and the lyric review still show the score's own words. The default
-   phonemizer and UTAU-style banks ignore overrides (they sing syllables as aliases), and BLT says so if an override targets one.
-5. **Validation, so nothing is dropped silently.** Before writing, BLT checks every symbol against the phonemizer's symbol set. The set comes from the host (`blt-render-host --symbols PHONEMIZER`, answering with the phonemizer's
-   own `IsValidSymbol`, voicebank dictionary included), never from a copy in Python. An unknown symbol is an error naming the word and the symbol. A hint with the wrong number of vowels for the notes of the word is reported
-   (the syllable phonemizers answer "not enough extension notes" otherwise).
-6. **The audit trail.** The manifest of a generated package lists the overrides used (word, alphabet, symbols, who approved), next to the lyric approvals, so a track is always traceable to the words and pronunciations that made it.
+1. **Scope: all four are part of the decision.**
+   * *the score*: the SHA-256 of the MusicXML file (`source_sha256`); a decision for another version is refused as a whole;
+   * *the voice and the place*: `voice` and `start` (quarter notes), the first note of the word as the engine receives it; the same word in another bar, or in another voice, is **not** affected and needs its own decision;
+   * *the word*: the text the engine receives for that note (the score's syllables put together: `ev'` + `ry` + `one` is `ev'ryone`). A decision made for another word than the score now has there is refused (stale);
+   * *the engine*: the fully qualified phonemizer the symbols were written for. The notation of one engine is refused for another.
+2. **Where it is stored.** `blt.pronunciation-overrides/1` (`core/pipeline/pronunciation_files.py`): `{"schema", "source_sha256", "overrides": [{"voice", "start", "where", "word", "phonemizer", "notation", "symbols", "approved_by"}]}`.
+   `where` and `notation` are for the reader. A stopped run writes a **template** (one entry per blocked voice and place, `symbols: null`); an undecided entry decides nothing (the word stays blocked). In the GUI the same data lives in memory for the session and is saved and loaded with
+   *Save pronunciations* and *Load pronunciations*, exactly like the lyric approvals.
+3. **How it reaches the singer.** A stopped run (GUI: the message, with an *Open Pronunciations* button and a *File > Pronunciations* entry; CLI: the template written next to the output and the line "rerun with `--approve-pronunciations FILE`") lists every place: voice, bar and beat, the score's own text,
+   the word sent to the engine and the engine. The dialog says which notation each engine takes and shows it in a tooltip. Nothing is filled in. *Same for the other voices here* copies a decision only to the other voices at the same note and word, only when clicked.
+4. **Where it takes effect.** Only in the project file sent to the engine (`write_ustx`), and only for the three dictionary phonemizers: the first note of the word is written `word[sym bol s]`. The plan (`NoteLyric.text`, `provenance.source_text`), the lyric review and the package keep the score's own text.
+5. **Validation, before anything renders.**
+   * *form* (Python): at least one symbol, at most 64, no brackets, spaces inside a symbol or control characters; an `approved_by`; the score's SHA-256;
+   * *fit* (Python, `resolve_overrides`): the score, the voice, a note that starts there, the first note of a word the engine receives, the same word, the engine of that voice, no second decision for one note. Anything else is an error that says why (`OVERRIDE_WRONG_SCORE`, `OVERRIDE_NO_NOTE`, `OVERRIDE_WORD_MISMATCH`, `OVERRIDE_PHONEMIZER_MISMATCH`, `OVERRIDE_NOT_WORD_START`, `OVERRIDE_DUPLICATE`...). Nothing is skipped;
+   * *symbols* (the engine itself): the patched phonemizers record every hint symbol they do not know (`HintProblems`); the host stops with exit 12 (`pronunciation_invalid`) naming the voice, the bar and the symbol, **before** any stem is rendered; a hinted note that makes no sound, or on which the engine threw an
+     exception, is refused too. The symbol list is never copied into Python: it is whatever the engine accepts, including a voicebank's own dictionary.
+   * *dry run*: `blt-render-host --phonemize-only` (BLT: `check_pronunciations`, GUI: *Check with the engine*) does everything up to and including that check and stops: no stem, no package, a few seconds.
+6. **The audit trail.** `manifest.json` has a `pronunciation` section: the dictionary used, and one record per decision: voice, start, bar and beat, the word, **the score's own text** (`score_lyrics`: `["ev'", "ry", "one"]`), the engine, the notation, the symbols as written, who decided, the score's SHA-256, the scope, and
+   **the sounds the engine made of it** (`effective_phonemes`, from the engine). With no decisions the list is empty and the manifest says the dictionary alone was used.
 
-## 3. Compatibility assessment
+## 3. Compatibility assessment (as it turned out)
 
-| Question | Assessment |
+| Question | Result |
 |---|---|
-| Does it change score-provided lyrics? | **No.** The text stays; the override is a separate approval applied only to the project file sent to the engine. The existing guard (a score lyric is never overridden) stays untouched |
-| Does it break existing files or the lyric review? | No: `approvals` is unchanged; `pronunciations` is optional; the lyric-review rows (notes without lyrics) are unaffected |
-| Does it depend on unreviewed upstream behaviour? | It uses OpenUtau's documented hint syntax, tested here on all three English phonemizers. It adds one host mode (`--symbols`) |
-| Does it need a model or new data? | No. It is the opposite of a model: a person's explicit decision |
-| What can go wrong? | wrong alphabet for the chosen phonemizer (guarded by the alphabet field); a mistyped symbol (guarded by validation); a hint that does not fit the number of notes (reported); overrides that outlive a score edit (guarded by the hash) |
-| Risk to the current release candidate | none if it is built after the candidate: it is additive and the refusal text already tells the singer to respell |
-| Size | host `--symbols` (small); `PronunciationApproval` and the file schema (small); plan field and USTX writer (small); template and CLI `--approve-pronunciations` (small); one GUI button (small); tests per phonemizer on the real host (medium). About one milestone |
+| Does it change score-provided lyrics? | No. The score file is byte-identical after a run (tested); the plan and the review keep the score's text; the decision is applied only to the project sent to the engine |
+| Does it break existing files or the lyric review? | No: `blt.lyric-approvals/1` is untouched; the manifest gained a section (`pronunciation`), no key was removed |
+| Does it depend on unreviewed upstream behaviour? | It uses OpenUtau's hint syntax, tested on all three engines with the real host, and adds to the existing always-applied patch (`HintProblems` beside `MissingWords`) and two host options |
+| Does it need a model or new data? | No: it is a person's explicit decision, the opposite of a model |
+| What can go wrong | a wrong notation for the engine (refused: symbols the engine does not know are named); symbols that are valid but wrong for the word (BLT cannot know: the person listens, the checklist says how); a decision outliving a score edit (refused by the hash, and by the word check) |
 
-## 4. Recommendation
+## 4. Limits, stated
 
-* **Not essential for the release candidate**: a singer can always respell in the score, the refusal says exactly how, and nothing is guessed. The English acceptance test exercises that route (fixture `known` / `unknown` / `respelled`).
-* **Recommended next**: poetic and dialect forms (`ev'ry`, `heav'n`, `o'er`, `'neath`, `mammy`) are common in this repertoire, and respelling changes the written score. An override lets the score stay as the arranger wrote it.
-* **Not recommended**: a phonetic editor with playback, or any automatic suggestion of symbols (it would be a pronunciation model by another name).
+* **Bound to the whole score.** Any change of the MusicXML file, even one that has nothing to do with the word, makes the saved decisions invalid; they must be decided again (a new template is written by the next stopped run). This is the same rule as the lyric approvals and is deliberate: BLT cannot
+  tell which edits matter. A finer binding is possible later (keep a decision when the voice, place and word still match); it was not done because a decision that follows an edited score silently is the very thing this feature must not do.
+* **One engine per decision.** A decision for Arpasing is not used when the voice uses X-SAMPA. The notation help names the notation; ARPAbet is accepted by all three engines.
+* **Vowel-initial words with English VCCV are unverified.** With the synthetic test voicebank the engine throws on words that begin with a vowel (OpenUtau answers with the alias `error`), with or without a pronunciation. BLT now names that ("the pronunciation engine failed on...") instead of blaming the voicebank,
+  and a hinted note on which the engine failed is refused. Whether a real English VCCV bank has the same trouble needs a real bank; it is in the acceptance checklist.
+* **A word on fewer notes than it has vowels.** The syllable engines then report that there are not enough extension notes; Arpasing squeezes the sounds into the notes it has. A pronunciation does not change how many notes the voice has.
+* **A fragment** (a syllable of a longer word that a follower voice sings alone, see `docs/m19-report.md`) can be given a pronunciation like any word: it is the word the engine receives for that note.
+* **No suggestions.** BLT does not propose symbols, does not look a word up for you and has no playback: it would be a pronunciation model by another name. The person decides, the engine checks, the person listens.
+
+## 5. Recommendation (unchanged)
+
+The model-free release is usable for the repertoire's old-fashioned words (`ev'ry`, `o'er`, `'neath`, `mammy`, `lov'd`) without changing the score. What remains uncertain is how it **sounds** with real voicebanks, which only the acceptance listening test can say.
+
+## 6. Where the implementation differs from the M18 design
+
+| M18 design | M19 |
+|---|---|
+| a second list `pronunciations` in the lyric-approvals file | **a separate file** (`blt.pronunciation-overrides/1`): simpler to read and write, nothing for the older reader to ignore |
+| keyed by word, one decision for every occurrence, an optional narrower key | **always** per voice and note: the decision's scope is the occurrence; a convenient "same for the other voices here" action exists but only copies to the same note and word |
+| symbols validated by a new host mode `--symbols` answering `IsValidSymbol` | the engines **record** the symbols they do not know while phonemizing the real project (a single code path, including a voicebank's own dictionary), plus `--phonemize-only` as the dry run |
+| alphabet field per entry | the engine decides what it accepts; `notation` is help text and the manifest records the engine and the notation name |
+| a *Pronunciations...* button in the existing review | a dialog of its own (the lyric review lists notes without lyrics; these are words that have lyrics), opened from the failure message and from the File menu |

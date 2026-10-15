@@ -128,7 +128,11 @@ def test_the_unknown_score_stops_before_rendering_and_names_every_word_voice_and
     assert f'"o\'er" (bar 7, beat 1; {voices})' in shown
     for fine in ("together", "always", "don't", "sing", "home"):
         assert f'"{fine}"' not in shown  # no word the dictionary has is blamed
-    assert not (rig.root / f"out-unknown-{phonemizer}").exists()  # nothing was published
+    out = rig.root / f"out-unknown-{phonemizer}"
+    assert not list(out.glob("*_learning_tracks"))  # no package was published
+    assert [p.name for p in out.iterdir()] == [
+        "english-quartet-unknown-words_learning_tracks.pronunciations-template.json"
+    ]  # only the template
 
 
 @pytest.mark.parametrize("version", ["known", "respelled"])

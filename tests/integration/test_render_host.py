@@ -424,10 +424,10 @@ def test_a_word_outside_cmudict_stops_the_run_and_is_named_for_every_voice(
     assert word in run.result["error"]
 
 
-HINTS = {  # the symbols of the phonemizer's own alphabet for "ev'ry"
-    "OpenUtau.Plugin.Builtin.ArpasingPhonemizer": "eh v r iy",
-    "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer": "eh v r iy",
-    "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer": "E v r i",
+HINTS = {  # for "blorptastic", in the notation of each engine (ARPAbet is accepted by all three)
+    "OpenUtau.Plugin.Builtin.ArpasingPhonemizer": "b l ao r p t ae s t ih k",
+    "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer": "b l ao r p t ae s t ih k",
+    "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer": "b l O r p t { s t I k",
 }
 
 
@@ -435,19 +435,24 @@ HINTS = {  # the symbols of the phonemizer's own alphabet for "ev'ry"
 def test_a_phonetic_hint_makes_an_unknown_word_pronounceable_and_is_never_invented(
     exe: Path, singers: Path, tmp_path: Path, phonemizer: str
 ) -> None:
-    # BLT's own USTX writer refuses a bracket in a lyric (a phonetic override is a design item
-    # of M18, not a feature), so the hint is added to the file the way OpenUtau writes it: the
-    # word, then the symbols in square brackets
-    case = project(tmp_path, words=("la", "ev'ry", "la", "la"), phonemizer=phonemizer)
+    # the hint is added to the project file the way OpenUtau writes it (the word, then the symbols in
+    # square brackets); BLT's own writer does this from a person's decision (tests/integration/
+    # test_pronunciation_overrides_host.py). The word is consonant-initial: with the synthetic
+    # voicebank English VCCV throws on a word that starts with a vowel, which the host reports.
+    case = project(tmp_path, words=("la", "blorptastic", "la", "la"), phonemizer=phonemizer)
     text = case.read_text(encoding="utf-8")
-    plain = 'lyric: "ev\'ry"'
+    plain = 'lyric: "blorptastic"'
     assert plain in text
-    hinted = f'lyric: "ev\'ry[{HINTS[phonemizer]}]"'
+    hinted = f'lyric: "blorptastic[{HINTS[phonemizer]}]"'
     case.write_text(text.replace(plain, hinted), encoding="utf-8")
     run = run_host(exe, case, tmp_path / "out", singers_dir=singers)
     assert run.returncode == 0, run.result
     assert run.result["unknown_word_count"] == 0
+    assert run.result["hint_problem_count"] == 0
     assert len(stems(tmp_path / "out")) == 4
+    made = run.result["pronunciations"]
+    assert len(made) == 4  # one hinted note per voice
+    assert all(item["phonemes"] and "error" not in item["phonemes"] for item in made)
 
 
 @pytest.mark.parametrize("phonemizer", ENGLISH_PHONEMIZERS)
