@@ -6,6 +6,10 @@ text "word not found", both of which sing as silence. The host stops instead (ex
 reports each word with the track and the tick of the note. This module turns that report into
 what the singer needs: which voice, which bar and beat, which word. BLT never invents a
 pronunciation and never drops the syllable: it stops and says so.
+
+The same stop covers a pronunciation that a person gave (a phonetic override, see
+core/synthesis/openutau/overrides.py) which the engine refuses: a symbol it does not know, or a
+note that would make no sound. Each such problem is placed in the score the same way.
 """
 
 from collections.abc import Mapping, Sequence
@@ -31,6 +35,7 @@ class UnknownWord:
     lyric: str  # the note's lyric as the score gives it
     word: str  # the part of it with no entry
     fragment: bool = False  # a syllable of a longer word that this part does not sing whole
+    phonemizer: str | None = None  # the voice's pronunciation engine (the notation a hint takes)
 
     def as_detail(self) -> dict[str, Any]:
         return {
@@ -42,6 +47,7 @@ class UnknownWord:
             "lyric": self.lyric,
             "word": self.word,
             "fragment": self.fragment,
+            "phonemizer": self.phonemizer,
         }
 
 
@@ -75,6 +81,7 @@ def locate(plan: SynthesisPlan, reported: Sequence[Mapping[str, Any]]) -> list[U
                 lyric=str(item.get("lyric", "")),
                 word=str(item.get("word", "")),
                 fragment=fragment,
+                phonemizer=plan.engine_ref(voice.role).phonemizer if voice is not None else None,
             )
         )
     order = {name: i for i, name in enumerate(by_name)}
@@ -103,9 +110,95 @@ def describe(found: Sequence[UnknownWord], limit: int = 8) -> str:
     return "; ".join(parts) + (f"; and {more} more" if more > 0 else "")
 
 
+@dataclass(frozen=True, slots=True)
+class InvalidHint:
+    """A pronunciation a person gave that the engine refuses, placed in the score."""
+
+    voice: str
+    role: str | None
+    note_index: int | None
+    start: Fraction | None
+    where: str
+    lyric: str  # the word the pronunciation is for
+    symbol: str | None  # the symbol the engine does not know; None when the note made no sound
+    reason: str  # symbol_unknown, no_sound or engine_error
+
+    def as_detail(self) -> dict[str, Any]:
+        return {
+            "voice": self.voice,
+            "role": self.role,
+            "note_index": self.note_index,
+            "start": None if self.start is None else str(self.start),
+            "where": self.where,
+            "lyric": self.lyric,
+            "symbol": self.symbol,
+            "reason": self.reason,
+        }
+
+
+def locate_hints(plan: SynthesisPlan, reported: Sequence[Mapping[str, Any]]) -> list[InvalidHint]:
+    """Match the host's ``invalid_hints`` (track, tick, lyric, symbol) to the plan's notes."""
+    by_name = {voice.role.display_name: voice for voice in plan.voices}
+    found: list[InvalidHint] = []
+    for item in reported:
+        track = str(item.get("track", ""))
+        voice = by_name.get(track)
+        position = item.get("position")
+        start = Fraction(int(position), TICKS_PER_QUARTER) if isinstance(position, int) else None
+        sung = (
+            next((n for n in voice.notes if n.start == start), None)
+            if voice is not None and start is not None
+            else None
+        )
+        symbol = item.get("symbol")
+        found.append(
+            InvalidHint(
+                voice=track,
+                role=voice.role.value if voice is not None else None,
+                note_index=sung.index if sung is not None else None,
+                start=start,
+                where=position_label(start, plan.meter)
+                if start is not None
+                else "position unknown",
+                lyric=str(item.get("lyric", "")),
+                symbol=None if symbol is None else str(symbol),
+                reason=str(item.get("reason", "symbol_unknown")),
+            )
+        )
+    order = {name: i for i, name in enumerate(by_name)}
+    found.sort(
+        key=lambda h: (h.start if h.start is not None else Fraction(0), order.get(h.voice, 99))
+    )
+    return found
+
+
+def describe_hints(found: Sequence[InvalidHint], limit: int = 8) -> str:
+    parts: list[str] = []
+    for item in found[:limit]:
+        if item.reason == "symbol_unknown":
+            what = f"the symbol {item.symbol!r} is not one this pronunciation engine knows"
+        elif item.reason == "engine_error":
+            what = "the pronunciation engine failed on the symbols given"
+        else:
+            what = "the symbols given make no sound"
+        parts.append(f'"{item.lyric}" ({item.where}; {item.voice}): {what}')
+    more = len(found) - limit
+    return "; ".join(parts) + (f"; and {more} more" if more > 0 else "")
+
+
 def with_findings(error: PronunciationError, plan: SynthesisPlan) -> PronunciationError:
     """The host's refusal with each word placed in the score (voice, bar, beat)."""
     host = error.details.get("host_result") or {}
+    hints = host.get("invalid_hints")
+    if error.code == "PRONUNCIATION_INVALID" and isinstance(hints, list) and hints:
+        placed = locate_hints(plan, hints)
+        detail = dict(error.details)
+        detail["invalid_hints"] = [item.as_detail() for item in placed]
+        message = (
+            f"{len(placed)} pronunciation(s) given for this score cannot be used, so nothing was "
+            f"rendered: {describe_hints(placed)}"
+        )
+        return PronunciationError("PRONUNCIATION_INVALID", message, detail)
     reported = host.get("unknown_words")
     if not isinstance(reported, list) or not reported:
         return error

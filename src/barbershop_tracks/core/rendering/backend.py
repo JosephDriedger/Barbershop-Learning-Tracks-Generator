@@ -52,7 +52,12 @@ from barbershop_tracks.core.runtime import (
 from barbershop_tracks.core.runtime.filelock import FileLock, LockWaitAbortedError
 from barbershop_tracks.core.runtime.staging import cleanup_stale, publish_directory, remove_staging
 from barbershop_tracks.core.synthesis import PlanNotReadyError, SynthesisPlan
-from barbershop_tracks.core.synthesis.openutau import UstxError, write_ustx
+from barbershop_tracks.core.synthesis.openutau import (
+    NO_OVERRIDES,
+    ResolvedOverrides,
+    UstxError,
+    write_ustx,
+)
 from barbershop_tracks.models import VoiceRole
 
 EventHandler = Callable[[dict[str, Any]], None]
@@ -159,14 +164,19 @@ class OpenUtauRenderBackend:
         cancel: CancelToken | None = None,
         on_event: EventHandler | None = None,
         replace: bool = False,
+        overrides: ResolvedOverrides = NO_OVERRIDES,
     ) -> RenderResult:
-        """Render ``plan`` and publish ``<destination>/<Role>.wav`` for the four voices."""
+        """Render ``plan`` and publish ``<destination>/<Role>.wav`` for the four voices.
+
+        ``overrides`` are the pronunciations a person decided for particular words of the score;
+        they reach the engine only as phonetic hints and are checked by it before anything renders.
+        """
         started = time.monotonic()
         token = cancel or CancelToken()
         if token.cancelled:
             raise RenderCancelledError("RENDER_CANCELLED", "cancelled before it started")
         command_prefix, environment = self._host_launch()
-        project_text = self._project(plan)
+        project_text = self._project(plan, overrides)
         layout = self.settings.layout
         try:
             cleanup_stale(layout.staging)  # recover from earlier crashes; never an active job
@@ -209,6 +219,52 @@ class OpenUtauRenderBackend:
             return RenderResult(
                 destination, final, host_result, tuple(events), job, time.monotonic() - started
             )
+        finally:
+            self._discard(area.path)
+
+    def check_pronunciations(
+        self,
+        plan: SynthesisPlan,
+        overrides: ResolvedOverrides = NO_OVERRIDES,
+        *,
+        cancel: CancelToken | None = None,
+        on_event: EventHandler | None = None,
+    ) -> Mapping[str, Any]:
+        """Phonemize ``plan`` with the engine and stop: no stem is rendered, nothing is published.
+
+        Raises ``PronunciationError`` (a word the dictionary lacks, or a given pronunciation the
+        engine refuses, each placed in the score) exactly as ``render`` would; otherwise returns the
+        host's result, whose ``pronunciations`` list the sounds the engine made of each override.
+        """
+        token = cancel or CancelToken()
+        if token.cancelled:
+            raise RenderCancelledError("RENDER_CANCELLED", "cancelled before it started")
+        command_prefix, environment = self._host_launch()
+        project_text = self._project(plan, overrides)
+        layout = self.settings.layout
+        try:
+            cleanup_stale(layout.staging)
+            area = StagingArea.create(layout.staging, uuid.uuid4().hex[:12])
+        except (StagingError, OSError) as error:
+            raise RenderConfigurationError(
+                "STAGING_UNAVAILABLE", f"cannot create a staging directory: {error}"
+            ) from error
+        try:
+            with self._host_slot(token, on_event):
+                try:
+                    host_result, _events = self._run(
+                        plan,
+                        area,
+                        project_text,
+                        command_prefix,
+                        environment,
+                        token,
+                        on_event,
+                        check_only=True,
+                    )
+                except PronunciationError as problem:
+                    raise pronunciation.with_findings(problem, plan) from problem
+            return host_result
         finally:
             self._discard(area.path)
 
@@ -255,9 +311,9 @@ class OpenUtauRenderBackend:
         return [str(runtime.exe)], environment
 
     @staticmethod
-    def _project(plan: SynthesisPlan) -> str:
+    def _project(plan: SynthesisPlan, overrides: ResolvedOverrides = NO_OVERRIDES) -> str:
         try:
-            return write_ustx(plan).text
+            return write_ustx(plan, overrides=overrides).text
         except PlanNotReadyError as error:
             raise ProjectValidationError(error.code, str(error)) from error
         except UstxError as error:
@@ -272,6 +328,8 @@ class OpenUtauRenderBackend:
         environment: dict[str, str],
         token: CancelToken,
         on_event: EventHandler | None,
+        *,
+        check_only: bool = False,
     ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         settings = self.settings
         project = area.path / "project.ustx"
@@ -287,10 +345,7 @@ class OpenUtauRenderBackend:
             *command_prefix,
             "--project",
             str(project),
-            "--out",
-            str(out),
-            "--base",
-            STEM_BASE,
+            *(["--phonemize-only"] if check_only else ["--out", str(out), "--base", STEM_BASE]),
             "--singers-dir",
             str(settings.singers_dir),
             "--phonemize-timeout-ms",
@@ -373,6 +428,8 @@ class OpenUtauRenderBackend:
             )
         if code == 11:
             raise PronunciationError("PRONUNCIATION_UNKNOWN", str(message), details)
+        if code == 12:
+            raise PronunciationError("PRONUNCIATION_INVALID", str(message), details)
         if code in (7, 9):
             raise RenderTimeoutError(
                 "HOST_PHONEMIZE_TIMEOUT" if code == 7 else "HOST_RENDER_TIMEOUT",

@@ -24,6 +24,7 @@ namespace Blt.RenderHost {
         public const int RenderTimeout = 9;
         public const int Internal = 10;          // unexpected exception in the host itself
         public const int PronunciationUnknown = 11;  // a phonemizer's dictionary lacks a word: nothing is rendered
+        public const int PronunciationInvalid = 12;  // a given phonetic hint has a symbol the phonemizer does not know, or makes no sound
     }
 
     /// <summary>

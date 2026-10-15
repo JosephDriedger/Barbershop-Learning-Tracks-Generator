@@ -97,8 +97,15 @@ namespace OpenUtau.Api {
         public string word;    // the part of it that has no entry
     }
 
+    public struct HintProblem {
+        public int position;   // of the note, in ticks of the project
+        public string lyric;   // the note's lyric as the phonemizer saw it
+        public string symbol;  // a symbol of the note's phonetic hint that the phonemizer does not know
+    }
+
     public interface IMissingWordReporter {
         List<MissingWord> MissingWords { get; }
+        List<HintProblem> HintProblems { get; }
     }
 }
 """
@@ -115,6 +122,14 @@ def report_missing_words(target: Path) -> None:
         "    public abstract class PhonemeBasedPhonemizer : Phonemizer\n    {\n",
         "    public abstract class PhonemeBasedPhonemizer : Phonemizer, IMissingWordReporter\n    {\n"
         "        public List<MissingWord> MissingWords { get; } = new List<MissingWord>();\n"
+        "        public List<HintProblem> HintProblems { get; } = new List<HintProblem>();\n"
+        "        void ReportHint(Note note, string symbol) {  // BLT patch\n"
+        "            lock (HintProblems) {\n"
+        "                if (!HintProblems.Any(h => h.position == note.position && h.symbol == symbol)) {\n"
+        "                    HintProblems.Add(new HintProblem { position = note.position, lyric = note.lyric, symbol = symbol });\n"
+        "                }\n"
+        "            }\n"
+        "        }\n"
         "        void ReportMissing(Note note) {  // BLT patch\n"
         "            if (string.IsNullOrEmpty(note.lyric) || !note.lyric.Any(char.IsLetterOrDigit)) return;\n"
         "            lock (MissingWords) {\n"
@@ -133,12 +148,30 @@ def report_missing_words(target: Path) -> None:
         "                }\n"
         "                return found;\n",
     )
+    replace_once(
+        phoneme_based,
+        "            // Split space-separated symbols into an array.\n            return note.phoneticHint.Split()\n",
+        "            foreach (var hinted in note.phoneticHint.Split()) {  // BLT patch: name the symbols that are dropped\n"
+        "                if (hinted.Length > 0 && !g2p.IsValidSymbol(hinted)) {\n"
+        "                    ReportHint(note, hinted);\n"
+        "                }\n"
+        "            }\n"
+        "            // Split space-separated symbols into an array.\n            return note.phoneticHint.Split()\n",
+    )
     syllable_based = builtin / "SyllableBasedPhonemizer.cs"
     replace_once(
         syllable_based,
         "    public abstract class SyllableBasedPhonemizer : Phonemizer {\n",
         "    public abstract class SyllableBasedPhonemizer : Phonemizer, IMissingWordReporter {\n"
         "        public List<MissingWord> MissingWords { get; } = new List<MissingWord>();\n"
+        "        public List<HintProblem> HintProblems { get; } = new List<HintProblem>();\n"
+        "        void ReportHint(Note note, string symbol) {  // BLT patch\n"
+        "            lock (HintProblems) {\n"
+        "                if (!HintProblems.Any(h => h.position == note.position && h.symbol == symbol)) {\n"
+        "                    HintProblems.Add(new HintProblem { position = note.position, lyric = note.lyric, symbol = symbol });\n"
+        "                }\n"
+        "            }\n"
+        "        }\n"
         "        void ReportMissing(Note note, string word) {  // BLT patch\n"
         "            if (string.IsNullOrEmpty(word) || !word.Any(char.IsLetterOrDigit)) return;\n"
         "            lock (MissingWords) {\n"
@@ -147,6 +180,17 @@ def report_missing_words(target: Path) -> None:
         "                }\n"
         "            }\n"
         "        }\n",
+    )
+    replace_once(
+        syllable_based,
+        "                if (!string.IsNullOrEmpty(note.phoneticHint)) {\n                    return getSymbolsRaw(note.phoneticHint);\n",
+        "                if (!string.IsNullOrEmpty(note.phoneticHint)) {\n"
+        '                    foreach (var hinted in note.phoneticHint.Split(" ")) {  // BLT patch: a hint is used as written\n'
+        "                        if (hinted.Length > 0 && !dictionary.IsValidSymbol(hinted)) {\n"
+        "                            ReportHint(note, hinted);\n"
+        "                        }\n"
+        "                    }\n"
+        "                    return getSymbolsRaw(note.phoneticHint);\n",
     )
     replace_once(
         syllable_based,

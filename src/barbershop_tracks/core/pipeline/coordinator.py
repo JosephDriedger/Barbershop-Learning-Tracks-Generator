@@ -47,6 +47,7 @@ from barbershop_tracks.core.pipeline.config import (
 from barbershop_tracks.core.pipeline.errors import ErrorCategory, PipelineError
 from barbershop_tracks.core.pipeline.events import EventHandler, Stage, ignore
 from barbershop_tracks.core.pipeline.preparation import blocking_details, prepare
+from barbershop_tracks.core.pipeline.pronunciation_files import provenance_entries
 from barbershop_tracks.core.readiness import RoleAssignments
 from barbershop_tracks.core.rendering import (
     CancelToken,
@@ -75,7 +76,15 @@ from barbershop_tracks.core.synthesis import (
     SynthesisPlanError,
     VoiceEngineRef,
 )
-from barbershop_tracks.core.synthesis.openutau import UstxError, write_ustx
+from barbershop_tracks.core.synthesis.openutau import (
+    NO_OVERRIDES,
+    OverrideError,
+    PronunciationOverride,
+    ResolvedOverrides,
+    UstxError,
+    resolve_overrides,
+    write_ustx,
+)
 from barbershop_tracks.models import VoiceRole
 
 PACKAGE_SUFFIX = "_learning_tracks"
@@ -90,6 +99,7 @@ class Renderer(Protocol):
         cancel: CancelToken | None = ...,
         on_event: Callable[[dict[str, Any]], None] | None = ...,
         replace: bool = ...,
+        overrides: ResolvedOverrides = ...,
     ) -> RenderResult: ...
 
 
@@ -152,6 +162,7 @@ class GenerateRequest:
     name: str | None = None
     verse: str | None = None
     approvals: tuple[LyricApproval, ...] = ()
+    pronunciations: tuple[PronunciationOverride, ...] = ()  # decided per voice, note and engine
     replace: bool = False
     keep_stems: bool = False
     keep_project: bool = False
@@ -168,6 +179,9 @@ class GenerateResult:
     plan: SynthesisPlan
     seconds: float
     warnings: tuple[str, ...]
+    pronunciations: tuple[
+        dict[str, Any], ...
+    ] = ()  # the overrides used, as the package records them
 
 
 def package_dirname(name: str) -> str:
@@ -183,6 +197,10 @@ def translate(error: BaseException) -> PipelineError:
         return PipelineError(cat.CANCELLED, "CANCELLED", error.message)
     if isinstance(error, RenderTimeoutError):
         return PipelineError(cat.TIMEOUT, error.code, error.message, error.details)
+    if isinstance(error, OverrideError):
+        # a pronunciation a person gave does not fit this score, voice or engine (stale, mismatched,
+        # for another phonemizer): the person decides it again; nothing was rendered
+        return PipelineError(cat.CONFIGURATION, error.code, error.message)
     if isinstance(error, PronunciationError):
         # the score has a word BLT cannot pronounce: the singer decides (a respelling in the
         # score); BLT never guesses a pronunciation and never drops the syllable
@@ -344,7 +362,9 @@ def _generate(
     run.check()
 
     run.stage(Stage.USTX_PREPARATION, "started")
-    document_ustx = write_ustx(plan)  # refuses anything OpenUtau could not hold faithfully
+    # every pronunciation a person gave must belong to this score, voice, note, word and engine
+    resolved = resolve_overrides(plan, request.pronunciations, source_sha256=sha)
+    document_ustx = write_ustx(plan, overrides=resolved)  # refuses what OpenUtau could not hold
     for warning in document_ustx.warnings:
         warnings.append(f"{warning.code}: {warning.message}")
         run.emit({"event": "warning", "code": warning.code, "message": warning.message})
@@ -413,6 +433,7 @@ def _generate(
             area,
             warnings,
             started,
+            resolved,
         )
     finally:
         try:
@@ -432,6 +453,7 @@ def _render_and_mix(
     area: StagingArea,
     warnings: list[str],
     started: float,
+    resolved: ResolvedOverrides = NO_OVERRIDES,
 ) -> GenerateResult:
     settings = RenderSettings(
         layout=config.layout,
@@ -457,7 +479,10 @@ def _render_and_mix(
             )
 
     run.stage(Stage.STEM_RENDERING, "started")
-    rendered = renderer.render(plan, stems_destination, cancel=run.cancel, on_event=on_render_event)
+    rendered = renderer.render(
+        plan, stems_destination, cancel=run.cancel, on_event=on_render_event, overrides=resolved
+    )
+    pronunciations = provenance_entries(plan, resolved, rendered.host_result)
     run.stage(Stage.STEM_RENDERING, "finished")
     run.check()
 
@@ -502,7 +527,7 @@ def _render_and_mix(
     if mp3 is not None:
         run.stage(Stage.MP3_ENCODING, "started")
     package = services.package(
-        PackageSource.from_plan(plan),
+        PackageSource.from_plan(plan, pronunciations=pronunciations),
         stems_from_render(rendered),
         destination,
         PackageSettings(
@@ -526,6 +551,7 @@ def _render_and_mix(
         plan=plan,
         seconds=time.monotonic() - started,
         warnings=tuple(warnings),
+        pronunciations=tuple(pronunciations),
     )
 
 

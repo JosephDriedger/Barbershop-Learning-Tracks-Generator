@@ -1,5 +1,17 @@
 """The OpenUtau 0.1.565 adapter: a ready synthesis plan to a USTX 0.7 project."""
 
+from barbershop_tracks.core.synthesis.openutau.overrides import (
+    ALPHABET_TITLES,
+    ALPHABETS,
+    NO_OVERRIDES,
+    OverrideError,
+    PronunciationOverride,
+    ResolvedOverride,
+    ResolvedOverrides,
+    alphabet_for,
+    parse_symbols,
+    resolve_overrides,
+)
 from barbershop_tracks.core.synthesis.openutau.target import (
     TARGET_0_1_565,
     TARGETS,
@@ -21,18 +33,28 @@ from barbershop_tracks.core.synthesis.openutau.ustx import (
 )
 
 __all__ = [
+    "ALPHABETS",
+    "ALPHABET_TITLES",
     "MAX_TEMPO_DRIFT_SECONDS",
     "MIN_NOTE_TICKS",
+    "NO_OVERRIDES",
     "TARGETS",
     "TARGET_0_1_565",
     "ContinuationToken",
     "OpenUtauTarget",
+    "OverrideError",
+    "PronunciationOverride",
+    "ResolvedOverride",
+    "ResolvedOverrides",
     "TempoRecord",
     "UstxDocument",
     "UstxError",
     "UstxWarning",
+    "alphabet_for",
+    "parse_symbols",
     "read_ustx_version",
     "require_ustx_version",
+    "resolve_overrides",
     "target_for",
     "validate_lyric_text",
     "write_ustx",

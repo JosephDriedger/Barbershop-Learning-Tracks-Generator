@@ -9,7 +9,9 @@ Rules, all enforced here rather than hoped for:
   one was observed to be lengthened;
 * lyrics are written exactly as the plan states them; a continuation is written with the one
   documented extender token and only after a note that has a lyric; ``+~``, ``-``, bracketed
-  phonetic hints and non-ASCII text are refused because their handling is not established;
+  phonetic hints and non-ASCII text are refused because their handling is not established. The one
+  exception is a person's pronunciation override (``overrides.py``): it is appended to the word of
+  its note as OpenUtau's phonetic hint, ``word[sym bol s]``, and only through ``overrides``;
 * tempo is stored as a double. An exact value a double cannot hold is written as the nearest double,
   reported, and refused when the accumulated timing deviation over the performed score exceeds
   ``MAX_TEMPO_DRIFT_SECONDS`` (``USTX_TEMPO_DRIFT``);
@@ -33,6 +35,7 @@ from typing import Any
 
 from barbershop_tracks.core.synthesis.errors import PlanNotReadyError
 from barbershop_tracks.core.synthesis.openutau.expressions_0_7 import STATIC_BLOCK
+from barbershop_tracks.core.synthesis.openutau.overrides import NO_OVERRIDES, ResolvedOverrides
 from barbershop_tracks.core.synthesis.openutau.target import (
     TARGET_0_1_565,
     TARGETS,
@@ -102,6 +105,7 @@ class UstxDocument:
     tempo_records: tuple[TempoRecord, ...]
     note_count: int
     tempo_drift_seconds: Fraction = Fraction(0)  # accumulated |stored - exact| over the score
+    pronunciations: ResolvedOverrides = NO_OVERRIDES  # the overrides written as phonetic hints
 
     def encode(self) -> bytes:
         return self.text.encode("utf-8")
@@ -276,6 +280,7 @@ def write_ustx(
     target: OpenUtauTarget = TARGET_0_1_565,
     continuation: ContinuationToken = ContinuationToken.PLUS,
     tempo_tolerance_seconds: Fraction = MAX_TEMPO_DRIFT_SECONDS,
+    overrides: ResolvedOverrides = NO_OVERRIDES,
 ) -> UstxDocument:
     """The plan as USTX text for ``target``; raises ``PlanNotReadyError`` or ``UstxError``."""
     if TARGETS.get(target.openutau_version) != target:
@@ -297,6 +302,7 @@ def write_ustx(
     tracks: list[dict[str, Any]] = []
     parts: list[dict[str, Any]] = []
     note_count = 0
+    applied = 0
     for track_no, voice in enumerate(plan.voices):
         name = voice.role.display_name
         ref = plan.engine_ref(voice.role)
@@ -339,6 +345,16 @@ def write_ustx(
                 text = joined.whole.get(note.index, lyric.text)
                 validate_lyric_text(text)
                 previous_has_lyric = True
+                chosen = overrides.for_note(voice.role, note.index)
+                if chosen is not None:
+                    if chosen.override.word != text:
+                        raise UstxError(
+                            "USTX_OVERRIDE_WORD",
+                            f"{where}: the pronunciation is for {chosen.override.word!r} but the "
+                            f"word written here is {text!r}",
+                        )
+                    text = f"{text}[{chosen.override.hint}]"
+                    applied += 1
             else:  # unreachable for a ready plan; kept so that nothing silently gets a default
                 raise UstxError("USTX_LYRIC_MISSING", f"{where} has no lyric decision")
             notes.append(_note(start, duration, note.midi_pitch, text))
@@ -356,6 +372,11 @@ def write_ustx(
             }
         )
 
+    if applied != len(overrides.by_note):
+        raise UstxError(
+            "USTX_OVERRIDE_UNUSED",
+            f"{len(overrides.by_note) - applied} pronunciation(s) did not reach a note",
+        )
     first = plan.tempo[0]
     first_meter = meter_entries[0]
     head: dict[str, Any] = {
@@ -387,4 +408,5 @@ def write_ustx(
         tempo_records=tuple(tempo_records),
         note_count=note_count,
         tempo_drift_seconds=tempo_drift,
+        pronunciations=overrides,
     )

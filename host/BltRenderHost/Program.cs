@@ -29,7 +29,7 @@ namespace Blt.RenderHost {
         static readonly Dictionary<string, long> timingsMs = new Dictionary<string, long>();
         static readonly HashSet<string> known = new HashSet<string> {
             "--project", "--out", "--base", "--singers-dir", "--phonemize-timeout-ms", "--render-timeout-ms",
-            "--g2p-check", "--inventory", "--lookup-words", "--allow-unknown-words",
+            "--g2p-check", "--inventory", "--lookup-words", "--allow-unknown-words", "--phonemize-only",
         };
 
         static bool Pump(Func<bool> done, int timeoutMs) {
@@ -209,6 +209,64 @@ namespace Blt.RenderHost {
             return found;
         }
 
+        /// <summary>
+        /// Symbols of a phonetic hint that the track's phonemizer does not know (see host/patch_openutau.py). Arpasing silently
+        /// drops such a symbol and the syllable phonemizers use it as written; either way the note would not be sung as the
+        /// person wrote it. A hint is only accepted when every symbol is one the phonemizer knows.
+        /// </summary>
+        static List<Dictionary<string, object>> HintProblems(UProject project) {
+            var found = new List<Dictionary<string, object>>();
+            foreach (var track in project.tracks) {
+                if (!(track.Phonemizer is IMissingWordReporter reporter)) continue;
+                List<HintProblem> snapshot;
+                lock (reporter.HintProblems) { snapshot = reporter.HintProblems.ToList(); }
+                foreach (var problem in snapshot.OrderBy(h => h.position).ThenBy(h => h.symbol, StringComparer.Ordinal)) {
+                    found.Add(new Dictionary<string, object> {
+                        ["track"] = track.TrackName, ["position"] = problem.position, ["lyric"] = problem.lyric,
+                        ["symbol"] = problem.symbol, ["reason"] = "symbol_unknown",
+                    });
+                }
+            }
+            return found;
+        }
+
+        /// <summary>
+        /// What the phonemizers made of every note that carries a phonetic hint: the aliases they chose for it (and for the
+        /// notes that extend it). It is the effective pronunciation, recorded in the package; a hinted note that produced no
+        /// sound at all is a problem of its own (the hint was accepted but nothing would be sung).
+        /// </summary>
+        static List<Dictionary<string, object>> HintedNotes(UProject project, List<Dictionary<string, object>> problems) {
+            var found = new List<Dictionary<string, object>>();
+            var pattern = new System.Text.RegularExpressions.Regex(@"\[(.*)\]");
+            foreach (var part in project.parts.OfType<UVoicePart>()) {
+                var track = project.tracks[part.trackNo];
+                foreach (var note in part.notes) {
+                    var match = pattern.Match(note.lyric ?? "");
+                    if (!match.Success) continue;
+                    var aliases = part.phonemes
+                        .Where(p => p.Parent != null && (p.Parent.Extends ?? p.Parent) == note)
+                        .OrderBy(p => p.position)
+                        .Select(p => p.phoneme ?? p.rawPhoneme)
+                        .ToList();
+                    int position = part.position + note.position;
+                    found.Add(new Dictionary<string, object> {
+                        ["track"] = track.TrackName, ["position"] = position,
+                        ["lyric"] = pattern.Replace(note.lyric, "").Trim(), ["hint"] = match.Groups[1].Value.Trim(),
+                        ["phonemes"] = aliases,
+                    });
+                    // OpenUtau's phonemizer runner answers a phonemizer that threw an exception with the alias "error"
+                    bool failed = aliases.Contains("error");
+                    if (aliases.Count == 0 || failed) {
+                        problems.Add(new Dictionary<string, object> {
+                            ["track"] = track.TrackName, ["position"] = position, ["lyric"] = pattern.Replace(note.lyric, "").Trim(),
+                            ["symbol"] = null, ["reason"] = failed ? "engine_error" : "no_sound",
+                        });
+                    }
+                }
+            }
+            return found;
+        }
+
         static string LoadedOnnxRuntime() {
             foreach (ProcessModule m in Process.GetCurrentProcess().Modules) {
                 if (m.ModuleName.StartsWith("onnxruntime", StringComparison.OrdinalIgnoreCase)) return m.FileName;
@@ -325,16 +383,19 @@ namespace Blt.RenderHost {
             if (Array.IndexOf(args, "--lookup-words") >= 0) return LookupWords(Arg(args, "--lookup-words") ?? "");
             string projectPath = Arg(args, "--project"), outDir = Arg(args, "--out"), baseName = Arg(args, "--base");
             string singersDir = Arg(args, "--singers-dir");
-            if (projectPath == null || outDir == null || baseName == null) {
-                return Finish(Exit.Usage, "usage", "need --project, --out and --base");
+            // --phonemize-only runs everything up to and including the pronunciation checks and then stops: no stems, no --out
+            bool phonemizeOnly = Array.IndexOf(args, "--phonemize-only") >= 0;
+            if (projectPath == null || (!phonemizeOnly && (outDir == null || baseName == null))) {
+                return Finish(Exit.Usage, "usage", "need --project, --out and --base (or --project and --phonemize-only)");
             }
+            baseName ??= "check";
             if (!int.TryParse(Arg(args, "--phonemize-timeout-ms") ?? "60000", out int phonemizeTimeout) ||
                 !int.TryParse(Arg(args, "--render-timeout-ms") ?? "300000", out int renderTimeout)) {
                 return Finish(Exit.Usage, "usage", "timeouts must be integers (milliseconds)");
             }
             if (!File.Exists(projectPath)) return Finish(Exit.ProjectLoad, "load_failed", "project file not found: " + projectPath);
-            if (!Directory.Exists(outDir)) return Finish(Exit.Usage, "usage", "--out directory does not exist: " + outDir);
-            if (Directory.EnumerateFileSystemEntries(outDir).Any()) return Finish(Exit.Usage, "usage", "--out directory is not empty");
+            if (outDir != null && !Directory.Exists(outDir)) return Finish(Exit.Usage, "usage", "--out directory does not exist: " + outDir);
+            if (outDir != null && Directory.EnumerateFileSystemEntries(outDir).Any()) return Finish(Exit.Usage, "usage", "--out directory is not empty");
 
             result["host"] = "blt-render-host";
             result["host_version"] = typeof(Program).Assembly.GetName().Version?.ToString();
@@ -451,6 +512,22 @@ namespace Blt.RenderHost {
                 return Finish(Exit.PronunciationUnknown, "pronunciation_unknown",
                     $"the pronunciation dictionary has no entry for {unknown.Count} word(s): {string.Join("; ", shown)}{(unknown.Count > 6 ? "; ..." : "")}");
             }
+            // a phonetic hint (a person's pronunciation) is accepted only if the phonemizer knows every symbol of it and made
+            // some sound from it; this also stops the run BEFORE anything is rendered
+            var hintProblems = HintProblems(project);
+            var hinted = HintedNotes(project, hintProblems);
+            result["pronunciations"] = hinted;
+            result["hint_problem_count"] = hintProblems.Count;
+            if (hintProblems.Count > 0) {
+                result["invalid_hints"] = hintProblems.Take(200).ToList();
+                var shown = hintProblems.Take(6).Select(h => h["symbol"] == null
+                    ? ((string)h["reason"] == "engine_error"
+                        ? $"{h["track"]}: the phonemizer failed on '{h["lyric"]}' with the given symbols"
+                        : $"{h["track"]}: '{h["lyric"]}' makes no sound")
+                    : $"{h["track"]}: '{h["lyric"]}' has the unknown symbol '{h["symbol"]}'");
+                return Finish(Exit.PronunciationInvalid, "pronunciation_invalid",
+                    $"{hintProblems.Count} problem(s) in the given pronunciations: {string.Join("; ", shown)}{(hintProblems.Count > 6 ? "; ..." : "")}");
+            }
             var unsung = UnsungPhonemes(project);
             result["unsung_phoneme_count"] = unsung.Count;
             if (unsung.Count > 0) {
@@ -458,6 +535,11 @@ namespace Blt.RenderHost {
                 Events.Emit("warning", new Dictionary<string, object> {
                     ["message"] = $"{unsung.Count} phoneme(s) have no sound in the voicebank (for example '{unsung[0]["alias"]}' for '{unsung[0]["lyric"]}')",
                 });
+            }
+
+            if (phonemizeOnly) {
+                result["stems"] = new List<object>();
+                return Finish(Exit.Ok, "ok");
             }
 
             // 5b. never reuse a phrase rendered earlier. OpenUtau keeps every rendered phrase in its cache as a 16-bit file and

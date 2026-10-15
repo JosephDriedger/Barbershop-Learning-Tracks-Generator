@@ -37,8 +37,10 @@ class RenderTimeoutError(RenderError):
 
 
 class PronunciationError(RenderError):
-    """A word has no pronunciation in the dictionary. Nothing was rendered and nothing was guessed;
-    ``details['unknown_words']`` names each word with its voice and place in the score."""
+    """A word has no pronunciation, or a pronunciation a person gave cannot be used. Nothing was
+    rendered and nothing was guessed. ``PRONUNCIATION_UNKNOWN``: ``details['unknown_words']`` names
+    each word with its voice and place in the score. ``PRONUNCIATION_INVALID``:
+    ``details['invalid_hints']`` names each given pronunciation the engine refused."""
 
 
 class OutputValidationError(RenderError):

@@ -36,6 +36,7 @@ from barbershop_tracks.core.pipeline import (
     APPROVALS_SCHEMA,
     DEFAULT_PHONEMIZER,
     DEFAULT_RENDERER,
+    OVERRIDES_SCHEMA,
     REVIEW_SCHEMA,
     STAGE_LABELS,
     EngineChoice,
@@ -49,12 +50,15 @@ from barbershop_tracks.core.pipeline import (
     load_config_file,
     package_dirname,
     read_approvals,
+    read_overrides,
     render_review_text,
     resolve_config,
+    template_document,
 )
 from barbershop_tracks.core.readiness import RoleAssignments
 from barbershop_tracks.core.rendering import CancelToken
 from barbershop_tracks.core.synthesis import LyricApproval
+from barbershop_tracks.core.synthesis.openutau import PronunciationOverride
 from barbershop_tracks.models import VoiceRole
 
 EXIT_OK = 0
@@ -146,6 +150,12 @@ def add_parsers(commands: Any) -> None:
     gen.add_argument("--replace", action="store_true", help="replace a previous package of ours")
     gen.add_argument("--approve-lyrics", metavar="FILE", help="an approvals file you filled in")
     gen.add_argument("--review-report", metavar="FILE", help="where to write the lyric review")
+    gen.add_argument(
+        "--approve-pronunciations",
+        metavar="FILE",
+        help="your pronunciations for words the dictionary lacks (fill in the template that a "
+        "stopped run writes next to the output)",
+    )
     gen.add_argument(
         "--no-follow-lead",
         action="store_true",
@@ -327,14 +337,13 @@ def _generate(args: argparse.Namespace, json_mode: bool) -> int:
         )
     score = Path(args.score)
     approvals: tuple[LyricApproval, ...] = ()
-    if args.approve_lyrics:
-        try:
-            digest = hashlib.sha256(score.read_bytes()).hexdigest()
-        except OSError as error:
-            raise PipelineError(
-                ErrorCategory.SOURCE, "SCORE_UNREADABLE", f"cannot read {score}: {error}"
-            ) from error
-        approvals = read_approvals(Path(args.approve_lyrics), source_sha256=digest)
+    pronunciations: tuple[PronunciationOverride, ...] = ()
+    if args.approve_lyrics or args.approve_pronunciations:
+        digest = _digest(score)
+        if args.approve_lyrics:
+            approvals = read_approvals(Path(args.approve_lyrics), source_sha256=digest)
+        if args.approve_pronunciations:
+            pronunciations = read_overrides(Path(args.approve_pronunciations), source_sha256=digest)
     formats = {
         "wav": frozenset({AudioFormat.WAV}),
         "mp3": frozenset({AudioFormat.MP3}),
@@ -349,6 +358,7 @@ def _generate(args: argparse.Namespace, json_mode: bool) -> int:
         name=args.name,
         verse=args.verse,
         approvals=approvals,
+        pronunciations=pronunciations,
         replace=args.replace,
         keep_stems=args.keep_stems,
         keep_project=args.keep_project,
@@ -366,12 +376,46 @@ def _generate(args: argparse.Namespace, json_mode: bool) -> int:
     except PipelineError as error:
         if error.category is ErrorCategory.REVIEW:
             _handle_review(error, args, request)
+        elif error.code == "PRONUNCIATION_UNKNOWN":
+            _handle_pronunciation(error, args, request)
         raise
     finally:
         for number, handler in previous:
             signal.signal(number, handler)
     _print_result(result, json_mode)
     return EXIT_OK
+
+
+def _digest(score: Path) -> str:
+    try:
+        return hashlib.sha256(score.read_bytes()).hexdigest()
+    except OSError as error:
+        raise PipelineError(
+            ErrorCategory.SOURCE, "SCORE_UNREADABLE", f"cannot read {score}: {error}"
+        ) from error
+
+
+def _handle_pronunciation(
+    error: PipelineError, args: argparse.Namespace, request: GenerateRequest
+) -> None:
+    """Write a fill-in pronunciations file with one undecided entry per blocked word and voice."""
+    name = args.name or Path(args.score).stem
+    path = request.output / f"{package_dirname(name)}.pronunciations-template.json"
+    template = template_document(error.details.get("unknown_words", []), _digest(request.score))
+    problem = _write_json(template, path, OVERRIDES_SCHEMA)
+    if problem is None:
+        error.details["pronunciations_template"] = str(path)
+        if args.progress != "json":
+            print(f"pronunciations template written to {path}", file=sys.stderr)
+            print(
+                "fill in 'symbols' (and 'approved_by') for each place you want to decide, in the "
+                "notation named in the entry, delete the places you do not, then rerun with "
+                "--approve-pronunciations FILE. The score itself is never changed.",
+                file=sys.stderr,
+            )
+    else:
+        error.details["pronunciations_template_error"] = problem
+        print(f"warning: {problem}", file=sys.stderr)
 
 
 def _handle_review(

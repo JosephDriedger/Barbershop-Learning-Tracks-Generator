@@ -37,12 +37,22 @@ from barbershop_tracks.core.pipeline.preparation import (
     default_follow_lead,
     prepare,
 )
+from barbershop_tracks.core.pipeline.pronunciation_files import (
+    OVERRIDES_SCHEMA,
+    notation_help,
+    overrides_document,
+    overrides_from_document,
+    provenance_entries,
+    read_overrides,
+    template_document,
+)
 
 __all__ = [
     "APPROVALS_SCHEMA",
     "DEFAULT_PHONEMIZER",
     "DEFAULT_RENDERER",
     "ENGLISH_PHONEMIZERS",
+    "OVERRIDES_SCHEMA",
     "REMOVED_PHONEMIZERS",
     "REVIEW_SCHEMA",
     "SHIPPED_RENDERERS",
@@ -65,11 +75,17 @@ __all__ = [
     "discover_singers",
     "generate",
     "load_config_file",
+    "notation_help",
+    "overrides_document",
+    "overrides_from_document",
     "package_dirname",
     "prepare",
+    "provenance_entries",
     "read_approvals",
+    "read_overrides",
     "removed_phonemizer",
     "render_review_text",
     "resolve_config",
     "review_report",
+    "template_document",
 ]

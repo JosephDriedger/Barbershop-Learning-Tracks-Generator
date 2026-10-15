@@ -58,6 +58,7 @@ class FakeRenderer:
     def __init__(self, error: Exception | None = None, hold: threading.Event | None = None) -> None:
         self.error = error
         self.calls: list[SynthesisPlan] = []
+        self.overrides: list[Any] = []
         self.hold = hold
 
     def render(
@@ -68,8 +69,10 @@ class FakeRenderer:
         cancel: Any = None,
         on_event: Any = None,
         replace: bool = False,
+        overrides: Any = None,
     ) -> RenderResult:
         self.calls.append(plan)
+        self.overrides.append(overrides)
         if on_event:
             on_event({"event": "phase", "name": "init", "elapsed_ms": 1})
         if self.hold is not None:

@@ -16,7 +16,7 @@ import hashlib
 import json
 import shutil
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from fractions import Fraction
@@ -79,10 +79,14 @@ class PackageSource:
     identity: SourceIdentity
     tempo: tuple[TempoPoint, ...]
     length: Fraction  # performed length in quarter notes
+    # the pronunciations a person decided for this score (empty: the dictionary alone was used)
+    pronunciations: tuple[Mapping[str, Any], ...] = ()
 
     @classmethod
-    def from_plan(cls, plan: SynthesisPlan) -> "PackageSource":
-        return cls(plan.source, plan.tempo, plan.output.performed_length)
+    def from_plan(
+        cls, plan: SynthesisPlan, *, pronunciations: Sequence[Mapping[str, Any]] = ()
+    ) -> "PackageSource":
+        return cls(plan.source, plan.tempo, plan.output.performed_length, tuple(pronunciations))
 
 
 @dataclass(frozen=True, slots=True)
@@ -385,6 +389,12 @@ def _manifest(
             "mp3": settings.mp3.settings()
             if AudioFormat.MP3 in settings.formats and settings.mp3
             else None,
+        },
+        # what the engine was told to sing besides the score's own words: each pronunciation a
+        # person decided, bound to this score, next to the score's lyric text (never in place of it)
+        "pronunciation": {
+            "dictionary": "CMUdict 0.7b; no pronunciation model; a word it lacks stops the run",
+            "overrides": [dict(entry) for entry in source.pronunciations],
         },
         "stems": [
             {
