@@ -239,7 +239,7 @@ def provenance_entries(
                 "word": built["word"],
                 "score_lyrics": list(built.get("score_lyrics") or []),
                 "phonemizer": built["phonemizer"],
-                "alphabet": ALPHABETS[str(built["phonemizer"])],
+                "alphabet": "arpabet",  # every engine takes the dictionary's own ARPAbet in a hint
                 "symbols": built["symbols"],
                 "source": "composed",
                 "composed_from": list(built.get("pieces") or []),

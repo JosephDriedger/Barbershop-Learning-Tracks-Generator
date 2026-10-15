@@ -54,6 +54,7 @@ from barbershop_tracks.core.runtime.filelock import FileLock, LockWaitAbortedErr
 from barbershop_tracks.core.runtime.staging import cleanup_stale, publish_directory, remove_staging
 from barbershop_tracks.core.synthesis import PlanNotReadyError, SynthesisPlan
 from barbershop_tracks.core.synthesis.openutau import (
+    ALPHABETS,
     NO_OVERRIDES,
     OverrideError,
     PronunciationOverride,
@@ -67,8 +68,6 @@ from barbershop_tracks.models import VoiceRole
 EventHandler = Callable[[dict[str, Any]], None]
 
 COMPOSED_BY = "BLT (built from dictionary pieces)"
-# the engine whose phonetic hints are the dictionary's own sounds
-ARPASING = "OpenUtau.Plugin.Builtin.ArpasingPhonemizer"
 LOOKUP_SECONDS = 120.0
 
 
@@ -440,7 +439,7 @@ class OpenUtauRenderBackend:
             if u.role is not None
             and u.start is not None
             and u.note_index is not None
-            and u.phonemizer == ARPASING
+            and u.phonemizer in ALPHABETS  # the engines that look words up and take ARPAbet hints
             and (VoiceRole(u.role), u.note_index) not in overrides.by_note
         ]
         if not wanted:
@@ -461,8 +460,8 @@ class OpenUtauRenderBackend:
                 override = PronunciationOverride(
                     role=VoiceRole(u.role),
                     start=u.start,
-                    word=u.word,
-                    phonemizer=ARPASING,
+                    word=u.lyric,
+                    phonemizer=u.phonemizer or "",
                     symbols=made.symbols,
                     approved_by=COMPOSED_BY,
                     source_sha256=sha,
