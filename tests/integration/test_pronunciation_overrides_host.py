@@ -2,8 +2,8 @@
 
 The synthetic voicebank cannot sing English phonemes, so what is shown here is what the engine does
 with the pronunciation before and while it phonemizes: the word stops being "unknown", the symbols
-are checked by the engine itself (not by a copy of its symbol list), a refusal stops the run before any
-stem is rendered, and one decision touches one voice at one note.
+are checked by the engine itself (not by a copy of its symbol list), a refusal stops the run
+before any stem is rendered, and one decision touches one voice at one note.
 """
 
 from pathlib import Path
