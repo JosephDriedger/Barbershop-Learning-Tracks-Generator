@@ -228,6 +228,16 @@ class MeterPoint:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class MeasureMark:
+    """One performed measure with the number the SCORE gives it (so a place can be found there)."""
+
+    start: Fraction  # quarter notes
+    length: Fraction
+    number: int  # the measure's own number in the score (a pickup bar is 0)
+    visit: int = 1  # 1 the first time it is played, 2 the second (a repeat), ...
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class VoiceEngineRef:
     """Opaque references to what the engine should sing with. Never a hard-coded voicebank.
 
@@ -303,6 +313,8 @@ class SynthesisPlan:
     meter: tuple[MeterPoint, ...]
     engine_refs: tuple[tuple[VoiceRole, VoiceEngineRef], ...]
     output: OutputRequirements
+    # the performed measures with the score's own numbers; empty for a plan built by hand
+    measures: tuple[MeasureMark, ...] = ()
 
     def __post_init__(self) -> None:
         if tuple(v.role for v in self.voices) != VOICE_ORDER:

@@ -19,6 +19,7 @@ from barbershop_tracks.core.synthesis.plan import (
     LyricProposal,
     LyricProvenance,
     LyricState,
+    MeasureMark,
     MeterPoint,
     NoteLyric,
     OutputRequirements,
@@ -272,4 +273,8 @@ def build_synthesis_plan(
         meter=meter,
         engine_refs=refs,
         output=OutputRequirements(performed_length=length),
+        measures=tuple(
+            MeasureMark(start=m.performed_start, length=m.length, number=m.number, visit=m.visit)
+            for m in played.played
+        ),
     )

@@ -87,7 +87,7 @@ def locate(plan: SynthesisPlan, reported: Sequence[Mapping[str, Any]]) -> list[U
                 role=voice.role.value if voice is not None else None,
                 note_index=note_index,
                 start=start,
-                where=position_label(start, plan.meter)
+                where=position_label(start, plan.meter, plan.measures)
                 if start is not None
                 else "position unknown",
                 lyric=str(item.get("lyric", "")),
@@ -170,7 +170,7 @@ def locate_hints(plan: SynthesisPlan, reported: Sequence[Mapping[str, Any]]) -> 
                 role=voice.role.value if voice is not None else None,
                 note_index=sung.index if sung is not None else None,
                 start=start,
-                where=position_label(start, plan.meter)
+                where=position_label(start, plan.meter, plan.measures)
                 if start is not None
                 else "position unknown",
                 lyric=str(item.get("lyric", "")),

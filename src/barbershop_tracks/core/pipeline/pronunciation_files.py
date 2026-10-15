@@ -208,7 +208,7 @@ def provenance_entries(
             {
                 "voice": item.role.value,
                 "start": str(item.start),
-                "where": position_label(item.start, plan.meter),
+                "where": position_label(item.start, plan.meter, plan.measures),
                 "word": item.word,
                 "score_lyrics": list(found.score_lyrics),
                 "phonemizer": item.phonemizer,

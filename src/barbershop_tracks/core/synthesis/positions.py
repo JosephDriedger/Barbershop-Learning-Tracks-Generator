@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from fractions import Fraction
 
-from barbershop_tracks.core.synthesis.plan import MeterPoint
+from barbershop_tracks.core.synthesis.plan import MeasureMark, MeterPoint
 
 
 def beat_text(beat: Fraction) -> str:
@@ -15,8 +15,36 @@ def beat_text(beat: Fraction) -> str:
     return f"{float(beat):.2f}".rstrip("0").rstrip(".")
 
 
-def position_label(start: Fraction, meters: Sequence[MeterPoint]) -> str:
-    """``bar 3, beat 2`` for a quarter-note position; plain beats when the meter is unknown."""
+def _meter_at(start: Fraction, meters: Sequence[MeterPoint]) -> MeterPoint | None:
+    found: MeterPoint | None = None
+    for point in meters:
+        if point.position > start:
+            break
+        found = point
+    return found
+
+
+def position_label(
+    start: Fraction, meters: Sequence[MeterPoint], measures: Sequence[MeasureMark] = ()
+) -> str:
+    """``bar 3, beat 2`` for a quarter-note position; plain beats when the meter is unknown.
+
+    With the performed ``measures`` the bar is the number the SCORE gives that measure (a pickup
+    bar is ``bar 0``), so the place can be found in the score; a repeated measure says which time
+    it is played.
+    Without them (a plan built by hand) the bars are counted from the start.
+    """
+    if measures:
+        for mark in measures:
+            if mark.start <= start < mark.start + mark.length:
+                meter = _meter_at(start, meters)
+                full = meter.measure_length if meter is not None else mark.length
+                offset = start - mark.start
+                if mark.length < full and mark.start == measures[0].start:
+                    offset += full - mark.length  # a pickup bar sounds on the last beats of its bar
+                unit = Fraction(4, meter.beat_type) if meter is not None else Fraction(1)
+                label = f"bar {mark.number}, beat {beat_text(offset / unit + 1)}"
+                return label + (f" (time {mark.visit})" if mark.visit > 1 else "")
     if not meters or meters[0].position != 0:
         return f"beat {beat_text(start + 1)}"
     segment = meters[0]
