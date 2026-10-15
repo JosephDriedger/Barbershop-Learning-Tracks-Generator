@@ -24,6 +24,9 @@ class FakePrompts(Prompts):
     def choose_file(self, parent: QWidget, title: str, start: str, file_filter: str) -> str:
         return str(self.answers.get("file", ""))
 
+    def save_file(self, parent: QWidget, title: str, start: str, file_filter: str) -> str:
+        return str(self.answers.get("save", ""))
+
     def confirm(self, parent: QWidget, title: str, text: str, accept: str = "Continue") -> bool:
         self.confirmations.append(title)
         return self.confirm_answer

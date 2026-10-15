@@ -151,3 +151,106 @@ def test_a_syllable_of_a_longer_word_is_marked_so_the_singer_knows_why() -> None
     assert any("own lyric on that note" in step for step in explanation.steps)
     whole = pron.locate(plan, [{"track": "Lead", "position": 1440, "lyric": "now", "word": "now"}])
     assert whole[0].fragment is False
+
+
+# --- a pronunciation a person gave, refused by the engine (M19) ---------------------------------
+
+
+def invalid_backend(tmp_path: Path) -> OpenUtauRenderBackend:
+    layout = RuntimeLayout.under(tmp_path / "bin", tmp_path / "data")
+    (tmp_path / "singers").mkdir()
+    return OpenUtauRenderBackend(
+        RenderSettings(
+            layout=layout,
+            singers_dir=tmp_path / "singers",
+            host_command=(sys.executable, str(FAKE)),
+            extra_env={"FAKE_HOST_MODE": "pronunciation_invalid"},
+            timeout_seconds=30,
+            poll_seconds=0.01,
+        )
+    )
+
+
+def test_a_refused_pronunciation_is_placed_in_the_score_and_nothing_is_published(
+    tmp_path: Path,
+) -> None:
+    plan = plan_of(voices=full_lyrics(("la", "ev'ry", "la", "la")), engine_refs=refs())
+    with pytest.raises(PronunciationError) as info:
+        invalid_backend(tmp_path).render(plan, tmp_path / "out")
+    error = info.value
+    assert error.code == "PRONUNCIATION_INVALID"
+    assert "nothing was rendered" in error.message
+    assert "the symbol 'zzz' is not one this pronunciation engine knows" in error.message
+    assert '"ev\'ry" (bar 1, beat 2; Lead)' in error.message
+    found = error.details["invalid_hints"]
+    assert [(h["voice"], h["where"], h["symbol"], h["reason"]) for h in found] == [
+        ("Lead", "bar 1, beat 2", "zzz", "symbol_unknown"),
+        ("Bass", "bar 1, beat 2", None, "no_sound"),
+    ]
+    assert found[0]["note_index"] == 1
+    assert found[0]["start"] == "1"
+    assert not (tmp_path / "out").exists()
+
+
+def test_the_explanation_of_a_refusal_names_the_symbol_and_the_way_forward(tmp_path: Path) -> None:
+    plan = plan_of(voices=full_lyrics(("la", "ev'ry", "la", "la")), engine_refs=refs())
+    with pytest.raises(PronunciationError) as info:
+        invalid_backend(tmp_path).render(plan, tmp_path / "out")
+    piped = translate(info.value)
+    explanation = explain(piped)
+    assert explanation.kind == "pronunciation_invalid"
+    assert explanation.pronunciation is True
+    assert "'zzz'" in explanation.summary
+    assert "make no sound" in explanation.summary
+    assert any("Pronunciations" in step for step in explanation.steps)
+    assert any("never changes your score" in step for step in explanation.steps)
+
+
+def test_the_check_runs_the_engine_without_rendering_and_reports_the_sounds(
+    tmp_path: Path,
+) -> None:
+    layout = RuntimeLayout.under(tmp_path / "bin", tmp_path / "data")
+    (tmp_path / "singers").mkdir()
+    checker = OpenUtauRenderBackend(
+        RenderSettings(
+            layout=layout,
+            singers_dir=tmp_path / "singers",
+            host_command=(sys.executable, str(FAKE)),
+            timeout_seconds=30,
+            poll_seconds=0.01,
+        )
+    )
+    plan = plan_of(voices=full_lyrics(("la", "ev'ry", "la", "la")), engine_refs=refs())
+    result = checker.check_pronunciations(plan)
+    assert result["status"] == "ok"
+    assert result["pronunciations"][0]["phonemes"] == ["eh v"]
+    assert not list(layout.staging.glob("*")) if layout.staging.is_dir() else True
+
+
+def test_the_check_names_the_places_the_engine_refuses(tmp_path: Path) -> None:
+    plan = plan_of(voices=full_lyrics(("la", "ev'ry", "la", "la")), engine_refs=refs())
+    with pytest.raises(PronunciationError) as info:
+        invalid_backend(tmp_path).check_pronunciations(plan)
+    assert info.value.code == "PRONUNCIATION_INVALID"
+    assert info.value.details["invalid_hints"][0]["voice"] == "Lead"
+
+
+def test_each_blocked_place_carries_the_scores_own_text_and_the_engine_it_needs() -> None:
+    from barbershop_tracks.models import Lyric, Syllabic
+    from readiness_builders import PITCHES, note
+
+    voices = full_lyrics(("la",) * 4)
+    voices["lead"] = [
+        note(i, 1, PITCHES[VoiceRole.LEAD], lyrics=(Lyric(text=t, syllabic=k),))
+        for i, (t, k) in enumerate(
+            [("ev'", Syllabic.BEGIN), ("ry", Syllabic.MIDDLE), ("one", Syllabic.END)]
+        )
+    ] + [note(3, 1, PITCHES[VoiceRole.LEAD], lyrics=(Lyric(text="la"),))]
+    plan = plan_of(voices=voices, engine_refs=refs())
+    (found,) = pron.locate(
+        plan, [{"track": "Lead", "position": 0, "lyric": "ev'ryone", "word": "ev'ryone"}]
+    )
+    assert found.lyric == "ev'ryone"
+    assert found.score_lyrics == ("ev'", "ry", "one")
+    assert found.phonemizer == "OpenUtau.Core.DefaultPhonemizer"
+    assert found.as_detail()["score_lyrics"] == ["ev'", "ry", "one"]

@@ -104,6 +104,45 @@ def main() -> None:
             unknown_word_count=len(words),
             unknown_words=words,
         )
+    if mode == "pronunciation_invalid":  # a given pronunciation the engine refuses
+        refused = [
+            {
+                "track": "Lead",
+                "position": 480,
+                "lyric": "ev'ry",
+                "symbol": "zzz",
+                "reason": "symbol_unknown",
+            },
+            {
+                "track": "Bass",
+                "position": 480,
+                "lyric": "ev'ry",
+                "symbol": None,
+                "reason": "no_sound",
+            },
+        ]
+        finish(
+            12,
+            "pronunciation_invalid",
+            "2 problem(s) in the given pronunciations: Lead: 'ev'ry' has the unknown symbol 'zzz'",
+            hint_problem_count=len(refused),
+            invalid_hints=refused,
+        )
+    if "--phonemize-only" in sys.argv:  # the check: everything up to the pronunciation, no stems
+        finish(
+            0,
+            "ok",
+            pronunciations=[
+                {
+                    "track": "Lead",
+                    "position": 480,
+                    "lyric": "ev'ry",
+                    "hint": "eh v r iy",
+                    "phonemes": ["eh v"],
+                }
+            ],
+            stems=[],
+        )
     project = yaml.safe_load(Path(argument("--project")).read_text(encoding="utf-8"))
     out = Path(argument("--out"))
     base = argument("--base")
