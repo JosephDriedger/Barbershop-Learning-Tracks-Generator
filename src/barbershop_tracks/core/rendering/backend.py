@@ -117,7 +117,16 @@ def with_host_findings(
             if s.get("reason") == "alias_not_in_voicebank" and s.get("alias")
         }
     )
+    failed = sorted(
+        {str(s["lyric"]) for s in samples if s.get("reason") == "engine_error" and s.get("lyric")}
+    )
     said: list[str] = []
+    if failed:
+        shown = ", ".join(repr(w) for w in failed[:8]) + (", ..." if len(failed) > 8 else "")
+        said.append(
+            f"the pronunciation engine failed on the word(s) {shown} (it stopped with an error "
+            "there; the voicebank or the word is not one this engine can work with)"
+        )
     if words:
         shown = ", ".join(repr(w) for w in words[:8]) + (", ..." if len(words) > 8 else "")
         said.append(
@@ -130,7 +139,11 @@ def with_host_findings(
     if not said:
         return error
     details = dict(
-        error.details, unsung_words=words, unsung_sounds=sounds, host_findings=samples[:60]
+        error.details,
+        unsung_words=words,
+        unsung_sounds=sounds,
+        engine_failures=failed,
+        host_findings=samples[:60],
     )
     return OutputValidationError(
         error.code, f"{error.message}. The singing engine reported that " + "; ".join(said), details

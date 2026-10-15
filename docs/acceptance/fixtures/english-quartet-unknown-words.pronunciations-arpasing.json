@@ -1,0 +1,176 @@
+{
+  "schema": "blt.pronunciation-overrides/1",
+  "source_sha256": "415863c5dacf3a66300ff3f4f387ee203695a2ef8f47898018f2bb623cc59ca8",
+  "overrides": [
+    {
+      "voice": "tenor",
+      "start": "0",
+      "where": "bar 1, beat 1",
+      "word": "lov'd",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "l ah v d",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "lead",
+      "start": "0",
+      "where": "bar 1, beat 1",
+      "word": "lov'd",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "l ah v d",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "baritone",
+      "start": "0",
+      "where": "bar 1, beat 1",
+      "word": "lov'd",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "l ah v d",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "bass",
+      "start": "0",
+      "where": "bar 1, beat 1",
+      "word": "lov'd",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "l ah v d",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "bass",
+      "start": "7",
+      "where": "bar 2, beat 4",
+      "word": "mammy",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "m ae m iy",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "tenor",
+      "start": "12",
+      "where": "bar 4, beat 1",
+      "word": "ev'ryone",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "eh v r iy w ah n",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "lead",
+      "start": "12",
+      "where": "bar 4, beat 1",
+      "word": "ev'ryone",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "eh v r iy w ah n",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "baritone",
+      "start": "12",
+      "where": "bar 4, beat 1",
+      "word": "ev'ryone",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "eh v r iy w ah n",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "bass",
+      "start": "12",
+      "where": "bar 4, beat 1",
+      "word": "ev'ryone",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "eh v r iy w ah n",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "tenor",
+      "start": "22",
+      "where": "bar 6, beat 3",
+      "word": "'neath",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "n iy th",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "lead",
+      "start": "22",
+      "where": "bar 6, beat 3",
+      "word": "'neath",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "n iy th",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "baritone",
+      "start": "22",
+      "where": "bar 6, beat 3",
+      "word": "'neath",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "n iy th",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "bass",
+      "start": "22",
+      "where": "bar 6, beat 3",
+      "word": "'neath",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "n iy th",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "tenor",
+      "start": "24",
+      "where": "bar 7, beat 1",
+      "word": "o'er",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "ow er",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "lead",
+      "start": "24",
+      "where": "bar 7, beat 1",
+      "word": "o'er",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "ow er",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "baritone",
+      "start": "24",
+      "where": "bar 7, beat 1",
+      "word": "o'er",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "ow er",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    },
+    {
+      "voice": "bass",
+      "start": "24",
+      "where": "bar 7, beat 1",
+      "word": "o'er",
+      "phonemizer": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+      "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+      "symbols": "ow er",
+      "approved_by": "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+    }
+  ]
+}

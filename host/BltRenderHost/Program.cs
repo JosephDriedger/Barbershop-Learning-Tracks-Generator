@@ -348,7 +348,9 @@ namespace Blt.RenderHost {
                         ["lyric"] = phoneme.Parent?.lyric,
                         ["alias"] = alias,
                         // a phonemizer that cannot phonemize a word passes the lyric itself on (or "word not found")
-                        ["reason"] = alias == "word not found" || string.Equals(alias, phoneme.Parent?.lyric, StringComparison.OrdinalIgnoreCase)
+                        // "error" is what OpenUtau's phonemizer runner answers a phonemizer that threw an exception with: not a recording
+                        ["reason"] = alias == "error" ? "engine_error"
+                            : alias == "word not found" || string.Equals(alias, phoneme.Parent?.lyric, StringComparison.OrdinalIgnoreCase)
                             ? "lyric_has_no_sound" : "alias_not_in_voicebank",
                     });
                 }

@@ -19,6 +19,10 @@ melisma (``sing`` over three notes), sustained notes (a half note and a whole no
 (``dum``). ``english-quartet.words.json`` lists every word with its place and its expected behaviour; the
 integration tests compare that list with the real dictionary, so the fixture cannot drift from what it claims.
 
+``english-quartet-unknown-words.pronunciations-<engine>.json`` are SAMPLE pronunciations of the five words the
+dictionary lacks, in the notation of CMUdict (ARPAbet), one file per pronunciation engine and bound to the SHA-256 of
+the ``unknown`` score: loading one makes that score generate without a single word of it being changed.
+
 Everything here is original (the melody, the words) and may be used, copied and changed freely (CC0). With
 ``--check`` nothing is written: the script exits 1 if the committed files differ from what it would write.
 """
@@ -26,6 +30,7 @@ Everything here is original (the melody, the words) and may be used, copied and 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from dataclasses import dataclass
@@ -285,12 +290,90 @@ def words_manifest() -> dict[str, object]:
     return {"tempo_bpm": int(TEMPO), "meter": "4/4", "bars": 8, "versions": versions}
 
 
+# how each word the dictionary lacks is pronounced in the sample pronunciations (ARPAbet, the notation of the
+# CMU dictionary: lower case, no stress digits). The three engines take ARPAbet.
+SAMPLE_SYMBOLS = {
+    "lov'd": "l ah v d",
+    "ev'ryone": "eh v r iy w ah n",
+    "'neath": "n iy th",
+    "o'er": "ow er",
+    "mammy": "m ae m iy",
+}
+ENGINES = {
+    "arpasing": "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+    "vccv": "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer",
+    "xsampa": "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer",
+}
+SAMPLE_APPROVER = "REPLACE WITH YOUR NAME (a sample decision, not a person's)"
+
+
+def unknown_places() -> list[tuple[str, int, str, tuple[str, ...]]]:
+    """(word, start in quarter notes, where, voices) for every word of the ``unknown`` version the dictionary lacks."""
+    places: list[tuple[str, int, str, tuple[str, ...]]] = []
+    for number, bar in enumerate(lead_line("unknown"), start=1):
+        beat, word, word_beat = 0, "", 0
+        for syllable in bar:
+            if not word:
+                word_beat = beat
+            word += syllable.text
+            if syllable.kind in ("single", "end"):
+                if word.lower() in OUTSIDE_THE_DICTIONARY:
+                    places.append(
+                        (
+                            word,
+                            (number - 1) * 4 + word_beat,
+                            f"bar {number}, beat {word_beat + 1}",
+                            ("tenor", "lead", "baritone", "bass"),
+                        )
+                    )
+                word = ""
+            beat += sum(syllable.quarters)
+    own = bass_words("unknown")[3]
+    if own.lower() in OUTSIDE_THE_DICTIONARY:
+        places.append((own, 4 + 3, "bar 2, beat 4", ("bass",)))
+    return sorted(places, key=lambda place: place[1])
+
+
+def pronunciation_file(engine: str, score_text: str) -> str:
+    """The sample pronunciations of the ``unknown`` score for one engine: one entry per voice and place.
+
+    Bound to the SHA-256 of that score as written here (the file has no line breaks, so the digest is the same
+    on every machine). It decides exactly the five places the dictionary lacks; BLT refuses it for any other score.
+    """
+    entries = []
+    for word, start, where, voices in unknown_places():
+        for voice in voices:
+            entries.append(
+                {
+                    "voice": voice,
+                    "start": str(start),
+                    "where": where,
+                    "word": word,
+                    "phonemizer": ENGINES[engine],
+                    "notation": "ARPAbet (the notation of the CMU dictionary), lower case, for example: eh v r iy",
+                    "symbols": SAMPLE_SYMBOLS[word],
+                    "approved_by": SAMPLE_APPROVER,
+                }
+            )
+    document = {
+        "schema": "blt.pronunciation-overrides/1",
+        "source_sha256": hashlib.sha256(score_text.encode("utf-8")).hexdigest(),
+        "overrides": entries,
+    }
+    return json.dumps(document, indent=2, ensure_ascii=False) + "\n"
+
+
 def render() -> dict[str, str]:
     files = {
         f"english-quartet-{v}-words.musicxml": build(v) for v in ("known", "unknown", "respelled")
     }
     manifest = words_manifest()
     files["english-quartet.words.json"] = json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
+    unknown = files["english-quartet-unknown-words.musicxml"]
+    for engine in ENGINES:
+        files[f"english-quartet-unknown-words.pronunciations-{engine}.json"] = pronunciation_file(
+            engine, unknown
+        )
     return files
 
 

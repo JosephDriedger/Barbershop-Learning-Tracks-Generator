@@ -187,6 +187,23 @@ def test_a_verdict_other_than_silence_is_left_alone() -> None:
     assert with_host_findings(silent, {"unsung_phonemes": []}) is silent
 
 
+def test_an_engine_that_failed_is_named_as_such_and_not_blamed_on_the_voicebank() -> None:
+    from barbershop_tracks.core.rendering.backend import with_host_findings
+
+    silent = OutputValidationError("STEM_NOTE_SILENT", "silent")
+    found = {
+        "unsung_phonemes": [
+            {"lyric": "every", "alias": "error", "reason": "engine_error"},
+            {"lyric": "la", "alias": "l aa", "reason": "alias_not_in_voicebank"},
+        ]
+    }
+    told = with_host_findings(silent, found)
+    assert "pronunciation engine failed on the word(s) 'every'" in told.message
+    assert "no recording named 'l aa'" in told.message
+    assert "no recording named 'error'" not in told.message
+    assert told.details["engine_failures"] == ["every"]
+
+
 LATE_TENOR = {
     **full_lyrics(("la",) * 4),
     "tenor": sung(VoiceRole.TENOR, ["la"] * 4, start=4),  # four quarters of leading silence

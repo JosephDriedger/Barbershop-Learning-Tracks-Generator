@@ -73,6 +73,7 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "C4", "PT", "PTH", "RUF"]
 "src/barbershop_tracks/core/synthesis/openutau/overrides.py" = ["E501"]  # docstring prose and messages
 "src/barbershop_tracks/core/pipeline/pronunciation_files.py" = ["E501"]  # docstring prose and messages
 "tests/unit/core/synthesis/test_follower_fragments.py" = ["E501"]  # the findings are prose
+"tests/integration/test_pronunciation_cli.py" = ["E501"]  # docstring prose
 "src/barbershop_tracks/ui/pronunciation_review.py" = ["E501"]  # docstring prose and messages
 "src/barbershop_tracks/ui/pronunciation_dialog.py" = ["E501"]  # docstring prose and messages
 
