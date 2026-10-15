@@ -11,6 +11,9 @@ Two states are kept strictly apart, never reduced to one ``in_melisma`` flag:
   line. An untyped extender is never "invented" into a ``START``.
 
 Lyric-less attacks are continuations while either state is active; otherwise they are missing.
+A third, weaker reading: a lyric-less attack inside a **slur** that opened on an earlier attack
+holds the syllable sung before it (a slur over one syllable is the usual notation for a melisma,
+and MuseScore writes no extender for it unless the lyric has one). An extender always decides first.
 There is no maximum length. This is independent of the syllabic word machine (``words.py``).
 """
 
@@ -46,6 +49,8 @@ class MelismaTracker:
             int
         ] = []  # MISSING attacks that follow an extender ended by a rest
         self._ended_by_rest = False
+        self.slurred: Extension | None = None
+        self._held: int | None = None  # the syllable a slur may hold: its attack index
 
     # --- internal ---------------------------------------------------------------------
 
@@ -72,6 +77,7 @@ class MelismaTracker:
 
     def rest(self) -> None:
         """A rest: ends an inferred extender, leaves a typed one open."""
+        self.slurred = self._held = None
         if self.inferred is not None:
             self.inferred = None
             self._ended_by_rest = True
@@ -82,6 +88,7 @@ class MelismaTracker:
         """Playback is not continuous (a repeat jump or a skipped ending): no extension is
         carried across it."""
         findings: list[Finding] = []
+        self.slurred = self._held = None
         if self.inferred is not None:
             self._ended_by_rest = (
                 True  # counted like a rest: the next lyric-less attack is unresolved
@@ -92,12 +99,21 @@ class MelismaTracker:
         )
         return findings
 
-    def unlyriced(self, index: int) -> tuple[AttackRole, Continuation | None]:
-        """A sung attack with no lyric for the verse."""
+    def unlyriced(
+        self, index: int, *, in_slur: bool = False
+    ) -> tuple[AttackRole, Continuation | None]:
+        """A sung attack with no lyric for the verse (``in_slur``: inside a slur)."""
         ext = self.typed or self.inferred
         if ext is not None:
+            self.slurred = None
             self._on_sung()
             return AttackRole.MELISMA_CONTINUATION, self._continue(ext)
+        if in_slur and self._held is not None:
+            if self.slurred is None:
+                self.slurred = Extension(MelismaBasis.SLUR, self._held)
+            self._on_sung()
+            return AttackRole.MELISMA_CONTINUATION, self._continue(self.slurred)
+        self.slurred = self._held = None
         if self._ended_by_rest:
             self.interruptions.append(index)
         self._on_sung()
@@ -109,6 +125,8 @@ class MelismaTracker:
         self._on_sung()
         self._close_typed("a new lyric began", findings)
         self.inferred = None
+        self.slurred = None
+        self._held = index
         if lyric.melisma is Melisma.UNTYPED:
             self.inferred = Extension(MelismaBasis.UNTYPED, index)
         elif lyric.melisma is Melisma.START:
@@ -121,6 +139,7 @@ class MelismaTracker:
         self._on_sung()
         self._close_typed("a conflicting lyric event occurred", findings)
         self.inferred = None
+        self.slurred = self._held = None
         return findings
 
     def vocal_event(self, index: int, name: str) -> list[Finding]:
@@ -128,6 +147,7 @@ class MelismaTracker:
         findings: list[Finding] = []
         self._on_sung()
         self.inferred = None
+        self.slurred = self._held = None
         if self.typed is not None:
             findings.append(
                 error(

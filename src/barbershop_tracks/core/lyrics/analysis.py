@@ -182,6 +182,7 @@ def _analyze(
     previous_end: Fraction | None = None
     pending = sorted(discontinuities)
     next_break = 0
+    slurs_open = 0  # slurs opened on earlier attacks and not closed yet
 
     def report(finding: Finding) -> None:
         note = performed[finding.attack_index].source[0]
@@ -198,9 +199,11 @@ def _analyze(
             report_all(tracker.discontinuity())
             report_all(words.discontinuity())
             previous_end = None
+            slurs_open = 0
         if attack.is_rest:
             tracker.rest()
             words.rest()
+            slurs_open = 0
             records.append(_Record(index, attack, AttackRole.REST))
             continue
         if previous_end is not None and attack.start < previous_end:
@@ -214,7 +217,12 @@ def _analyze(
                 )
             )
         previous_end = attack.end
-        record = _classify(index, attack, selected, tracker, words, report_all, report)
+        record = _classify(
+            index, attack, selected, tracker, words, report_all, report, in_slur=slurs_open > 0
+        )
+        slurs_open = max(
+            0, slurs_open + sum(n.slurs_opened - n.slurs_closed for n in attack.source)
+        )
         records.append(record)
         _tie_continuations(index, attack, record, selected, tracker, issues, part_id, report_all)
 
@@ -233,13 +241,15 @@ def _classify(
     words: WordBuilder,
     report_all: Callable[[Sequence[Finding]], None],
     report: Callable[[Finding], None],
+    *,
+    in_slur: bool = False,
 ) -> _Record:
     candidates = lyrics_for(attack.source[0], selected)
     if len(candidates) > 1:  # the parser already reported LYRIC_DUPLICATE_VERSE
         report_all(tracker.conflict())
         return _Record(index, attack, AttackRole.CONFLICT)
     if not candidates:
-        role, continuation = tracker.unlyriced(index)
+        role, continuation = tracker.unlyriced(index, in_slur=in_slur)
         return _Record(index, attack, role, continuation=continuation)
     lyric = candidates[0]
     if lyric.kind is LyricKind.TEXT:

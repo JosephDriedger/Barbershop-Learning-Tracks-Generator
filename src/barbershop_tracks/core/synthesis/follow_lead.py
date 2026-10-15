@@ -7,12 +7,13 @@ conflict, humming, an elision, a proposal or a person's approval is never replac
 
 Two rules, in this order, for a note of Tenor, Baritone or Bass starting at ``t``:
 
-1. **The same note, written once.** When the Lead does NOT have this very note, but another part has it (the same
-   start and as long) with a lyric of its own, that is the lyric the score means for both: a held "Oo" written
-   only under the Baritone is sung by the Tenor and the Bass that hold the same note while the Lead sings
-   other words. If several parts have that note and they do not agree (different words), nothing is decided:
+1. **The same note, written once.** Another part starts a note at the same moment with a lyric of its own: that
+   is the lyric the score means for both. A held "Oo" written only under the Baritone is sung by the Tenor and the
+   Bass that hold the same note while the Lead sings other, shorter words. The note that is *as long as this one*
+   is the match; only when no part has one as long, a note that starts at the same moment is (parts may hold a
+   chord for different times). If several parts have that note and they do not agree (different words), nothing is decided:
    the note stays a review item and the Lead's words are NOT used instead (the score disagrees with itself).
-   (When the Lead has the very same note, rule 2 applies: the Lead's words are the convention.)
+   (When the Lead is among the matches, rule 2 applies: the Lead's words are the convention.)
 2. **The Lead.** Otherwise the Lead note sounding at ``t`` decides:
 
    * the Lead must be singing a decided syllable there (its own score lyric, an approval, or the continuation
@@ -69,17 +70,19 @@ def _origin_of(voice: VoicePlan, note: PlannedNote) -> tuple[PlannedNote, str] |
 def _same_note_elsewhere(
     voices: tuple[VoicePlan, ...], me: VoicePlan, note: PlannedNote
 ) -> list[tuple[VoicePlan, PlannedNote]] | None:
-    """The other parts' notes that are exactly this note and carry a lyric of the score; None if none."""
+    """The other parts' notes that match this one and carry a lyric of the score; None if none.
+
+    The matches are the notes that start together with it and are as long; when there are none, those that
+    only start together with it."""
     found: list[tuple[VoicePlan, PlannedNote]] = []
     for other in voices:
         if other.role is me.role:
             continue
-        twin = next(
-            (n for n in other.notes if n.start == note.start and n.duration == note.duration), None
-        )
+        twin = next((n for n in other.notes if n.start == note.start), None)
         if twin is not None and twin.lyric.state in _EXPLICIT:
             found.append((other, twin))
-    return found or None
+    as_long = [(o, n) for o, n in found if n.duration == note.duration]
+    return as_long or found or None
 
 
 def _meaning(voice: VoicePlan, twin: PlannedNote) -> tuple[str, str] | None:

@@ -167,7 +167,9 @@ Problems and placements:
   the message and it is **never attached to another note** (MuseScore moves a grace lyric to the
   next note and a later chord member's lyric to the first member; we do not).
 - Lyrics on tied notes, including a tie continuation, stay on their own source notes.
-- Slurs are not read and are not melisma evidence; a slurred lyric-less note stays lyric-less.
+- Slurs are read (`Note.slurs_opened` / `slurs_closed`). A lyric-less note inside a slur that opened on an earlier note holds
+  the syllable sung before it (basis `slur`), the usual notation for one syllable over several notes; an extender, when the
+  score has one, decides first, and a slur never invents a syllable (a slur over notes that were never given one stays lyric-less).
 
 ### Performed lyric analysis (M3c2)
 

@@ -212,8 +212,8 @@ validator emits a WARNING or ERROR and names the measure. We never silently edit
 - **Elisions** (two syllables on one note) have no direct equivalent. WARNING.
 - **Punctuation** in lyric text may be read by the phonemizer. We strip nothing silently;
   we warn when present.
-- **Melisma vs. tie vs. slur.** We use MusicXML `extend` and tie semantics, not slurs,
-  to choose `+~`. A slur with no `extend` and no new lyric is a WARNING.
+- **Melisma vs. tie vs. slur.** `+~` follows MusicXML `extend` and tie semantics first. A lyric-less note inside a slur
+  that began on an earlier note also holds the syllable (a slur over one syllable is the usual way to write it).
 - **Unpitched sounds** (humming, "mm", breath, rests) need singer-specific handling.
   Flag, do not guess.
 - **Multi-verse lyrics.** v1 uses verse 1 only and warns if other verses are present.

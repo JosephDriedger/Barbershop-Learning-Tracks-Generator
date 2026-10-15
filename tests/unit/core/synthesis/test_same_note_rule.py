@@ -118,14 +118,70 @@ def test_parts_that_disagree_about_the_same_note_leave_it_to_a_person() -> None:
     ]
 
 
-def test_a_note_that_is_not_the_same_note_is_not_a_twin() -> None:
+def test_a_part_that_holds_the_chord_for_a_different_time_sings_the_same_word() -> None:
     plan = plan_of_parts(
-        lead=[sung(VoiceRole.LEAD, 0, 1, "la")],
-        tenor=[sung(VoiceRole.TENOR, 0, 2)],  # longer than the Baritone's note: not the same note
-        baritone=[sung(VoiceRole.BARITONE, 0, 1, "doo")],
-        bass=[sung(VoiceRole.BASS, 0, 1, "doo")],
+        lead=[sung(VoiceRole.LEAD, 0.5, 0.5, "Just")],
+        tenor=[sung(VoiceRole.TENOR, 0, 7)],  # longer than the Baritone's note
+        baritone=[sung(VoiceRole.BARITONE, 0, 3, "Oo")],
+        bass=[sung(VoiceRole.BASS, 0, 2)],  # shorter than the Baritone's note
+    )
+    for role in (VoiceRole.TENOR, VoiceRole.BASS):
+        assert lyric(plan, role, 0).text == "Oo"
+        assert lyric(plan, role, 0).provenance.follows_role == "baritone"
+    assert written(plan, "Bass") == ["Oo"]
+
+
+def test_the_part_with_the_same_length_is_the_match_when_the_lead_moves_faster() -> None:
+    # the Lead starts a short word with the held "Oo": the parts holding what the Baritone holds
+    # sing the Baritone's word, not the Lead's
+    plan = plan_of_parts(
+        lead=[sung(VoiceRole.LEAD, 0, 0.5, "Guess"), sung(VoiceRole.LEAD, 0.5, 1, "I'll")],
+        tenor=[sung(VoiceRole.TENOR, 0, 4)],
+        baritone=[sung(VoiceRole.BARITONE, 0, 4, "Oo")],
+        bass=[sung(VoiceRole.BASS, 0, 4)],
+    )
+    for role in (VoiceRole.TENOR, VoiceRole.BASS):
+        assert lyric(plan, role, 0).text == "Oo"
+
+
+def test_the_lead_wins_when_it_starts_together_and_no_part_is_as_long() -> None:
+    plan = plan_of_parts(
+        lead=[sung(VoiceRole.LEAD, 0, 0.5, "Guess")],
+        tenor=[sung(VoiceRole.TENOR, 0, 4)],
+        baritone=[sung(VoiceRole.BARITONE, 0, 3, "Oo")],
+        bass=[sung(VoiceRole.BASS, 0, 3, "Oo")],
+    )
+    assert lyric(plan, VoiceRole.TENOR, 0).text == "Guess"
+
+
+def test_a_note_that_starts_elsewhere_is_not_a_twin() -> None:
+    plan = plan_of_parts(
+        lead=[sung(VoiceRole.LEAD, 0, 4, "la")],
+        tenor=[sung(VoiceRole.TENOR, 1, 1)],  # starts inside the Baritone's note, not with it
+        baritone=[sung(VoiceRole.BARITONE, 0, 4, "doo")],
+        bass=[sung(VoiceRole.BASS, 0, 4, "doo")],
     )
     assert lyric(plan, VoiceRole.TENOR, 0).text == "la"  # the Lead rule, as before
+
+
+def test_a_part_whose_note_starts_with_a_continuation_holds_though_it_is_shorter() -> None:
+    plan = plan_of_parts(
+        lead=[
+            sung(VoiceRole.LEAD, 0.5, 1.5, "now"),
+            sung(VoiceRole.LEAD, 3.5, 0.5, "so"),
+        ],
+        tenor=[sung(VoiceRole.TENOR, 0, 2), sung(VoiceRole.TENOR, 2, 5)],
+        baritone=[
+            sung(VoiceRole.BARITONE, 0, 2, "Oo", melisma=Melisma.UNTYPED),
+            sung(VoiceRole.BARITONE, 2, 5),
+        ],
+        bass=[
+            sung(VoiceRole.BASS, 0, 2),
+            sung(VoiceRole.BASS, 2, 3),
+        ],  # shorter than the Baritone's
+    )
+    assert lyric(plan, VoiceRole.BASS, 1).state is LyricState.LEAD_SUSTAIN
+    assert written(plan, "Bass") == ["Oo", "+"]
 
 
 def test_a_held_note_that_continues_the_baritones_syllable_holds_its_vowel() -> None:
@@ -135,9 +191,8 @@ def test_a_held_note_that_continues_the_baritones_syllable_holds_its_vowel() -> 
     ]
     plan = plan_of_parts(
         lead=[
-            sung(VoiceRole.LEAD, 0, 0.5, "Just"),
             sung(VoiceRole.LEAD, 0.5, 1.5, "now"),
-            sung(VoiceRole.LEAD, 2, 1.5, "gon"),
+            sung(VoiceRole.LEAD, 2.5, 1, "gon"),
         ],
         tenor=[sung(VoiceRole.TENOR, 0, 2), sung(VoiceRole.TENOR, 2, 2)],
         baritone=baritone,

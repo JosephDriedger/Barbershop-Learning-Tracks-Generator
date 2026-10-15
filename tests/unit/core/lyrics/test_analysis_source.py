@@ -329,12 +329,19 @@ def test_typed_input_fixture_analysis() -> None:
     assert not line.issues
 
 
-def test_slur_without_an_extender_is_not_melisma_evidence() -> None:
+def test_slur_without_an_extender_holds_the_syllable() -> None:
     for variant in ("inputs", "musescore_roundtrip"):
         parsed = parse_musicxml(LYRIC_FIXTURES / variant / "l03_slur_no_extend.musicxml")
         assert parsed.song is not None
         line = analyze_song_lyrics(parsed.song).lines[0]
-        assert [a.role for a in line.attacks] == [R.SYLLABLE, R.MISSING, R.MISSING, R.SYLLABLE]
+        assert [a.role for a in line.attacks] == [
+            R.SYLLABLE,
+            R.MELISMA_CONTINUATION,
+            R.MELISMA_CONTINUATION,
+            R.SYLLABLE,
+        ]
+        assert line.attacks[1].melisma_basis is not None
+        assert line.attacks[1].melisma_basis.value == "slur"
 
 
 def test_word_split_by_a_rest_fixture() -> None:

@@ -538,6 +538,8 @@ class _PartReader:
             tied_to_next=ties.starts,
             tied_from_previous=ties.stops,
             lyrics=lyrics,
+            slurs_opened=len(element.findall('notations/slur[@type="start"]')),
+            slurs_closed=len(element.findall('notations/slur[@type="stop"]')),
         )
 
     # --- lyrics (literal; interpretation belongs to the lyric analysis) ---------------------

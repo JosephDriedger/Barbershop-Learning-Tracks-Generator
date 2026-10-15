@@ -35,9 +35,9 @@ analysis).
 6. **`Lyric.name`** is preserved verbatim (metadata, not unsupported). **`time-only`** is
    preserved verbatim in `Lyric.time_only` and is `LYRIC_TIME_ONLY_UNSUPPORTED` (ERROR) in v1,
    because it changes which repeat pass a lyric applies to.
-7. **Slurs are not melisma evidence.** A slur is notation, not a substitute for lyric `<extend>`.
-   lyric + `<extend>` is eligible melisma evidence; lyric + slur only infers nothing, and a
-   lyric-less attack in the slur remains unresolved. The observed MuseScore behavior is documented.
+7. **Slurs.** *Superseded after M19:* the original decision was that a slur is not melisma evidence. A lyric-less
+   attack inside a slur that opened on an earlier attack now holds the syllable before it (basis `slur`); an extender still
+   decides first. The observed MuseScore behavior (no extender written for a slur) is documented.
 8. **Missing lyrics are WARNINGs at M3c2, aggregated:** whole line has no lyrics; N unresolved
    attacks; an unresolved run from measure X to Y. No per-note flood.
 9. **Default verse (M3c2, deterministic):** an explicit `"1"`, else unnumbered, else the first

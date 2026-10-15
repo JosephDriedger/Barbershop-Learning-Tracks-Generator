@@ -36,6 +36,8 @@ class Note:
     tied_to_next: bool = False
     tied_from_previous: bool = False
     lyrics: tuple[Lyric, ...] = ()
+    slurs_opened: int = 0  # <slur type="start"> marks on this note, as written
+    slurs_closed: int = 0  # <slur type="stop"> marks on this note, as written
 
     def __post_init__(self) -> None:
         start = to_fraction(self.start, name="start")
@@ -51,6 +53,8 @@ class Note:
             raise ValueError("measure must not be negative")
         if beat < 1:
             raise ValueError("beat must be at least 1")
+        if self.slurs_opened < 0 or self.slurs_closed < 0:
+            raise ValueError("slur counts must not be negative")
         if self.written_pitch is not None and not isinstance(self.written_pitch, Pitch):
             raise TypeError("written_pitch must be a Pitch or None")
         if not isinstance(self.transform, PitchTransform):
@@ -60,6 +64,8 @@ class Note:
         if self.written_pitch is None:
             if lyrics or self.tied_to_next or self.tied_from_previous:
                 raise ValueError("a rest cannot have lyrics or ties")
+            if self.slurs_opened or self.slurs_closed:
+                raise ValueError("a rest cannot have slurs")
             if not self.transform.is_identity:
                 raise ValueError("a rest cannot have a pitch transform")
         else:

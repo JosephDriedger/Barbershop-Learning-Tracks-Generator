@@ -33,6 +33,7 @@ class MelismaBasis(Enum):
 
     TYPED = "typed"  # explicit <extend type="start|continue|stop"> state
     UNTYPED = "untyped"  # inferred from an untyped <extend/> (MuseScore style)
+    SLUR = "slur"  # inferred: a slur over a note that has no lyric of its own
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
