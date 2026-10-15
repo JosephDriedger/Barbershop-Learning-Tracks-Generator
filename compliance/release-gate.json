@@ -71,7 +71,23 @@
     "packaging/verify_host_inventory.py",
     "host/patch_openutau.py"
    ],
-   "signoff": null
+   "signoff": {
+    "by": "Joseph Driedger",
+    "role": "project owner (decision stated in the M19 instruction, 2026-10-14)",
+    "date": "2026-10-14",
+    "conclusion": "approved",
+    "subjects": {
+     "docs/g2p-model-provenance.md": "802f4d470a68aed2587141d16ee0a52e04d2ae910149a8ca8d64f335840f1351",
+     "compliance/host-inventory.json": "06d90d6d72481d67fc5d212e4dfe38d8ab6e80d35ee052ac60c299e0ec123e40",
+     "packaging/verify_host_inventory.py": "8c74c13e13620dd5762dc52429fb69a498cb7442c3c06f3fa5948d5e203d8f4c",
+     "host/patch_openutau.py": "f2c99f1a4a3e77a29af5c0a2ac41f3203d49d01ad79f8c5c56460f6b7acb72ad"
+    },
+    "evidence": [
+     "docs/review/evidence/g2p-model-free-decision.md"
+    ],
+    "installer_sha256": "16acbab1f5ee188b86426d0f93e250a2e3b6a47b543ce9f4e17e0f0002973976",
+    "g2p_model": "excluded"
+   }
   },
   {
    "id": "ai-code-authorship",
