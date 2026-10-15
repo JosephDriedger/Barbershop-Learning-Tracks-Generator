@@ -25,6 +25,7 @@ from typing import Any
 
 from barbershop_tracks.core.rendering import pronunciation
 from barbershop_tracks.core.rendering.cancel import CancelToken
+from barbershop_tracks.core.rendering.compose import compose_all
 from barbershop_tracks.core.rendering.errors import (
     OutputValidationError,
     ProjectValidationError,
@@ -54,6 +55,9 @@ from barbershop_tracks.core.runtime.staging import cleanup_stale, publish_direct
 from barbershop_tracks.core.synthesis import PlanNotReadyError, SynthesisPlan
 from barbershop_tracks.core.synthesis.openutau import (
     NO_OVERRIDES,
+    OverrideError,
+    PronunciationOverride,
+    ResolvedOverride,
     ResolvedOverrides,
     UstxError,
     write_ustx,
@@ -61,6 +65,11 @@ from barbershop_tracks.core.synthesis.openutau import (
 from barbershop_tracks.models import VoiceRole
 
 EventHandler = Callable[[dict[str, Any]], None]
+
+COMPOSED_BY = "BLT (built from dictionary pieces)"
+# the engine whose phonetic hints are the dictionary's own sounds
+ARPASING = "OpenUtau.Plugin.Builtin.ArpasingPhonemizer"
+LOOKUP_SECONDS = 120.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +80,8 @@ class RenderSettings:
     host_command: tuple[str, ...] | None = None  # replaces the installed host (tests, tooling)
     extra_env: Mapping[str, str] = field(default_factory=dict)
     timeout_seconds: float = 900.0
+    # a word the dictionary lacks is built from dictionary entries (compose.py) instead of stopping
+    compose_unknown_words: bool = True
     phonemize_timeout_ms: int = 60_000
     render_timeout_ms: int = 600_000
     stem_policy: StemPolicy = field(default_factory=StemPolicy)
@@ -85,6 +96,8 @@ class RenderResult:
     events: tuple[dict[str, Any], ...]
     job: str
     seconds: float
+    # the project that was rendered (it has the hints for words BLT built from the dictionary)
+    project_text: str | None = None
 
 
 def _tail(text: str, limit: int = 4000) -> str:
@@ -189,7 +202,7 @@ class OpenUtauRenderBackend:
         if token.cancelled:
             raise RenderCancelledError("RENDER_CANCELLED", "cancelled before it started")
         command_prefix, environment = self._host_launch()
-        project_text = self._project(plan, overrides)
+        self._project(plan, overrides)  # refuses a plan the engine could not hold, before any work
         layout = self.settings.layout
         try:
             cleanup_stale(layout.staging)  # recover from earlier crashes; never an active job
@@ -202,12 +215,12 @@ class OpenUtauRenderBackend:
         try:
             with self._host_slot(token, on_event):
                 try:
-                    result = self._run(
-                        plan, area, project_text, command_prefix, environment, token, on_event
+                    result = self._run_composing(
+                        plan, area, overrides, command_prefix, environment, token, on_event
                     )
                 except PronunciationError as unknown:
                     raise pronunciation.with_findings(unknown, plan) from unknown
-            host_result, events = result
+            host_result, events, project_text = result
             stems_dir = area.path / "stems"
             if on_event is not None:
                 on_event({"event": "blt_stage", "stage": "stem_validation", "status": "started"})
@@ -230,7 +243,13 @@ class OpenUtauRenderBackend:
                 for role, report in reports.items()
             }
             return RenderResult(
-                destination, final, host_result, tuple(events), job, time.monotonic() - started
+                destination,
+                final,
+                host_result,
+                tuple(events),
+                job,
+                time.monotonic() - started,
+                project_text,
             )
         finally:
             self._discard(area.path)
@@ -253,7 +272,7 @@ class OpenUtauRenderBackend:
         if token.cancelled:
             raise RenderCancelledError("RENDER_CANCELLED", "cancelled before it started")
         command_prefix, environment = self._host_launch()
-        project_text = self._project(plan, overrides)
+        self._project(plan, overrides)
         layout = self.settings.layout
         try:
             cleanup_stale(layout.staging)
@@ -265,10 +284,10 @@ class OpenUtauRenderBackend:
         try:
             with self._host_slot(token, on_event):
                 try:
-                    host_result, _events = self._run(
+                    host_result, _events, _project = self._run_composing(
                         plan,
                         area,
-                        project_text,
+                        overrides,
                         command_prefix,
                         environment,
                         token,
@@ -332,6 +351,175 @@ class OpenUtauRenderBackend:
         except UstxError as error:
             raise ProjectValidationError(error.code, error.message) from error
 
+    def _run_composing(
+        self,
+        plan: SynthesisPlan,
+        area: StagingArea,
+        overrides: ResolvedOverrides,
+        command_prefix: list[str],
+        environment: dict[str, str],
+        token: CancelToken,
+        on_event: EventHandler | None,
+        *,
+        check_only: bool = False,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
+        """Phonemize (and render); a word the dictionary lacks is built from pieces it has, once.
+
+        The engine's first answer lists the words with no entry. Each is split into dictionary
+        pieces (``compose.py``) and sent again as a phonetic hint for that one note; what cannot be
+        built stays unknown and stops the run as before. The words built this way are reported
+        in the result (``blt_composed``) so the package records them as BLT's, not a person's.
+        """
+        project = self._project(plan, overrides)
+        try:
+            first, events = self._run(
+                plan,
+                area,
+                project,
+                command_prefix,
+                environment,
+                token,
+                on_event,
+                check_only=check_only,
+            )
+            return first, events, project
+        except PronunciationError as unknown:
+            if unknown.code != "PRONUNCIATION_UNKNOWN":
+                raise
+            if not self.settings.compose_unknown_words:
+                raise
+            added = self._compose(plan, unknown, overrides, command_prefix, environment, token)
+            if not added:
+                raise
+            merged = ResolvedOverrides({**overrides.by_note, **added})
+            if on_event is not None:
+                on_event({"event": "blt_composed", "words": len(added)})
+            project = self._project(plan, merged)
+            host_result, events = self._run(
+                plan,
+                area,
+                project,
+                command_prefix,
+                environment,
+                token,
+                on_event,
+                check_only=check_only,
+            )
+            made = [
+                {
+                    "voice": found.override.role.value,
+                    "start": str(found.override.start),
+                    "word": found.override.word,
+                    "score_lyrics": list(found.score_lyrics),
+                    "pieces": list(found.composed_from),
+                    "how": found.composed_how,
+                    "symbols": found.override.hint,
+                    "phonemizer": found.override.phonemizer,
+                    "source_sha256": found.override.source_sha256,
+                }
+                for found in added.values()
+            ]
+            return {**host_result, "blt_composed": made}, events, project
+
+    def _compose(
+        self,
+        plan: SynthesisPlan,
+        unknown: PronunciationError,
+        overrides: ResolvedOverrides,
+        command_prefix: list[str],
+        environment: dict[str, str],
+        token: CancelToken,
+    ) -> dict[tuple[VoiceRole, int], ResolvedOverride]:
+        host = unknown.details.get("host_result") or {}
+        reported = host.get("unknown_words")
+        if not isinstance(reported, list):
+            return {}
+        wanted = [
+            u
+            for u in pronunciation.locate(plan, reported)
+            if u.role is not None
+            and u.start is not None
+            and u.note_index is not None
+            and u.phonemizer == ARPASING
+            and (VoiceRole(u.role), u.note_index) not in overrides.by_note
+        ]
+        if not wanted:
+            return {}
+        composed = compose_all(
+            (u.word for u in wanted),
+            lambda pieces: self._lookup(pieces, command_prefix, environment, token),
+        )
+        sha = plan.source.sha256
+        if sha is None:
+            return {}  # a hint is bound to the score's hash; without one nothing is composed
+        added: dict[tuple[VoiceRole, int], ResolvedOverride] = {}
+        for u in wanted:
+            made = composed.get(u.word)
+            if made is None or u.role is None or u.start is None or u.note_index is None:
+                continue
+            try:
+                override = PronunciationOverride(
+                    role=VoiceRole(u.role),
+                    start=u.start,
+                    word=u.word,
+                    phonemizer=ARPASING,
+                    symbols=made.symbols,
+                    approved_by=COMPOSED_BY,
+                    source_sha256=sha,
+                )
+            except OverrideError:
+                return {}  # a score identity that cannot bind a hint: leave the words to a person
+            added[(override.role, u.note_index)] = ResolvedOverride(
+                override,
+                u.note_index,
+                u.score_lyrics,
+                composed_from=made.pieces,
+                composed_how=made.how,
+            )
+        return added
+
+    def _lookup(
+        self,
+        pieces: list[str],
+        command_prefix: list[str],
+        environment: dict[str, str],
+        token: CancelToken,
+    ) -> dict[str, str | None]:
+        """Which of ``pieces`` the host's dictionary has, and their sounds; {} if it cannot say."""
+        if not pieces:
+            return {}
+        try:
+            owned = OwnedProcess(
+                [*command_prefix, "--lookup-words", "|".join(pieces)], env=environment
+            )
+        except OSError:
+            return {}
+        deadline = time.monotonic() + LOOKUP_SECONDS
+        try:
+            while owned.poll() is None:
+                if token.cancelled:
+                    owned.terminate_tree()
+                    owned.finish()
+                    raise RenderCancelledError(
+                        "RENDER_CANCELLED", "cancelled; the lookup process tree was ended"
+                    )
+                if time.monotonic() > deadline:
+                    owned.terminate_tree()
+                    owned.finish()
+                    return {}
+                time.sleep(self.settings.poll_seconds)
+            code = owned.finish()
+        except BaseException:
+            owned.terminate_tree()
+            owned.finish()
+            raise
+        events = _parse_events(owned.stdout_lines)
+        last = events[-1] if events else None
+        found = (last or {}).get("lookup")
+        if code != 0 or not isinstance(found, dict):
+            return {}
+        return {str(k): (str(v) if v else None) for k, v in found.items()}
+
     def _run(
         self,
         plan: SynthesisPlan,
@@ -349,7 +537,7 @@ class OpenUtauRenderBackend:
         out = area.path / "host-out"
         try:
             project.write_text(project_text, encoding="utf-8", newline="\n")
-            out.mkdir()
+            out.mkdir(exist_ok=True)
         except OSError as error:
             raise RenderConfigurationError(
                 "STAGING_NOT_WRITABLE", f"cannot write into {area.path}: {error}"

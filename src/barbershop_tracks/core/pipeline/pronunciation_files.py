@@ -192,6 +192,8 @@ def provenance_entries(
 
     Every entry keeps the score's own lyric text on the notes of the word, the decision (symbols, who,
     for which engine and score), and the sounds the engine made of it, as the host reported them.
+    A word the dictionary lacks that BLT built from dictionary pieces (``blt_composed`` in the host
+    result) is an entry too, marked ``"source": "composed"`` with the pieces: no person decided it.
     """
     made: dict[tuple[str, int], list[str]] = {}
     for item in (host_result or {}).get("pronunciations") or []:
@@ -214,6 +216,7 @@ def provenance_entries(
                 "phonemizer": item.phonemizer,
                 "alphabet": item.alphabet,
                 "symbols": item.hint,
+                "source": "person",
                 "approved_by": item.approved_by,
                 "source_sha256": item.source_sha256,
                 "scope": "this voice, this note, this word, this pronunciation engine",
@@ -222,6 +225,34 @@ def provenance_entries(
                 ),
             }
         )
+    for built in (host_result or {}).get("blt_composed") or []:
+        if not isinstance(built, Mapping):
+            continue
+        start = Fraction(str(built["start"]))
+        role = _ROLES[str(built["voice"])]
+        tick = start * 480
+        entries.append(
+            {
+                "voice": role.value,
+                "start": str(start),
+                "where": position_label(start, plan.meter, plan.measures),
+                "word": built["word"],
+                "score_lyrics": list(built.get("score_lyrics") or []),
+                "phonemizer": built["phonemizer"],
+                "alphabet": ALPHABETS[str(built["phonemizer"])],
+                "symbols": built["symbols"],
+                "source": "composed",
+                "composed_from": list(built.get("pieces") or []),
+                "composed_how": built.get("how") or "",
+                "approved_by": None,
+                "source_sha256": built.get("source_sha256"),
+                "scope": "this voice, this note, this word, this pronunciation engine",
+                "effective_phonemes": made.get(
+                    (role.display_name, int(tick)) if tick.denominator == 1 else ("", -1)
+                ),
+            }
+        )
+    entries.sort(key=lambda e: (Fraction(e["start"]), order[_ROLES[e["voice"]]]))
     return entries
 
 

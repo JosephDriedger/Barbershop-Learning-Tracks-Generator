@@ -13,7 +13,6 @@ import json
 import math
 import os
 import struct
-import subprocess
 import wave
 from pathlib import Path
 from typing import Any
@@ -23,8 +22,10 @@ import pytest
 from barbershop_tracks.cli import main
 from barbershop_tracks.core.pipeline import prepare, read_overrides
 from barbershop_tracks.core.readiness import RoleAssignments
+from barbershop_tracks.core.rendering import OpenUtauRenderBackend, RenderSettings
+from barbershop_tracks.core.runtime import RuntimeLayout
 from barbershop_tracks.core.synthesis import SourceIdentity, VoiceEngineRef
-from barbershop_tracks.core.synthesis.openutau import resolve_overrides, write_ustx
+from barbershop_tracks.core.synthesis.openutau import resolve_overrides
 from barbershop_tracks.models import VoiceRole
 from host_support import host_environment, require_host
 from synthetic_voicebank import SINGER_ID, build_voicebank
@@ -38,6 +39,7 @@ SAMPLE = FIXTURES / "english-quartet-unknown-words.pronunciations-arpasing.json"
 ARPASING = "OpenUtau.Plugin.Builtin.ArpasingPhonemizer"
 ASSIGN = ["TENOR=P1/s1/v1", "LEAD=P2/s1/v1", "BARITONE=P3/s1/v1", "BASS=P4/s1/v1"]
 ROLES = (VoiceRole.TENOR, VoiceRole.LEAD, VoiceRole.BARITONE, VoiceRole.BASS)
+NO_COMPOSING = "--no-composed-pronunciations"
 EXPECTED_PLACES = 17  # four unknown words sung by all four voices, and the Bass's own "mammy"
 
 
@@ -123,28 +125,18 @@ class Rig:
         resolved = resolve_overrides(
             plan, read_overrides(pronunciations, source_sha256=self.sha()), source_sha256=self.sha()
         )
-        project = self.root / "bank-probe.ustx"
-        project.write_text(write_ustx(plan, overrides=resolved).text, encoding="utf-8")
+        backend = OpenUtauRenderBackend(
+            RenderSettings(
+                layout=RuntimeLayout.under(self.root / "bin", self.root / "data"),
+                singers_dir=self.singers,
+                host_binaries=require_host(),
+                extra_env={k: v for k, v in host_environment().items() if k == "DOTNET_ROOT"},
+            )
+        )
         bank = self.singers / SINGER_ID
         added: set[str] = set()
         for _round in range(30):
-            done = subprocess.run(
-                [
-                    str(require_host() / "blt-render-host.exe"),
-                    "--project",
-                    str(project),
-                    "--phonemize-only",
-                    "--singers-dir",
-                    str(self.singers),
-                ],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                env=host_environment(),
-                timeout=180,
-                check=False,
-            )
-            result = json.loads(done.stdout.strip().splitlines()[-1])
+            result = backend.check_pronunciations(plan, resolved)  # builds the words it can
             assert result["status"] == "ok", result
             missing = {u["alias"] for u in result.get("unsung_phonemes", [])} - added
             if not missing and result["unsung_phoneme_count"] == 0:
@@ -192,7 +184,7 @@ def rig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Rig:
 def test_the_stopped_run_writes_a_template_with_one_undecided_entry_per_place(
     rig: Rig, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert rig.generate() != 0
+    assert rig.generate(NO_COMPOSING) != 0
     shown = capsys.readouterr().err
     assert "PRONUNCIATION_UNKNOWN" in shown
     assert "pronunciations template written to" in shown
@@ -214,7 +206,7 @@ def test_the_stopped_run_writes_a_template_with_one_undecided_entry_per_place(
     }
     assert [e["voice"] for e in entries if e["word"] == "mammy"] == ["bass"]
     # the unfilled template decides nothing: the same words still stop the run
-    assert rig.generate("--approve-pronunciations", str(path), "--replace") != 0
+    assert rig.generate(NO_COMPOSING, "--approve-pronunciations", str(path), "--replace") != 0
     assert "PRONUNCIATION_UNKNOWN" in capsys.readouterr().err
     assert not (rig.out / "unknown_learning_tracks").exists()
 
@@ -223,7 +215,7 @@ def test_the_sample_pronunciations_cover_exactly_the_places_the_real_run_names(r
     sample = json.loads(SAMPLE.read_text(encoding="utf-8"))
     assert len(sample["overrides"]) == EXPECTED_PLACES
     assert sample["source_sha256"] == rig.sha()  # tied to the score exactly as shipped
-    assert rig.generate() != 0
+    assert rig.generate(NO_COMPOSING) != 0
     (path,) = rig.templates()
     template = json.loads(path.read_text(encoding="utf-8"))
     key = lambda e: (e["voice"], e["start"], e["word"], e["phonemizer"])  # noqa: E731
@@ -272,7 +264,8 @@ def test_a_decision_for_only_some_voices_still_stops_at_the_others(
     def only_the_lead(document: dict[str, Any]) -> None:
         document["overrides"] = [e for e in document["overrides"] if e["voice"] == "lead"]
 
-    assert rig.generate("--approve-pronunciations", str(rig.pronunciations(only_the_lead))) != 0
+    decided = str(rig.pronunciations(only_the_lead))
+    assert rig.generate(NO_COMPOSING, "--approve-pronunciations", decided) != 0
     shown = capsys.readouterr().err
     assert "PRONUNCIATION_UNKNOWN" in shown
     assert '"lov\'d" (bar 1, beat 1; Tenor, Baritone, Bass)' in shown  # the Lead was decided
@@ -362,3 +355,51 @@ def test_a_decision_written_for_another_engine_is_refused(
     shown = capsys.readouterr().err
     assert "OVERRIDE_PHONEMIZER_MISMATCH" in shown
     assert "ArpasingPhonemizer" in shown
+
+
+def only_neath(document: dict[str, Any]) -> None:
+    document["overrides"] = [e for e in document["overrides"] if e["word"] == "'neath"]
+
+
+def test_by_default_a_word_the_dictionary_lacks_is_built_from_its_entries(
+    rig: Rig, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # the person decides the one word BLT cannot build ('neath); the others are built, not refused
+    decided = rig.pronunciations(only_neath)
+    rig.complete_voicebank(decided)
+    capsys.readouterr()
+    assert rig.generate("--approve-pronunciations", str(decided), "--keep-project") == 0
+    shown = capsys.readouterr().err
+    assert "PRONUNCIATION_COMPOSED" in shown
+    package = rig.out / "unknown_learning_tracks"
+    manifest = json.loads((package / "manifest.json").read_text(encoding="utf-8"))
+    records = manifest["pronunciation"]["overrides"]
+    built = [r for r in records if r["source"] == "composed"]
+    given = [r for r in records if r["source"] == "person"]
+    assert {r["word"] for r in given} == {"'neath"}
+    assert {r["word"] for r in built} == {"lov'd", "mammy", "ev'ryone", "o'er"}
+    assert all(r["approved_by"] is None for r in built)  # nobody decided these
+    over = next(r for r in built if r["word"] == "o'er" and r["voice"] == "lead")
+    assert over["composed_from"] == ["over"]
+    assert over["symbols"] == "ow v er"
+    assert "spelled out" in over["composed_how"]
+    assert over["score_lyrics"] == ["o'er"]  # the score's own text is kept beside it
+    assert over["effective_phonemes"]  # and the engine's own answer
+    ustx = (package / "project" / "project.ustx").read_text(encoding="utf-8")
+    assert 'lyric: "o\'er[ow v er]"' in ustx
+    assert rig.staging_empty()
+
+
+def test_a_word_that_cannot_be_built_still_stops_and_nothing_is_published(
+    rig: Rig, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert rig.generate() != 0
+    shown = capsys.readouterr().err
+    assert "PRONUNCIATION_UNKNOWN" in shown
+    assert '"\'neath" (bar 6, beat 3' in shown  # the only word with no way to be built
+    assert '"o\'er"' not in shown  # the others were built
+    (path,) = rig.templates()
+    template = json.loads(path.read_text(encoding="utf-8"))
+    assert {e["word"] for e in template["overrides"]} == {"'neath"}
+    assert not (rig.out / "unknown_learning_tracks").exists()
+    assert rig.staging_empty()

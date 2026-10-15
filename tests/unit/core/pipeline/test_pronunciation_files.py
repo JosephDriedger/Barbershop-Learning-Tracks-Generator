@@ -23,7 +23,7 @@ from barbershop_tracks.core.synthesis.openutau import (
 )
 from barbershop_tracks.models import Lyric, Syllabic, VoiceRole
 from readiness_builders import PITCHES, note
-from synth_builders import ROLES, SOURCE, plan_of
+from synth_builders import ROLES, SOURCE, full_lyrics, plan_of
 
 ARPASING = "OpenUtau.Plugin.Builtin.ArpasingPhonemizer"
 SHA = SOURCE.sha256 or ""
@@ -202,3 +202,34 @@ def test_the_package_record_keeps_the_score_text_beside_the_decision() -> None:
     assert record["effective_phonemes"] == ["- eh", "eh v"]
     assert provenance_entries(plan, resolved, None)[0]["effective_phonemes"] is None
     assert provenance_entries(plan, resolve_overrides(plan, [], source_sha256=SHA), host) == []
+
+
+def test_a_word_blt_built_from_the_dictionary_is_recorded_as_its_own_not_a_persons() -> None:
+    engine = VoiceEngineRef(singer="s", phonemizer=ARPASING, renderer="WORLDLINE-R")
+    plan = plan_of(
+        voices=full_lyrics(("la", "la", "la", "la")), engine_refs=dict.fromkeys(ROLES, engine)
+    )
+    host = {
+        "pronunciations": [{"track": "Lead", "position": 0, "phonemes": ["- ow", "ow v"]}],
+        "blt_composed": [
+            {
+                "voice": "lead",
+                "start": "0",
+                "word": "o'er",
+                "score_lyrics": ["o'er"],
+                "pieces": ["over"],
+                "how": "spelled out as 'over'",
+                "symbols": "ow v er",
+                "phonemizer": ARPASING,
+                "source_sha256": SHA,
+            }
+        ],
+    }
+    (record,) = provenance_entries(plan, resolve_overrides(plan, [], source_sha256=SHA), host)
+    assert record["source"] == "composed"
+    assert record["composed_from"] == ["over"]
+    assert record["composed_how"] == "spelled out as 'over'"
+    assert record["approved_by"] is None  # nobody decided it
+    assert record["score_lyrics"] == ["o'er"]
+    assert record["symbols"] == "ow v er"
+    assert record["effective_phonemes"] == ["- ow", "ow v"]

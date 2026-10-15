@@ -140,6 +140,9 @@ class ResolvedOverride:
     override: PronunciationOverride
     note_index: int
     score_lyrics: tuple[str, ...]  # the score's own text on the notes of the word, verbatim
+    # set only when BLT built the pronunciation itself from dictionary entries (no person decided it)
+    composed_from: tuple[str, ...] = ()
+    composed_how: str = ""
 
 
 @dataclass(frozen=True, slots=True)

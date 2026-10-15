@@ -127,6 +127,13 @@ def add_parsers(commands: Any) -> None:
         help="accept a score recognised from a PDF or image: recognition makes mistakes, so it "
         "only runs when you say so, and the result must be checked against the original",
     )
+    gen.add_argument(
+        "--no-composed-pronunciations",
+        action="store_true",
+        help="stop at every word the pronunciation dictionary lacks, so that you decide it; "
+        "by default such a word is built from dictionary entries (a spelling such as ev'ry for "
+        "every, or pieces of other words) and recorded as BLT's own, not as your decision",
+    )
     gen.add_argument("--out", metavar="DIR", help="folder that will hold the package folder")
     gen.add_argument(
         "--assign",
@@ -375,6 +382,7 @@ def _generate(args: argparse.Namespace, json_mode: bool) -> int:
         mp3_quality=args.mp3_quality,
         follow_lead=False if args.no_follow_lead else None,
         accept_recognition=args.accept_recognition,
+        compose_unknown_words=not args.no_composed_pronunciations,
     )
     token = CancelToken()
     previous = _signals(token)

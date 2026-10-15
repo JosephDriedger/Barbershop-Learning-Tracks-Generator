@@ -180,6 +180,8 @@ class GenerateRequest:
     # a PDF or image of music is read by recognising its notes (which makes mistakes): only when the
     # person has accepted that
     accept_recognition: bool = False
+    # a word the dictionary lacks is built from dictionary entries; False: it stops for a person
+    compose_unknown_words: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -452,6 +454,7 @@ def _check(
         host_binaries=config.host_binaries,
         extra_env=config.host_environment(),
         timeout_seconds=request.timeout_seconds,
+        compose_unknown_words=request.compose_unknown_words,
     )
     renderer = services.make_renderer(settings)
     result = renderer.check_pronunciations(plan, resolved, cancel=cancel, on_event=emit)
@@ -562,6 +565,7 @@ def _render_and_mix(
         host_binaries=config.host_binaries,
         extra_env=config.host_environment(),
         timeout_seconds=request.timeout_seconds,
+        compose_unknown_words=request.compose_unknown_words,
     )
     renderer = services.make_renderer(settings)
     stems_destination = area.path / "stems"
@@ -584,6 +588,14 @@ def _render_and_mix(
         plan, stems_destination, cancel=run.cancel, on_event=on_render_event, overrides=resolved
     )
     pronunciations = provenance_entries(plan, resolved, rendered.host_result)
+    for entry in pronunciations:
+        if entry["source"] == "composed":
+            message = (
+                f"{entry['word']!r} ({entry['where']}) is not in the pronunciation dictionary; "
+                f"it was {entry['composed_how']} (check how it sounds; the score is unchanged)"
+            )
+            warnings.append(f"PRONUNCIATION_COMPOSED: {message}")
+            run.emit({"event": "warning", "code": "PRONUNCIATION_COMPOSED", "message": message})
     run.stage(Stage.STEM_RENDERING, "finished")
     run.check()
 
@@ -597,7 +609,7 @@ def _render_and_mix(
             extras[f"stems/{report.path.name}"] = report.path
     if request.keep_project:
         project = area.path / "project.ustx"
-        project.write_text(ustx_text, encoding="utf-8", newline="\n")
+        project.write_text(rendered.project_text or ustx_text, encoding="utf-8", newline="\n")
         extras["project/project.ustx"] = project
 
     def on_package_event(event: dict[str, Any]) -> None:

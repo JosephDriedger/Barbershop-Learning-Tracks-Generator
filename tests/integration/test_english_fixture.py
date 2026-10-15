@@ -86,7 +86,7 @@ class Rig:
                 monkeypatch.setenv(key, value)
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-    def generate(self, version: str, phonemizer: str) -> int:
+    def generate(self, version: str, phonemizer: str, *extra: str) -> int:
         score = FIXTURES / f"english-quartet-{version}-words.musicxml"
         arguments = [
             "generate",
@@ -102,7 +102,7 @@ class Rig:
         ]
         for assignment in ASSIGN:
             arguments += ["--assign", assignment]
-        return main(arguments)
+        return main([*arguments, *extra])
 
 
 @pytest.fixture
@@ -116,7 +116,7 @@ def test_the_unknown_score_stops_before_rendering_and_names_every_word_voice_and
 ) -> None:
     if model_in_host():
         pytest.skip("the internal research host guesses pronunciations instead of stopping")
-    assert rig.generate("unknown", phonemizer) != 0
+    assert rig.generate("unknown", phonemizer, "--no-composed-pronunciations") != 0
     shown = capsys.readouterr().err
     assert "PRONUNCIATION_UNKNOWN" in shown
     assert "nothing was rendered" in shown
