@@ -43,5 +43,17 @@ class ScoreArchiveError(ScoreLoadError):
     """A compressed ``.mxl`` archive is invalid, unsafe, or does not identify a score."""
 
 
+class ScoreConversionError(ScoreLoadError):
+    """A MuseScore project or a PDF could not be turned into MusicXML. ``code`` says why."""
+
+    def __init__(
+        self, code: str, message: str, *, tool: str | None = None, path: Path | None = None
+    ) -> None:
+        super().__init__(message, path=path)
+        self.code = code
+        self.message = message
+        self.tool = tool
+
+
 class UnsupportedScoreFormatError(ScoreLoadError):
     """The file loads but is not a format this application supports (e.g. score-timewise)."""

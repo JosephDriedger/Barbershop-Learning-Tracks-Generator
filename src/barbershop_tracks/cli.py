@@ -36,7 +36,7 @@ from barbershop_tracks.core.handoff import (
 )
 from barbershop_tracks.core.handoff.render import render_export_json, render_export_text
 from barbershop_tracks.core.midi import DEFAULT_PPQ, MidiExportError, validate_ppq
-from barbershop_tracks.core.musicxml import ParseResult, parse_musicxml
+from barbershop_tracks.core.musicxml import ParseResult, opened_score, parse_musicxml
 from barbershop_tracks.core.readiness import CAPABILITIES, RoleAssignments, assess_readiness
 from barbershop_tracks.core.readiness.lines import describe_lines
 from barbershop_tracks.core.readiness.render import (
@@ -86,7 +86,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="assess whether a capability can generate from a score",
         description="Assess generation readiness. Exit 0 ready, 1 not ready, 2 usage/load error.",
     )
-    check.add_argument("score", help="a .musicxml, .xml or .mxl file")
+    check.add_argument("score", help=SCORE_HELP)
+    check.add_argument("--accept-recognition", action="store_true", help=RECOGNITION_HELP)
     check.add_argument(
         "--target",
         choices=sorted(CAPABILITIES),
@@ -120,7 +121,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="list the source lines and their identifiers",
         description="List source lines. Suggestions are read-only and never applied.",
     )
-    lines.add_argument("score", help="a .musicxml, .xml or .mxl file")
+    lines.add_argument("score", help=SCORE_HELP)
+    lines.add_argument("--accept-recognition", action="store_true", help=RECOGNITION_HELP)
     lines.add_argument("--format", choices=("text", "json"), default="text")
 
     export = commands.add_parser(
@@ -131,7 +133,8 @@ def build_parser() -> argparse.ArgumentParser:
             "OpenUtau). Exit 0 exported, 1 not exportable, 2 usage/load/filesystem failure."
         ),
     )
-    export.add_argument("score", help="a .musicxml, .xml or .mxl file")
+    export.add_argument("score", help=SCORE_HELP)
+    export.add_argument("--accept-recognition", action="store_true", help=RECOGNITION_HELP)
     export.add_argument(
         "--out", required=True, metavar="DIR", help="the directory that will hold the package"
     )
@@ -187,9 +190,18 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _load(path: str) -> ParseResult | None:
+SCORE_HELP = "a .musicxml, .xml, .mxl, .mscz (needs MuseScore) or .pdf (needs Audiveris) file"
+RECOGNITION_HELP = (
+    "accept a score recognised from a PDF or image (it may contain mistakes; check it against the "
+    "original)"
+)
+
+
+def _load(path: str, *, accept_recognition: bool = False) -> ParseResult | None:
     try:
-        return parse_musicxml(path)
+        # a MuseScore project or a PDF is converted first (core/musicxml/convert.py)
+        with opened_score(path, accept_recognition=accept_recognition) as opened:
+            return parse_musicxml(opened.parse_path)
     except ScoreLoadError as exc:
         print(f"error: {exc}", file=sys.stderr)
     except OSError as exc:
@@ -198,7 +210,7 @@ def _load(path: str) -> ParseResult | None:
 
 
 def _run_check(args: argparse.Namespace) -> int:
-    parsed = _load(args.score)
+    parsed = _load(args.score, accept_recognition=args.accept_recognition)
     if parsed is None:
         return EXIT_USAGE
     assignments = RoleAssignments(entries=tuple(args.assign), ignored=tuple(args.ignore))
@@ -212,7 +224,7 @@ def _run_check(args: argparse.Namespace) -> int:
 
 
 def _run_lines(args: argparse.Namespace) -> int:
-    parsed = _load(args.score)
+    parsed = _load(args.score, accept_recognition=args.accept_recognition)
     if parsed is None:
         return EXIT_USAGE
     infos = describe_lines(parsed)
@@ -235,7 +247,7 @@ def _run_export(args: argparse.Namespace) -> int:
     except MidiExportError as error:
         print(f"error[{error.code}]: {error.message}", file=sys.stderr)
         return EXIT_USAGE
-    parsed = _load(args.score)
+    parsed = _load(args.score, accept_recognition=args.accept_recognition)
     if parsed is None:
         return EXIT_USAGE
     score = Path(args.score)

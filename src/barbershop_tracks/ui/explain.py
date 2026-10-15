@@ -142,7 +142,60 @@ def _override_problem(error: PipelineError) -> Explanation:
     )
 
 
+_CONVERSION_CODES = (
+    "CONVERTER_NOT_FOUND",
+    "CONVERSION_FAILED",
+    "CONVERSION_TIMEOUT",
+    "CONVERSION_NO_OUTPUT",
+    "CONVERSION_AMBIGUOUS",
+    "RECOGNITION_NOT_CONFIRMED",
+)
+
+
+def _conversion(error: PipelineError) -> Explanation:
+    """A MuseScore project or a PDF that could not be turned into a score; nothing was guessed."""
+    tool = str(error.details.get("tool") or "the converting program")
+    text = _technical(error)
+    if error.code == "CONVERTER_NOT_FOUND":
+        return Explanation(
+            "converter_missing",
+            f"{tool} is needed to open this file",
+            error.message + ".",
+            (
+                f"Install {tool}, then choose the file again.",
+                "Or export MusicXML yourself (MuseScore: File > Export > MusicXML) and open that.",
+            ),
+            text,
+        )
+    if error.code == "RECOGNITION_NOT_CONFIRMED":
+        return Explanation(
+            "recognition_not_accepted",
+            "A recognised score has to be accepted first",
+            error.message + ".",
+            (
+                'Open the file in the app and choose "Recognise it", or pass --accept-recognition '
+                "on the command line.",
+                "Check every part against the original before generating.",
+            ),
+            text,
+        )
+    steps = ["Open the file in the program yourself and export MusicXML from there."]
+    if error.code == "CONVERSION_AMBIGUOUS":
+        steps.insert(0, "Split the PDF so that each file holds one piece, then try again.")
+    if error.code == "CONVERSION_TIMEOUT":
+        steps.insert(0, "Try again; a large or scanned file can take longer than the time allowed.")
+    return Explanation(
+        "conversion_failed",
+        "This file could not be turned into a score",
+        error.message + ". Nothing was generated.",
+        tuple(steps),
+        text,
+    )
+
+
 def _source(error: PipelineError) -> Explanation:
+    if error.code in _CONVERSION_CODES:
+        return _conversion(error)
     codes = {f["code"] for f in error.details.get("findings", [])}
     text = _technical(error)
     if any("TEMPO" in c for c in codes):

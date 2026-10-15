@@ -360,6 +360,11 @@ def _manifest(
             "display_name": source.identity.display_name,
             "sha256": source.identity.sha256,
             "title": source.identity.title,
+            # None for MusicXML; otherwise the program that made the MusicXML, and whether its notes
+            # were recognised from a picture (and so not checked by BLT)
+            "conversion": None
+            if source.identity.conversion is None
+            else dict(source.identity.conversion),
         },
         "audio": {
             "sample_rate": SAMPLE_RATE,

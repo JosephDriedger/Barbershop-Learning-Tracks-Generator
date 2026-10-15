@@ -208,6 +208,7 @@ def test_the_manifest_describes_every_track_and_leaks_no_paths(rig: Rig) -> None
         "display_name": "demo.musicxml",
         "sha256": "ab" * 32,
         "title": "Demo",
+        "conversion": None,
     }
     assert manifest["audio"]["frames"] == TARGET
     assert manifest["audio"]["duration_exact_seconds"] == "12/5"

@@ -68,12 +68,15 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "C4", "PT", "PTH", "RUF"]
 "scripts/research/*.py" = ["E501"]  # docstring prose and symbol tables
 "host/patch_openutau.py" = ["E501"]  # docstring prose
 "tests/gui_diagnostics.py" = ["E501"]  # docstring prose
+"tests/fake_converter.py" = ["E501"]  # docstring prose
 "scripts/build_english_acceptance_fixture.py" = ["E501"]  # docstring prose and the tune as data
 "src/barbershop_tracks/core/synthesis/openutau/words.py" = ["E501"]  # docstring prose and messages
 "src/barbershop_tracks/core/synthesis/openutau/overrides.py" = ["E501"]  # docstring prose and messages
 "src/barbershop_tracks/core/pipeline/pronunciation_files.py" = ["E501"]  # docstring prose and messages
 "tests/unit/core/synthesis/test_follower_fragments.py" = ["E501"]  # the findings are prose
 "tests/integration/test_pronunciation_cli.py" = ["E501"]  # docstring prose
+"tests/integration/test_musescore_input.py" = ["E501"]  # docstring prose
+"src/barbershop_tracks/core/musicxml/convert.py" = ["E501"]  # docstring prose and messages
 "src/barbershop_tracks/ui/pronunciation_review.py" = ["E501"]  # docstring prose and messages
 "src/barbershop_tracks/ui/pronunciation_dialog.py" = ["E501"]  # docstring prose and messages
 

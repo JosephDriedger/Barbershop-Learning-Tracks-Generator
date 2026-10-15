@@ -215,24 +215,20 @@ def test_dropping_a_score_loads_it(rig: Rig) -> None:
 
 
 def test_dropping_something_else_is_refused_politely(rig: Rig) -> None:
-    rig.window.handle_drop([QUrl.fromLocalFile(str(rig.tmp / "photo.png"))])
-    assert any(
-        "a picture of the music" in w and "Drop a .musicxml" in w for w in rig.prompts.warnings
-    )
     rig.window.handle_drop([QUrl.fromLocalFile(str(rig.tmp / "notes.txt"))])
-    assert any("That is not a MusicXML score." in w for w in rig.prompts.warnings)
+    assert any("That is not a score BLT can read." in w for w in rig.prompts.warnings)
+    rig.window.handle_drop([QUrl.fromLocalFile(str(rig.tmp / "Hymn.docx"))])
+    assert any(
+        "Drop a .musicxml, .xml, .mxl, .mscz, .mscx or .pdf file" in w for w in rig.prompts.warnings
+    )
 
 
-def test_a_musescore_project_or_a_pdf_dropped_is_explained_not_ignored(rig: Rig) -> None:
-    rig.window.handle_drop([QUrl.fromLocalFile(str(rig.tmp / "Hymn.mscz"))])
+def test_a_file_that_cannot_be_converted_is_explained_not_ignored(rig: Rig) -> None:
+    rig.window.handle_drop([QUrl.fromLocalFile(str(rig.tmp / "Hymn.mid"))])
     said = rig.prompts.warnings[-1]
-    assert "Hymn.mscz is a MuseScore project" in said
-    assert "File > Export" in said
-    rig.window.handle_drop([QUrl.fromLocalFile(str(rig.tmp / "Hymn.pdf"))])
-    said = rig.prompts.warnings[-1]
-    assert "Hymn.pdf is a PDF" in said
-    assert "will not guess" in said
+    assert "Hymn.mid is a MIDI file" in said
     assert "export MusicXML" in said
+    assert "Drop a .musicxml, .xml, .mxl, .mscz, .mscx or .pdf file" in said
 
 
 def test_any_local_file_may_be_dropped_so_that_it_can_be_explained(rig: Rig) -> None:

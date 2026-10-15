@@ -33,6 +33,8 @@ def codes_in_source() -> set[str]:
             continue  # the GUI only maps pipeline error codes to words; it produces no issues
         if path.name == "cli_generate.py":
             continue  # CLI usage codes (NO_OUTPUT, BAD_ASSIGN...) are invocation errors, not issues
+        if path.name == "convert.py" and path.parent.name == "musicxml":
+            continue  # typed ScoreConversionError codes (MuseScore, Audiveris), not issues
         if path.name == "policy.py" and path.parent.name == "readiness":
             continue  # the registry itself is not a producer of codes
         if path.relative_to(SRC).parts[:2] in {

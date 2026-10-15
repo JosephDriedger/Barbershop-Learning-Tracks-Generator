@@ -7,7 +7,11 @@ from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
-SCORE_FILTER = "MusicXML scores (*.musicxml *.xml *.mxl);;All files (*)"
+SCORE_FILTER = (
+    "Scores (*.musicxml *.xml *.mxl *.mscz *.mscx *.pdf);;"
+    "MusicXML (*.musicxml *.xml *.mxl);;MuseScore projects (*.mscz *.mscx);;"
+    "PDF or image of music (*.pdf *.png *.jpg *.jpeg);;All files (*)"
+)
 
 
 class Prompts:

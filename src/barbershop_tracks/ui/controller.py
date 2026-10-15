@@ -8,7 +8,6 @@ emits Qt signals; the main window only displays them. Everything the user must d
 undecided until they decide it: no tempo, meter, lyric, voice assignment or singer is invented.
 """
 
-import hashlib
 import os
 import time
 from collections.abc import Callable, Mapping
@@ -25,7 +24,7 @@ from barbershop_tracks.core.mixing import (
     GainProfile,
     MixConfigurationError,
 )
-from barbershop_tracks.core.musicxml import ParseResult, parse_musicxml
+from barbershop_tracks.core.musicxml import ParseResult, opened_score, parse_musicxml
 from barbershop_tracks.core.pipeline import (
     DEFAULT_PHONEMIZER,
     DEFAULT_RENDERER,
@@ -76,6 +75,9 @@ class LoadedScore:
     parsed: ParseResult
     lines: tuple[LineInfo, ...]
     problems: tuple[str, ...]  # readable parse problems (errors only)
+    # how it came from a file that is not MusicXML (MuseScore project, recognised PDF), or None
+    conversion: dict[str, Any] | None = None
+    accepted_recognition: bool = False  # the person accepted a recognised score
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,19 +229,32 @@ class AppController(QObject):
 
     # --- score -----------------------------------------------------------------------------
 
-    def load_score(self, path: Path) -> None:
+    def converted_cache(self) -> Path | None:
+        try:
+            return self.config().layout.cache / "converted"
+        except PipelineError:
+            return None
+
+    def load_score(self, path: Path, *, accept_recognition: bool = False) -> None:
         self.loading = True
         self.state_changed.emit()
+        cache = self.converted_cache()
 
         def work(_emit: Callable[[dict[str, Any]], None]) -> LoadedScore:
             try:
-                data = path.read_bytes()
+                # a MuseScore project or a PDF is converted first; identity stays the chosen file
+                with opened_score(
+                    path, accept_recognition=accept_recognition, cache=cache
+                ) as opened:
+                    parsed = self._parse(opened.parse_path)
+                    digest = opened.sha256
+                    conversion = (
+                        None if opened.conversion is None else opened.conversion.as_record()
+                    )
             except OSError as error:
                 raise PipelineError(
                     ErrorCategory.SOURCE, "SCORE_UNREADABLE", f"cannot read {path.name}: {error}"
                 ) from error
-            try:
-                parsed = self._parse(path)
             except BaseException as error:
                 raise translate(error) from error
             if parsed.song is None:
@@ -249,11 +264,13 @@ class AppController(QObject):
             problems = tuple(issue.message for issue in parsed.issues.errors)
             return LoadedScore(
                 path=path,
-                sha256=hashlib.sha256(data).hexdigest(),
+                sha256=digest,
                 title=parsed.song.title or path.stem,
                 parsed=parsed,
                 lines=describe_lines(parsed),
                 problems=problems,
+                conversion=conversion,
+                accepted_recognition=accept_recognition,
             )
 
         self.dispatcher.submit(work, self._score_ready, self._score_failed)
@@ -423,7 +440,10 @@ class AppController(QObject):
             self.state_changed.emit()
             return
         identity = SourceIdentity(
-            display_name=score.path.name, sha256=score.sha256, title=score.title or None
+            display_name=score.path.name,
+            sha256=score.sha256,
+            title=score.title or None,
+            conversion=score.conversion,
         )
         # placeholders only: the preview checks the music, not the singer
         refs = {
@@ -645,6 +665,7 @@ class AppController(QObject):
             timeout_seconds=float(self.prefs.timeout_minutes * 60),
             mp3_quality=options.mp3_quality,
             follow_lead=self.follow_lead(),
+            accept_recognition=bool(self.score and self.score.accepted_recognition),
         )
 
     def start_generation(self) -> bool:

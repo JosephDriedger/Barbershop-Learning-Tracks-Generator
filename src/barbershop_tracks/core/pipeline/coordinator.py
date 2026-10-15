@@ -12,7 +12,6 @@ every exit path; the published package holds only the 13 tracks in the chosen fo
 manifest and any explicitly requested extras. A failure never touches an existing package.
 """
 
-import hashlib
 import shutil
 import time
 import uuid
@@ -21,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-from barbershop_tracks.core.errors import ScoreLoadError
+from barbershop_tracks.core.errors import ScoreConversionError, ScoreLoadError
 from barbershop_tracks.core.handoff import HandoffError, sanitize_name
 from barbershop_tracks.core.mixing import (
     AudioFormat,
@@ -37,7 +36,7 @@ from barbershop_tracks.core.mixing import (
     is_our_package,
     stems_from_render,
 )
-from barbershop_tracks.core.musicxml import ParseResult, parse_musicxml
+from barbershop_tracks.core.musicxml import ParseResult, opened_score, parse_musicxml
 from barbershop_tracks.core.pipeline.config import (
     ENGLISH_PHONEMIZERS,
     ResolvedConfig,
@@ -178,6 +177,9 @@ class GenerateRequest:
     timeout_seconds: float = 900.0
     mp3_quality: int = 2
     follow_lead: bool | None = None  # None: the default (parts sing the Lead's words)
+    # a PDF or image of music is read by recognising its notes (which makes mistakes): only when the
+    # person has accepted that
+    accept_recognition: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -233,6 +235,10 @@ def translate(error: BaseException) -> PipelineError:
         return PipelineError(cat.SOURCE, error.code, error.message)
     if isinstance(error, StagingError):
         return PipelineError(cat.CONFIGURATION, error.code, error.message)
+    if isinstance(error, ScoreConversionError):
+        if error.code == "CONVERSION_CANCELLED":
+            return PipelineError(cat.CANCELLED, "CANCELLED", error.message)
+        return PipelineError(cat.SOURCE, error.code, error.message, {"tool": error.tool})
     if isinstance(error, ScoreLoadError):
         return PipelineError(cat.SOURCE, "SCORE_LOAD_FAILED", str(error))
     if isinstance(error, OSError):
@@ -279,18 +285,29 @@ def _load_plan(
     services: Services,
     run: _Run,
     refs: Mapping[VoiceRole, VoiceEngineRef],
+    cache: Path | None = None,
 ) -> tuple[SynthesisPlan, str]:
-    """Read and analyse the score and build the ready plan; returns it with the score's SHA-256."""
+    """Read and analyse the score and build the ready plan; returns it with the score's SHA-256.
+
+    A MuseScore project or a PDF is converted first (``core/musicxml/convert.py``); the SHA-256 is
+    that of the file the person chose, so approvals and pronunciations stay bound to it.
+    """
     # --- source ---
     run.stage(Stage.SOURCE_LOADING, "started")
     try:
-        data = request.score.read_bytes()
+        with opened_score(
+            request.score,
+            accept_recognition=request.accept_recognition,
+            cache=cache,
+            cancel=run.cancel,
+        ) as opened:
+            parsed = services.parse(opened.parse_path)
+            sha = opened.sha256
+            conversion = None if opened.conversion is None else opened.conversion.as_record()
     except OSError as error:
         raise PipelineError(
             ErrorCategory.SOURCE, "SCORE_UNREADABLE", f"cannot read {request.score}: {error}"
         ) from error
-    sha = hashlib.sha256(data).hexdigest()
-    parsed = services.parse(request.score)
     run.stage(Stage.SOURCE_LOADING, "finished")
     run.check()
 
@@ -305,7 +322,10 @@ def _load_plan(
 
     run.stage(Stage.READINESS_VALIDATION, "started")
     identity = SourceIdentity(
-        display_name=request.score.name, sha256=sha, title=parsed.song.title or None
+        display_name=request.score.name,
+        sha256=sha,
+        title=parsed.song.title or None,
+        conversion=conversion,
     )
     prepared = prepare(
         parsed,
@@ -422,7 +442,7 @@ def _check(
 ) -> dict[str, Any]:
     run = _Run(emit, cancel)
     refs = request.engine.refs()
-    plan, sha = _load_plan(request, services, run, refs)
+    plan, sha = _load_plan(request, services, run, refs, config.layout.cache / "converted")
     resolved = resolve_overrides(plan, request.pronunciations, source_sha256=sha)
     write_ustx(plan, overrides=resolved)  # refuses anything OpenUtau could not hold faithfully
     _require_environment(config, run, refs)
@@ -478,7 +498,7 @@ def _generate(
             "MP3 output needs FFmpeg: pass --ffmpeg PATH, set BLT_FFMPEG, or put ffmpeg on PATH",
         )
 
-    plan, sha = _load_plan(request, services, run, refs)
+    plan, sha = _load_plan(request, services, run, refs, config.layout.cache / "converted")
 
     run.stage(Stage.USTX_PREPARATION, "started")
     # every pronunciation a person gave must belong to this score, voice, note, word and engine

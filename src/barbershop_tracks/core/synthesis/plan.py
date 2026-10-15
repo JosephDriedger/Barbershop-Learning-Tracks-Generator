@@ -259,6 +259,8 @@ class SourceIdentity:
     display_name: str
     sha256: str | None = None
     title: str | None = None
+    # how the score came from a file that is not MusicXML (MuseScore project, recognised PDF)
+    conversion: Mapping[str, object] | None = None
 
     def __post_init__(self) -> None:
         if not self.display_name.strip():

@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
 )
 
 from barbershop_tracks import __version__
+from barbershop_tracks.core.musicxml.convert import CONVERTED_SUFFIXES, needs_recognition
 from barbershop_tracks.core.musicxml.source import wrong_file_advice
 from barbershop_tracks.core.pipeline import STAGES, GenerateResult, PipelineError
 from barbershop_tracks.diagnostics import collect
@@ -56,7 +57,7 @@ from barbershop_tracks.ui.sections import (
     VoicesSection,
 )
 
-SCORE_SUFFIXES = (".musicxml", ".xml", ".mxl")
+SCORE_SUFFIXES = (".musicxml", ".xml", ".mxl", *CONVERTED_SUFFIXES)
 TITLE = "BLT Music Generator"
 
 
@@ -256,8 +257,25 @@ class MainWindow(QMainWindow):
         if self.controller.running:
             self.prompts.inform(self, TITLE, "Wait for the current generation to finish first.")
             return
+        accept = False
+        if needs_recognition(path):
+            # a picture of music has no notes in it: a program would recognise them, and recognition
+            # makes mistakes. Never silently: the person says so first (and then checks the result).
+            if not self.prompts.confirm(
+                self,
+                "Recognise the music in this file?",
+                f"{path.name} is a picture of music, not a score. BLT can read it only by having "
+                "a program recognise the notes, rhythms and words (it uses Audiveris, which must "
+                "be installed). Recognition makes mistakes: a wrong note, a missed tie, a word "
+                "under the wrong note. It can take several minutes.\n\nIf you go on, check every "
+                "part against the original before you generate: BLT does not check the "
+                "recognised music for you.",
+                "Recognise it",
+            ):
+                return
+            accept = True
         self.score_section.show_loading(path.name)
-        self.controller.load_score(path)
+        self.controller.load_score(path, accept_recognition=accept)
 
     def choose_voices_folder(self) -> None:
         current = self.controller.singers_folder()
@@ -323,8 +341,8 @@ class MainWindow(QMainWindow):
             self.prompts.warn(
                 self,
                 TITLE,
-                (advice + "." if advice else "That is not a MusicXML score.")
-                + " Drop a .musicxml, .xml or .mxl file.",
+                (advice + "." if advice else "That is not a score BLT can read.")
+                + " Drop a .musicxml, .xml, .mxl, .mscz, .mscx or .pdf file.",
             )
             return
         self.open_score(path)
@@ -360,6 +378,20 @@ class MainWindow(QMainWindow):
             self.validation_section.show_items([], "Choose a score to check it.", 0, "")
             return
         summary = "Needs attention"
+        conversion = c.score.conversion
+        if conversion is not None and conversion.get("recognised"):
+            items.append(
+                (
+                    "warning",
+                    "This score was recognised from a picture by "
+                    f"{conversion.get('tool')}. Recognition makes mistakes: check the notes, "
+                    "rhythms and words of every part against the original before generating.",
+                )
+            )
+        elif conversion is not None:
+            items.append(
+                ("info", f"Read from a {c.score.path.suffix} file by {conversion.get('tool')}.")
+            )
         if c.assignments is not None:
             items.extend(("info", p) for p in c.assignments.problems())
         view = c.validation

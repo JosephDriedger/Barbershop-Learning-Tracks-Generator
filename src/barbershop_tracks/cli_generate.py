@@ -117,7 +117,16 @@ def add_parsers(commands: Any) -> None:
             "5 timeout, 6 lyrics need review, 130 cancelled."
         ),
     )
-    gen.add_argument("score", help="a .musicxml, .xml or .mxl file")
+    gen.add_argument(
+        "score",
+        help="a .musicxml, .xml, .mxl, .mscz (needs MuseScore) or .pdf (needs Audiveris) file",
+    )
+    gen.add_argument(
+        "--accept-recognition",
+        action="store_true",
+        help="accept a score recognised from a PDF or image: recognition makes mistakes, so it "
+        "only runs when you say so, and the result must be checked against the original",
+    )
     gen.add_argument("--out", metavar="DIR", help="folder that will hold the package folder")
     gen.add_argument(
         "--assign",
@@ -365,6 +374,7 @@ def _generate(args: argparse.Namespace, json_mode: bool) -> int:
         timeout_seconds=args.timeout,
         mp3_quality=args.mp3_quality,
         follow_lead=False if args.no_follow_lead else None,
+        accept_recognition=args.accept_recognition,
     )
     token = CancelToken()
     previous = _signals(token)
