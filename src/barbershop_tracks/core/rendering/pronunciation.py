@@ -19,7 +19,8 @@ from typing import Any
 
 from barbershop_tracks.core.rendering.errors import PronunciationError
 from barbershop_tracks.core.synthesis import SynthesisPlan
-from barbershop_tracks.core.synthesis.openutau.words import is_word_fragment
+from barbershop_tracks.core.synthesis.openutau.overrides import score_lyrics_of
+from barbershop_tracks.core.synthesis.openutau.words import assemble_words, is_word_fragment
 from barbershop_tracks.core.synthesis.positions import position_label
 
 TICKS_PER_QUARTER = 480  # the USTX resolution BLT writes (core/synthesis/openutau/ustx.py)
@@ -36,6 +37,7 @@ class UnknownWord:
     word: str  # the part of it with no entry
     fragment: bool = False  # a syllable of a longer word that this part does not sing whole
     phonemizer: str | None = None  # the voice's pronunciation engine (the notation a hint takes)
+    score_lyrics: tuple[str, ...] = ()  # the score's own text on the notes of the word, verbatim
 
     def as_detail(self) -> dict[str, Any]:
         return {
@@ -48,6 +50,7 @@ class UnknownWord:
             "word": self.word,
             "fragment": self.fragment,
             "phonemizer": self.phonemizer,
+            "score_lyrics": list(self.score_lyrics),
         }
 
 
@@ -55,6 +58,7 @@ def locate(plan: SynthesisPlan, reported: Sequence[Mapping[str, Any]]) -> list[U
     """Match the host's ``unknown_words`` (track, tick, lyric, word) to the plan's notes."""
     by_name = {voice.role.display_name: voice for voice in plan.voices}
     found: list[UnknownWord] = []
+    joins = {name: assemble_words(plan, voice) for name, voice in by_name.items()}
     for item in reported:
         track = str(item.get("track", ""))
         voice = by_name.get(track)
@@ -62,10 +66,12 @@ def locate(plan: SynthesisPlan, reported: Sequence[Mapping[str, Any]]) -> list[U
         start = Fraction(int(position), TICKS_PER_QUARTER) if isinstance(position, int) else None
         note_index: int | None = None
         fragment = False
+        written: tuple[str, ...] = ()
         if voice is not None and start is not None:
             sung = next((n for n in voice.notes if n.start == start), None)
             if sung is not None:
                 note_index = sung.index
+                written = score_lyrics_of(plan, voice.role, joins[track], sung.index)
                 # only the syllable as the score writes it is a fragment; a word that BLT assembled
                 # from all of its syllables (words.py) is a whole word
                 fragment = is_word_fragment(sung) and str(item.get("word", "")) == sung.lyric.text
@@ -82,6 +88,7 @@ def locate(plan: SynthesisPlan, reported: Sequence[Mapping[str, Any]]) -> list[U
                 word=str(item.get("word", "")),
                 fragment=fragment,
                 phonemizer=plan.engine_ref(voice.role).phonemizer if voice is not None else None,
+                score_lyrics=written,
             )
         )
     order = {name: i for i, name in enumerate(by_name)}

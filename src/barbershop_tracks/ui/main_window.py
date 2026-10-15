@@ -45,6 +45,7 @@ from barbershop_tracks.ui.formatting import clock
 from barbershop_tracks.ui.lyric_review import LyricReviewState
 from barbershop_tracks.ui.preferences import Preferences
 from barbershop_tracks.ui.prompts import Opener, Prompts, open_in_explorer
+from barbershop_tracks.ui.pronunciation_dialog import PronunciationDialog
 from barbershop_tracks.ui.sections import (
     AssignmentSection,
     OutputSection,
@@ -171,6 +172,7 @@ class MainWindow(QMainWindow):
         self.output_section.ffmpeg_requested.connect(self.choose_ffmpeg)
         self.validation_section.review_requested.connect(self.open_review)
         self.progress_section.review_requested.connect(self.open_review)
+        self.progress_section.pronunciation_requested.connect(self.open_pronunciations)
         self.progress_section.cancel_requested.connect(self.controller.cancel_generation)
         self.progress_section.open_folder_requested.connect(self.open_output_folder)
         c.state_changed.connect(self.refresh)
@@ -193,10 +195,16 @@ class MainWindow(QMainWindow):
         open_action = QAction("&Open score…", self)
         open_action.setShortcut(QKeySequence.StandardKey.Open)
         open_action.triggered.connect(self.choose_score)
+        self.pronunciation_action = QAction("&Pronunciations…", self)
+        self.pronunciation_action.setToolTip(
+            "Say how words the pronunciation dictionary lacks are sung (the score is not changed)"
+        )
+        self.pronunciation_action.triggered.connect(self.open_pronunciations)
         quit_action = QAction("&Quit", self)
         quit_action.setShortcut(QKeySequence.StandardKey.Quit)
         quit_action.triggered.connect(self.close)
         file_menu.addAction(open_action)
+        file_menu.addAction(self.pronunciation_action)
         file_menu.addSeparator()
         file_menu.addAction(quit_action)
         help_menu = self.menuBar().addMenu("&Help")
@@ -332,6 +340,8 @@ class MainWindow(QMainWindow):
         else:
             self.why.setText("Everything is ready.")
         self.generate.setToolTip("\n".join(blockers))
+        state = c.pronunciation_state()
+        self.pronunciation_action.setEnabled(state is not None and bool(state.rows))
 
     def _refresh_validation(self) -> None:
         c = self.controller
@@ -408,6 +418,28 @@ class MainWindow(QMainWindow):
             return
         if self.run_dialog(dialog) and self.controller.review is not None:
             self.controller.set_approvals(self.controller.review.approvals())
+
+    # --- pronunciations --------------------------------------------------------------------
+
+    def create_pronunciation_dialog(self) -> PronunciationDialog | None:
+        c = self.controller
+        state = c.pronunciation_state()
+        if state is None or not state.rows:
+            return None
+        return PronunciationDialog(state, c, self.prompts, self)
+
+    def open_pronunciations(self) -> None:
+        dialog = self.create_pronunciation_dialog()
+        if dialog is None:
+            self.prompts.inform(
+                self,
+                TITLE,
+                "No word needs a pronunciation yet. If the pronunciation dictionary lacks a word "
+                "of your score, generating stops and names it; then it is listed here.",
+            )
+            return
+        self.run_dialog(dialog)
+        self.controller.state_changed.emit()
 
     # --- generation ------------------------------------------------------------------------
 

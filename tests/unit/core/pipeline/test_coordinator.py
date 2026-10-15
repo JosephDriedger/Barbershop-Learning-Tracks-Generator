@@ -59,7 +59,21 @@ class FakeRenderer:
         self.error = error
         self.calls: list[SynthesisPlan] = []
         self.overrides: list[Any] = []
+        self.checks: list[Any] = []
         self.hold = hold
+
+    def check_pronunciations(
+        self,
+        plan: SynthesisPlan,
+        overrides: Any = None,
+        *,
+        cancel: Any = None,
+        on_event: Any = None,
+    ) -> dict[str, Any]:
+        self.checks.append(overrides)
+        if self.error is not None:
+            raise self.error
+        return {"status": "ok", "pronunciations": []}
 
     def render(
         self,

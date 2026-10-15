@@ -102,6 +102,15 @@ class Renderer(Protocol):
         overrides: ResolvedOverrides = ...,
     ) -> RenderResult: ...
 
+    def check_pronunciations(
+        self,
+        plan: SynthesisPlan,
+        overrides: ResolvedOverrides = ...,
+        *,
+        cancel: CancelToken | None = ...,
+        on_event: Callable[[dict[str, Any]], None] | None = ...,
+    ) -> Mapping[str, Any]: ...
+
 
 @dataclass(frozen=True, slots=True)
 class Services:
@@ -265,46 +274,13 @@ def generate(
         raise translate(error) from error
 
 
-def _generate(
+def _load_plan(
     request: GenerateRequest,
-    config: ResolvedConfig,
     services: Services,
-    cancel: CancelToken,
-    emit: EventHandler,
-) -> GenerateResult:
-    run = _Run(emit, cancel)
-    started = time.monotonic()
-    warnings: list[str] = []
-    refs = request.engine.refs()  # an unchosen singer is reported before any work
-
-    # --- the output location, checked up front (publication re-checks it atomically) ---
-    try:
-        base = sanitize_name(request.name if request.name is not None else request.score.stem)
-    except HandoffError as error:
-        raise PipelineError(ErrorCategory.CONFIGURATION, error.code, error.message) from error
-    destination = request.output / package_dirname(base)
-    if destination.exists():
-        if not request.replace:
-            raise PipelineError(
-                ErrorCategory.CONFIGURATION,
-                "OUTPUT_EXISTS",
-                f"{destination.name} already exists in the output folder; use --replace to "
-                "replace a previous package",
-            )
-        if not is_our_package(destination):
-            raise PipelineError(
-                ErrorCategory.CONFIGURATION,
-                "OUTPUT_FOREIGN",
-                f"{destination.name} exists but is not a learning-track package; it will not be "
-                "replaced",
-            )
-    if AudioFormat.MP3 in request.formats and config.ffmpeg is None:
-        raise PipelineError(
-            ErrorCategory.CONFIGURATION,
-            "FFMPEG_NOT_CONFIGURED",
-            "MP3 output needs FFmpeg: pass --ffmpeg PATH, set BLT_FFMPEG, or put ffmpeg on PATH",
-        )
-
+    run: _Run,
+    refs: Mapping[VoiceRole, VoiceEngineRef],
+) -> tuple[SynthesisPlan, str]:
+    """Read and analyse the score and build the ready plan; returns it with the score's SHA-256."""
     # --- source ---
     run.stage(Stage.SOURCE_LOADING, "started")
     try:
@@ -361,15 +337,13 @@ def _generate(
     run.stage(Stage.READINESS_VALIDATION, "finished")
     run.check()
 
-    run.stage(Stage.USTX_PREPARATION, "started")
-    # every pronunciation a person gave must belong to this score, voice, note, word and engine
-    resolved = resolve_overrides(plan, request.pronunciations, source_sha256=sha)
-    document_ustx = write_ustx(plan, overrides=resolved)  # refuses what OpenUtau could not hold
-    for warning in document_ustx.warnings:
-        warnings.append(f"{warning.code}: {warning.message}")
-        run.emit({"event": "warning", "code": warning.code, "message": warning.message})
-    run.stage(Stage.USTX_PREPARATION, "finished", notes=document_ustx.note_count)
+    return plan, sha
 
+
+def _require_environment(
+    config: ResolvedConfig, run: _Run, refs: Mapping[VoiceRole, VoiceEngineRef]
+) -> None:
+    """The runtime, the voicebanks and the render host the run needs; raises PipelineError."""
     # --- the Microsoft runtime the native parts need (BLT does not ship it) ---
     runtime = runtime_status()
     if not runtime.ok:
@@ -409,6 +383,113 @@ def _generate(
             "HOST_NOT_FOUND",
             "the render host was not found; pass --host-dir or set BLT_HOST_DIR",
         )
+
+
+def check_pronunciations(
+    request: GenerateRequest,
+    config: ResolvedConfig,
+    *,
+    services: Services | None = None,
+    cancel: CancelToken | None = None,
+    on_event: EventHandler = ignore,
+) -> dict[str, Any]:
+    """Phonemize the score with the real engine and stop: nothing is rendered or published.
+
+    Everything up to the engine is exactly what ``generate`` does (the score, the voice mapping,
+    the lyric decisions, the pronunciations given), so this says, before a long render, whether the
+    words and the pronunciations will be accepted. Raises :class:`PipelineError`: a word the
+    dictionary lacks is ``PRONUNCIATION_UNKNOWN``, a pronunciation the engine refuses is
+    ``PRONUNCIATION_INVALID`` (each placed in the score), a pronunciation that no longer fits the
+    score is ``OVERRIDE_*``. Returns the engine's report (``pronunciations``: the sounds it made
+    of each pronunciation given).
+    """
+    try:
+        return _check(request, config, services or Services(), cancel or CancelToken(), on_event)
+    except PipelineError:
+        raise
+    except BaseException as error:
+        if isinstance(error, KeyboardInterrupt):
+            raise
+        raise translate(error) from error
+
+
+def _check(
+    request: GenerateRequest,
+    config: ResolvedConfig,
+    services: Services,
+    cancel: CancelToken,
+    emit: EventHandler,
+) -> dict[str, Any]:
+    run = _Run(emit, cancel)
+    refs = request.engine.refs()
+    plan, sha = _load_plan(request, services, run, refs)
+    resolved = resolve_overrides(plan, request.pronunciations, source_sha256=sha)
+    write_ustx(plan, overrides=resolved)  # refuses anything OpenUtau could not hold faithfully
+    _require_environment(config, run, refs)
+    settings = RenderSettings(
+        layout=config.layout,
+        singers_dir=config.singers_dir or Path(),
+        host_binaries=config.host_binaries,
+        extra_env=config.host_environment(),
+        timeout_seconds=request.timeout_seconds,
+    )
+    renderer = services.make_renderer(settings)
+    result = renderer.check_pronunciations(plan, resolved, cancel=cancel, on_event=emit)
+    return dict(result)
+
+
+def _generate(
+    request: GenerateRequest,
+    config: ResolvedConfig,
+    services: Services,
+    cancel: CancelToken,
+    emit: EventHandler,
+) -> GenerateResult:
+    run = _Run(emit, cancel)
+    started = time.monotonic()
+    warnings: list[str] = []
+    refs = request.engine.refs()  # an unchosen singer is reported before any work
+
+    # --- the output location, checked up front (publication re-checks it atomically) ---
+    try:
+        base = sanitize_name(request.name if request.name is not None else request.score.stem)
+    except HandoffError as error:
+        raise PipelineError(ErrorCategory.CONFIGURATION, error.code, error.message) from error
+    destination = request.output / package_dirname(base)
+    if destination.exists():
+        if not request.replace:
+            raise PipelineError(
+                ErrorCategory.CONFIGURATION,
+                "OUTPUT_EXISTS",
+                f"{destination.name} already exists in the output folder; use --replace to "
+                "replace a previous package",
+            )
+        if not is_our_package(destination):
+            raise PipelineError(
+                ErrorCategory.CONFIGURATION,
+                "OUTPUT_FOREIGN",
+                f"{destination.name} exists but is not a learning-track package; it will not be "
+                "replaced",
+            )
+    if AudioFormat.MP3 in request.formats and config.ffmpeg is None:
+        raise PipelineError(
+            ErrorCategory.CONFIGURATION,
+            "FFMPEG_NOT_CONFIGURED",
+            "MP3 output needs FFmpeg: pass --ffmpeg PATH, set BLT_FFMPEG, or put ffmpeg on PATH",
+        )
+
+    plan, sha = _load_plan(request, services, run, refs)
+
+    run.stage(Stage.USTX_PREPARATION, "started")
+    # every pronunciation a person gave must belong to this score, voice, note, word and engine
+    resolved = resolve_overrides(plan, request.pronunciations, source_sha256=sha)
+    document_ustx = write_ustx(plan, overrides=resolved)  # refuses what OpenUtau could not hold
+    for warning in document_ustx.warnings:
+        warnings.append(f"{warning.code}: {warning.message}")
+        run.emit({"event": "warning", "code": warning.code, "message": warning.message})
+    run.stage(Stage.USTX_PREPARATION, "finished", notes=document_ustx.note_count)
+
+    _require_environment(config, run, refs)
 
     # --- everything below runs inside a job-scoped working directory ---
     layout = config.layout
@@ -561,6 +642,7 @@ __all__ = [
     "GenerateResult",
     "Renderer",
     "Services",
+    "check_pronunciations",
     "generate",
     "package_dirname",
     "translate",

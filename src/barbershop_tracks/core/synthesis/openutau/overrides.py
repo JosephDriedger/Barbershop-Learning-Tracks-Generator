@@ -165,7 +165,7 @@ def _sent_word(plan: SynthesisPlan, role: VoiceRole, joined: WordJoin, index: in
     return joined.whole.get(index, note.lyric.text)
 
 
-def _score_lyrics(
+def score_lyrics_of(
     plan: SynthesisPlan, role: VoiceRole, joined: WordJoin, index: int
 ) -> tuple[str, ...]:
     """The text the score (or the Lead it follows) has on the notes that make up the word."""
@@ -248,7 +248,7 @@ def resolve_overrides(
                 f"{item.word!r}",
             )
         resolved[(item.role, note.index)] = ResolvedOverride(
-            item, note.index, _score_lyrics(plan, item.role, joined, note.index)
+            item, note.index, score_lyrics_of(plan, item.role, joined, note.index)
         )
     return ResolvedOverrides(resolved)
 
@@ -267,4 +267,5 @@ __all__ = [
     "alphabet_for",
     "parse_symbols",
     "resolve_overrides",
+    "score_lyrics_of",
 ]

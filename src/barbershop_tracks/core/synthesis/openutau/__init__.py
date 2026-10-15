@@ -11,6 +11,7 @@ from barbershop_tracks.core.synthesis.openutau.overrides import (
     alphabet_for,
     parse_symbols,
     resolve_overrides,
+    score_lyrics_of,
 )
 from barbershop_tracks.core.synthesis.openutau.target import (
     TARGET_0_1_565,
@@ -55,6 +56,7 @@ __all__ = [
     "read_ustx_version",
     "require_ustx_version",
     "resolve_overrides",
+    "score_lyrics_of",
     "target_for",
     "validate_lyric_text",
     "write_ustx",

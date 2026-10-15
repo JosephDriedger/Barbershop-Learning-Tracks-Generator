@@ -19,6 +19,7 @@ class Explanation:
     technical: str = ""
     cancelled: bool = False
     review: bool = False
+    pronunciation: bool = False  # the pronunciation review is the way forward
 
 
 def _technical(error: PipelineError) -> str:
@@ -65,7 +66,10 @@ def _pronunciation(error: PipelineError) -> Explanation:
         f"The pronunciation dictionary has no entry for {which}, and BLT will not guess or leave "
         "a syllable out, so nothing was generated.\n" + (shown or "See the technical details."),
         (
-            "Change each word in your score to a spelling the dictionary knows, written the way "
+            "Open Pronunciations and write how each of these places is sung, in the notation of "
+            "your pronunciation engine. BLT checks what you write before it renders anything, "
+            "and your score is not changed.",
+            "Or change the word in your score to a spelling the dictionary knows, written the way "
             "it is sung (for example 'every' for ev'ry, 'over' for o'er), save the score and "
             "choose it again.",
             *(
@@ -81,6 +85,60 @@ def _pronunciation(error: PipelineError) -> Explanation:
             "BLT never changes your score's own words.",
         ),
         _technical(error) + "\n" + "\n".join(f"  {line}" for line in lines),
+        pronunciation=True,
+    )
+
+
+def _pronunciation_invalid(error: PipelineError) -> Explanation:
+    """A pronunciation the person gave that the engine refuses; nothing was rendered."""
+    lines = []
+    for item in error.details.get("invalid_hints", []):
+        reason = str(item.get("reason", ""))
+        if reason == "symbol_unknown":
+            what = f"the symbol '{item.get('symbol')}' is not one this engine knows"
+        elif reason == "engine_error":
+            what = "the engine failed on the symbols given"
+        else:
+            what = "the symbols given make no sound"
+        lines.append(
+            f'"{item.get("lyric", "")}": {item.get("where", "")} ({item.get("voice", "")}): {what}'
+        )
+    shown = "\n".join(f"  {line}" for line in lines[:12])
+    if len(lines) > 12:
+        shown += f"\n  ... and {len(lines) - 12} more places"
+    return Explanation(
+        "pronunciation_invalid",
+        "A pronunciation you gave cannot be used",
+        "The singing engine refused a pronunciation, so nothing was rendered and nothing was "
+        "changed.\n" + (shown or "See the technical details."),
+        (
+            "Open Pronunciations, correct the marked places and check again.",
+            "Write the symbols in the notation of the pronunciation engine chosen for the voice, "
+            "separated by spaces.",
+            "BLT never changes your score's own words.",
+        ),
+        _technical(error) + "\n" + "\n".join(f"  {line}" for line in lines),
+        pronunciation=True,
+    )
+
+
+def _override_problem(error: PipelineError) -> Explanation:
+    """A saved pronunciation that no longer fits the score, the voice or the engine."""
+    steps = [
+        "Open Pronunciations and decide the place again, or remove the pronunciation.",
+        "A pronunciation belongs to one score, one voice, one word and one pronunciation engine.",
+    ]
+    if error.code in ("OVERRIDE_PHONEMIZER_MISMATCH", "OVERRIDES_PHONEMIZER_MISMATCH"):
+        steps.insert(
+            1, "Or choose the pronunciation engine it was written for in Advanced settings."
+        )
+    return Explanation(
+        "pronunciation_stale",
+        "A pronunciation no longer fits this score",
+        error.message + ". Nothing was rendered.",
+        tuple(steps),
+        _technical(error),
+        pronunciation=True,
     )
 
 
@@ -284,6 +342,10 @@ def explain(error: PipelineError) -> Explanation:
     category = error.category
     if error.code == "PRONUNCIATION_UNKNOWN":
         return _pronunciation(error)
+    if error.code == "PRONUNCIATION_INVALID":
+        return _pronunciation_invalid(error)
+    if error.code.startswith(("OVERRIDE_", "OVERRIDES_")):
+        return _override_problem(error)
     text = _technical(error)
     if category is ErrorCategory.CANCELLED:
         return Explanation(

@@ -588,6 +588,7 @@ class ProgressSection(QGroupBox):
     cancel_requested = Signal()
     open_folder_requested = Signal()
     review_requested = Signal()
+    pronunciation_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Generation Progress", parent)
@@ -631,6 +632,8 @@ class ProgressSection(QGroupBox):
         self.open_folder.clicked.connect(self.open_folder_requested)
         self.open_review = _button("Open lyric &review")
         self.open_review.clicked.connect(self.review_requested)
+        self.open_pronunciation = _button("Open &Pronunciations")
+        self.open_pronunciation.clicked.connect(self.pronunciation_requested)
         self.technical_button = _button("Show technical &details")
         self.technical_button.setCheckable(True)
         self.technical = QPlainTextEdit()
@@ -647,6 +650,7 @@ class ProgressSection(QGroupBox):
         buttons = QHBoxLayout()
         buttons.addWidget(self.open_folder)
         buttons.addWidget(self.open_review)
+        buttons.addWidget(self.open_pronunciation)
         buttons.addWidget(self.technical_button)
         buttons.addStretch(1)
         box.addLayout(buttons)
@@ -746,6 +750,7 @@ class ProgressSection(QGroupBox):
         )
         self.open_folder.setVisible(True)
         self.open_review.setVisible(False)
+        self.open_pronunciation.setVisible(False)
         self.technical_button.setVisible(False)
         self.result_box.setVisible(True)
 
@@ -763,6 +768,7 @@ class ProgressSection(QGroupBox):
         self.technical.setPlainText(explanation.technical)
         self.open_folder.setVisible(False)
         self.open_review.setVisible(explanation.review)
+        self.open_pronunciation.setVisible(explanation.pronunciation)
         self.technical_button.setVisible(bool(explanation.technical))
         self.result_box.setVisible(True)
         self.style().unpolish(self.result_title)

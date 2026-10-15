@@ -18,6 +18,7 @@ from barbershop_tracks.core.pipeline.coordinator import (
     GenerateRequest,
     GenerateResult,
     Services,
+    check_pronunciations,
     generate,
     package_dirname,
 )
@@ -70,6 +71,7 @@ __all__ = [
     "Stage",
     "approvals_document",
     "blocking_details",
+    "check_pronunciations",
     "config_path",
     "default_follow_lead",
     "discover_singers",

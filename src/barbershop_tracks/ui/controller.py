@@ -36,6 +36,7 @@ from barbershop_tracks.core.pipeline import (
     PipelineError,
     Preparation,
     ResolvedConfig,
+    check_pronunciations,
     config_path,
     default_follow_lead,
     discover_singers,
@@ -55,11 +56,13 @@ from barbershop_tracks.core.synthesis import (
     SynthesisPlan,
     VoiceEngineRef,
 )
+from barbershop_tracks.core.synthesis.openutau import PronunciationOverride
 from barbershop_tracks.models import VoiceRole
 from barbershop_tracks.ui.assignments import AssignmentState, Choice
 from barbershop_tracks.ui.background import Dispatcher
 from barbershop_tracks.ui.lyric_review import FOLLOWING_STATES, LyricReviewState, has_rows
 from barbershop_tracks.ui.preferences import Preferences
+from barbershop_tracks.ui.pronunciation_review import PronunciationState
 
 GenerateFn = Callable[..., GenerateResult]
 ParseFn = Callable[[Path], ParseResult]
@@ -121,6 +124,7 @@ class AppController(QObject):
     generation_event = Signal(object)  # dict
     generation_finished = Signal(object)  # GenerateResult
     generation_failed = Signal(object)  # PipelineError
+    pronunciation_checked = Signal(object)  # dict (the engine's report) or PipelineError
 
     def __init__(
         self,
@@ -147,6 +151,9 @@ class AppController(QObject):
         self.installed: list[str] | None = None  # None until the voices folder was scanned
         self.review: LyricReviewState | None = None
         self.approvals: tuple[LyricApproval, ...] = ()
+        # the words the dictionary lacks (learned when a run stops at them) and what is decided
+        self.pronunciation: PronunciationState | None = None
+        self.checking = False
         self.validation: ValidationView | None = None
         self.validating = False
         self.loading = False
@@ -263,6 +270,7 @@ class AppController(QObject):
             self.assignments.restore(saved, [info.line_id for info in score.lines])
         self.review = None
         self.approvals = ()
+        self.pronunciation = None  # decisions belong to one score
         self.validation = None
         self.last_result = None
         self.options = replace(self.options, name="", replace=False)
@@ -300,6 +308,7 @@ class AppController(QObject):
         # approvals belong to a particular mapping of lines to voices: start the review afresh
         self.review = None
         self.approvals = ()
+        self.pronunciation = None  # and to one mapping of lines to voices
         self.state_changed.emit()
         self.schedule_validation()
 
@@ -468,16 +477,79 @@ class AppController(QObject):
         self.approvals = approvals
         self.schedule_validation()
 
-    # --- readiness for the Generate button -------------------------------------------------
+    # --- pronunciations --------------------------------------------------------------------
 
-    def blockers(self) -> list[str]:
-        out: list[str] = []
+    def pronunciation_state(self) -> PronunciationState | None:
+        """The review of the words the dictionary lacks, once a run or a check has named them."""
+        return self.pronunciation
+
+    @property
+    def pronunciations(self) -> tuple[PronunciationOverride, ...]:
+        return () if self.pronunciation is None else self.pronunciation.overrides()
+
+    def _learn_from_failure(self, error: PipelineError) -> None:
+        """Keep what a stopped run says about words and pronunciations for the review."""
+        if self.score is None or error.code not in (
+            "PRONUNCIATION_UNKNOWN",
+            "PRONUNCIATION_INVALID",
+        ):
+            return
+        if self.pronunciation is None:
+            self.pronunciation = PronunciationState(self.score.sha256)
+        if error.code == "PRONUNCIATION_UNKNOWN":
+            self.pronunciation.add_blocked(error.details.get("unknown_words", []))
+        else:
+            self.pronunciation.mark_refused(error.details.get("invalid_hints", []))
+
+    def start_pronunciation_check(self) -> bool:
+        """Ask the engine, in the background, whether the words and pronunciations are accepted."""
+        if self.running or self.checking or self.blockers_for_check():
+            return False
+        request = self.build_request()
+        config = self.config()
+        token = CancelToken()
+        self.token = token
+        self.checking = True
+        self.state_changed.emit()
+
+        def work(emit: Callable[[dict[str, Any]], None]) -> dict[str, Any]:
+            return check_pronunciations(request, config, cancel=token, on_event=emit)
+
+        self.dispatcher.submit(work, self._check_done, self._check_failed)
+        return True
+
+    def blockers_for_check(self) -> list[str]:
+        """What stops a check: the score, the voices and the singers (not the output options)."""
         if self.running:
             return ["A generation is already running."]
+        if self.checking:
+            return ["The pronunciations are already being checked."]
+        return self._music_blockers()
+
+    def _check_done(self, result: dict[str, Any]) -> None:
+        self.checking = False
+        self.token = None
+        if self.pronunciation is not None:
+            self.pronunciation.mark_accepted(result.get("pronunciations", []))
+        self.pronunciation_checked.emit(result)
+        self.state_changed.emit()
+
+    def _check_failed(self, error: BaseException) -> None:
+        self.checking = False
+        self.token = None
+        problem = translate(error)
+        self._learn_from_failure(problem)
+        self.pronunciation_checked.emit(problem)
+        self.state_changed.emit()
+
+    # --- readiness for the Generate button -------------------------------------------------
+
+    def _music_blockers(self) -> list[str]:
         if self.loading:
             return ["The score is still loading."]
         if self.score is None:
             return ["Choose a score first."]
+        out: list[str] = []
         assign = self.assignments
         if assign is not None:
             out.extend(assign.problems())
@@ -495,6 +567,24 @@ class AppController(QObject):
             problem = self.singer_problem(role)
             if problem:
                 out.append(problem)
+        return out
+
+    def blockers(self) -> list[str]:
+        if self.running:
+            return ["A generation is already running."]
+        if self.checking:
+            return ["The pronunciations are being checked."]
+        out = self._music_blockers()
+        if self.loading or self.score is None:
+            return out
+        state = self.pronunciation
+        if state is not None and (state.undecided or state.invalid):
+            left = state.undecided + state.invalid
+            out.append(
+                f"{left} place{'s' if left != 1 else ''} with a word the dictionary lacks "
+                f"still need{'' if left != 1 else 's'} a pronunciation (open Pronunciations…) "
+                "or a different spelling in the score."
+            )
         if not self.output_dir:
             out.append("Choose an output folder.")
         if self.package_name() is None:
@@ -548,6 +638,7 @@ class AppController(QObject):
             formats=formats,
             name=name,
             approvals=self.approvals,
+            pronunciations=self.pronunciations,
             replace=options.replace,
             keep_stems=options.keep_stems,
             keep_project=options.keep_project,
@@ -591,7 +682,9 @@ class AppController(QObject):
     def _generation_failed(self, error: BaseException) -> None:
         self.running = False
         self.token = None
-        self.generation_failed.emit(translate(error))
+        problem = translate(error)
+        self._learn_from_failure(problem)
+        self.generation_failed.emit(problem)
         self.state_changed.emit()
 
     def cancel_generation(self) -> None:
