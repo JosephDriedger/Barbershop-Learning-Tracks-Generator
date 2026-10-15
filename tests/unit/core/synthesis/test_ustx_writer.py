@@ -276,12 +276,27 @@ def test_lyric_text_whose_handling_is_not_established_is_refused(word: str, code
     assert code_of(lambda: write_ustx(broken)) == code
 
 
-@pytest.mark.parametrize("word", ["don't", "well-", "come,", "home.", "why?", "oh!", "la", "A"])
+@pytest.mark.parametrize("word", ["don't", "well-", "la", "A"])
 def test_ordinary_lyric_text_round_trips_exactly(word: str) -> None:
     plan = plan_of(
         voices={**full_lyrics(), "lead": sung(VoiceRole.LEAD, [word, "two", "three", "four"])}
     )
     assert parsed(plan)["voice_parts"][1]["notes"][0]["lyric"] == word
+
+
+@pytest.mark.parametrize(
+    ("written", "sent"), [("come,", "come"), ("home.", "home"), ("why?", "why"), ("oh!", "oh")]
+)
+def test_punctuation_around_a_word_is_not_sent_to_the_engine_but_the_plan_keeps_it(
+    written: str, sent: str
+) -> None:
+    plan = plan_of(
+        voices={**full_lyrics(), "lead": sung(VoiceRole.LEAD, [written, "two", "three", "four"])}
+    )
+    assert parsed(plan)["voice_parts"][1]["notes"][0]["lyric"] == sent
+    assert (
+        plan.voice(VoiceRole.LEAD).notes[0].lyric.text == written
+    )  # the score's text is unchanged
 
 
 # --- timing: exact or refused, never rounded ---

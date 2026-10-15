@@ -31,6 +31,7 @@ from barbershop_tracks.core.synthesis.openutau.words import (
     DICTIONARY_PHONEMIZERS,
     WordJoin,
     assemble_words,
+    engine_text,
 )
 from barbershop_tracks.core.synthesis.plan import (
     LyricState,
@@ -162,7 +163,7 @@ def _sent_word(plan: SynthesisPlan, role: VoiceRole, joined: WordJoin, index: in
     note = plan.voice(role).notes[index]
     if note.lyric.state not in _TEXT_STATES or note.lyric.text is None:
         return None
-    return joined.whole.get(index, note.lyric.text)
+    return engine_text(joined.whole.get(index, note.lyric.text))
 
 
 def score_lyrics_of(

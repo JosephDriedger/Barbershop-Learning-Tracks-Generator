@@ -27,6 +27,26 @@ from barbershop_tracks.core.synthesis.plan import (
 )
 from barbershop_tracks.models import VoiceRole
 
+# Real scores type their lyrics the way a word processor does. Three things are written differently for the
+# engine, and only for the engine (the score's own lyric text, the review screens and the package's record keep
+# what the score says):
+#
+# * a typographic apostrophe (U+2019: she's, ain't, in') is the plain apostrophe of the dictionary (CMUdict has
+#   ``she's``): the same character in another typeface, not a guess;
+# * punctuation around a word, the quotation marks of "goodbye", the "!" of "Bay!", the parentheses of
+#   "(With ...)", has no sound and is not part of the word, so it is not looked up with it;
+# * nothing else: a letter, an apostrophe, a digit and what is inside the word are never touched, and text that
+#   is only punctuation is left as it is (and refused later, with the character named).
+_APOSTROPHES = str.maketrans(dict.fromkeys("\u2018\u2019\u201b\u02bc\u02b9\u00b4\u2032\uff07", "'"))
+_AROUND_THE_WORD = '"\u201c\u201d\u201e\u201f\u00ab\u00bb()!?,.;:\u2026\u2013\u2014'
+
+
+def engine_text(text: str) -> str:
+    """The lyric as the singing engine receives it: plain apostrophes, no punctuation around the word."""
+    plain = text.translate(_APOSTROPHES)
+    return plain.strip(_AROUND_THE_WORD) or plain
+
+
 DICTIONARY_PHONEMIZERS = (
     "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
     "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer",
@@ -115,7 +135,9 @@ def assemble_words(plan: SynthesisPlan, voice: VoicePlan) -> WordJoin:
         if _has_text(notes[i]) and _syllabic(notes[i]) == "begin":
             chain = _chain(notes, i, lead_order)
             if chain is not None:
-                whole[i] = "".join(notes[k].lyric.text or "" for k in chain if _has_text(notes[k]))
+                whole[i] = engine_text(
+                    "".join(notes[k].lyric.text or "" for k in chain if _has_text(notes[k]))
+                )
                 follow.update(k for k in chain[1:] if _has_text(notes[k]))
                 i = chain[-1] + 1
                 continue

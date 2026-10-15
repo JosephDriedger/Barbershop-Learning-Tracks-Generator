@@ -21,6 +21,7 @@ from pathlib import Path
 from barbershop_tracks.core.pipeline import PipelineError, read_approvals
 from barbershop_tracks.core.synthesis import LyricApproval, LyricState, SynthesisPlan
 from barbershop_tracks.core.synthesis.openutau import UstxError, validate_lyric_text
+from barbershop_tracks.core.synthesis.openutau.words import engine_text
 from barbershop_tracks.models import VoiceRole
 from barbershop_tracks.ui.formatting import duration_label, note_name, position_label
 
@@ -78,7 +79,7 @@ def check_text(text: str) -> str:
     if not text.strip():
         return ""
     try:
-        validate_lyric_text(text)
+        validate_lyric_text(engine_text(text))  # a typographic apostrophe is the plain one
     except UstxError as error:
         return str(error.message)
     return ""

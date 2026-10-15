@@ -20,7 +20,11 @@ from typing import Any
 from barbershop_tracks.core.rendering.errors import PronunciationError
 from barbershop_tracks.core.synthesis import SynthesisPlan
 from barbershop_tracks.core.synthesis.openutau.overrides import score_lyrics_of
-from barbershop_tracks.core.synthesis.openutau.words import assemble_words, is_word_fragment
+from barbershop_tracks.core.synthesis.openutau.words import (
+    assemble_words,
+    engine_text,
+    is_word_fragment,
+)
 from barbershop_tracks.core.synthesis.positions import position_label
 
 TICKS_PER_QUARTER = 480  # the USTX resolution BLT writes (core/synthesis/openutau/ustx.py)
@@ -74,7 +78,9 @@ def locate(plan: SynthesisPlan, reported: Sequence[Mapping[str, Any]]) -> list[U
                 written = score_lyrics_of(plan, voice.role, joins[track], sung.index)
                 # only the syllable as the score writes it is a fragment; a word that BLT assembled
                 # from all of its syllables (words.py) is a whole word
-                fragment = is_word_fragment(sung) and str(item.get("word", "")) == sung.lyric.text
+                fragment = is_word_fragment(sung) and str(item.get("word", "")) == engine_text(
+                    sung.lyric.text or ""
+                )
         found.append(
             UnknownWord(
                 voice=track,

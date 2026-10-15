@@ -46,6 +46,7 @@ from barbershop_tracks.core.synthesis.openutau.words import (
     DICTIONARY_PHONEMIZERS,
     WordJoin,
     assemble_words,
+    engine_text,
 )
 from barbershop_tracks.core.synthesis.openutau.yaml_emit import Flow, Quoted, emit
 from barbershop_tracks.core.synthesis.plan import (
@@ -121,8 +122,16 @@ def validate_lyric_text(text: str) -> None:
         raise UstxError(
             "USTX_LYRIC_TEXT", f"lyric {text!r} has leading or trailing space or is empty"
         )
-    if any(not 0x20 <= ord(c) <= 0x7E for c in text):
-        raise UstxError("USTX_LYRIC_TEXT", f"lyric {text!r} has non-ASCII or control characters")
+    odd = sorted({c for c in text if not 0x20 <= ord(c) <= 0x7E})
+    if odd:
+        shown = ", ".join(
+            f"U+{ord(c):04X}" + (f" ({c})" if c.isprintable() else "") for c in odd[:4]
+        )
+        raise UstxError(
+            "USTX_LYRIC_TEXT",
+            f"lyric {text!r} has {shown}, which the singing engine cannot take (non-ASCII or "
+            "control characters); write it with plain letters in the score",
+        )
     if "[" in text or "]" in text:
         raise UstxError(
             "USTX_LYRIC_TEXT", f"lyric {text!r} contains a bracket (phonetic hint syntax)"
@@ -342,7 +351,7 @@ def write_ustx(
                     )
                 text = continuation.value
             elif lyric.text is not None:
-                text = joined.whole.get(note.index, lyric.text)
+                text = engine_text(joined.whole.get(note.index, lyric.text))
                 validate_lyric_text(text)
                 previous_has_lyric = True
                 chosen = overrides.for_note(voice.role, note.index)
