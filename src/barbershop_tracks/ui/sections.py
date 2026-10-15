@@ -4,6 +4,7 @@ Each section is a plain group box with a ``refresh`` that reads the controller a
 itself without emitting user-change signals, so refreshing can never change a choice.
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
@@ -41,6 +42,8 @@ from barbershop_tracks.ui.assignments import Choice, Ignore
 from barbershop_tracks.ui.controller import AppController
 from barbershop_tracks.ui.explain import Explanation
 from barbershop_tracks.ui.formatting import clock
+
+NOTICE_LIMIT = 8  # notices shown under a finished run; the rest are in the technical log
 
 ROLE_TEXT = {
     VoiceRole.TENOR: "Tenor",
@@ -738,16 +741,24 @@ class ProgressSection(QGroupBox):
 
     # --- results ---------------------------------------------------------------------------
 
-    def show_success(self, location: Path, tracks: int, formats: list[str]) -> None:
+    def show_success(
+        self, location: Path, tracks: int, formats: list[str], notices: Sequence[str] = ()
+    ) -> None:
         self.finish_running()
         self.bar.setValue(1)
         self.stage.setText("Finished")
         self.detail.setText("")
         self.result_title.setText("✔ Your learning tracks are ready.")
         self.result_title.setObjectName("success")
-        self.result_text.setText(
+        text = (
             f"{tracks} tracks ({', '.join(f.upper() for f in formats)}) were saved in:\n{location}"
         )
+        if notices:
+            shown = list(notices[:NOTICE_LIMIT])
+            text += "\n\nPlease check these by ear:" + "".join(f"\n• {n}" for n in shown)
+            if len(notices) > len(shown):
+                text += f"\n• and {len(notices) - len(shown)} more (see the technical log)"
+        self.result_text.setText(text)
         self.open_folder.setVisible(True)
         self.open_review.setVisible(False)
         self.open_pronunciation.setVisible(False)

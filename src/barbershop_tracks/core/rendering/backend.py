@@ -81,6 +81,8 @@ class RenderSettings:
     timeout_seconds: float = 900.0
     # a word the dictionary lacks is built from dictionary entries (compose.py) instead of stopping
     compose_unknown_words: bool = True
+    # a word that cannot be built from dictionary entries is guessed from its spelling
+    guess_by_spelling: bool = True
     phonemize_timeout_ms: int = 60_000
     render_timeout_ms: int = 600_000
     stem_policy: StemPolicy = field(default_factory=StemPolicy)
@@ -412,6 +414,7 @@ class OpenUtauRenderBackend:
                     "score_lyrics": list(found.score_lyrics),
                     "pieces": list(found.composed_from),
                     "how": found.composed_how,
+                    "guessed": found.composed_guessed,
                     "symbols": found.override.hint,
                     "phonemizer": found.override.phonemizer,
                     "source_sha256": found.override.source_sha256,
@@ -447,6 +450,7 @@ class OpenUtauRenderBackend:
         composed = compose_all(
             (u.word for u in wanted),
             lambda pieces: self._lookup(pieces, command_prefix, environment, token),
+            guess=self.settings.guess_by_spelling,
         )
         sha = plan.source.sha256
         if sha is None:
@@ -474,6 +478,7 @@ class OpenUtauRenderBackend:
                 u.score_lyrics,
                 composed_from=made.pieces,
                 composed_how=made.how,
+                composed_guessed=made.guessed,
             )
         return added
 

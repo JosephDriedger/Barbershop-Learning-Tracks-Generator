@@ -390,10 +390,10 @@ def test_by_default_a_word_the_dictionary_lacks_is_built_from_its_entries(
     assert rig.staging_empty()
 
 
-def test_a_word_that_cannot_be_built_still_stops_and_nothing_is_published(
+def test_a_word_that_cannot_be_built_still_stops_when_guessing_is_off(
     rig: Rig, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert rig.generate() != 0
+    assert rig.generate("--no-guessed-pronunciations") != 0
     shown = capsys.readouterr().err
     assert "PRONUNCIATION_UNKNOWN" in shown
     assert '"\'neath" (bar 6, beat 3' in shown  # the only word with no way to be built
@@ -402,4 +402,31 @@ def test_a_word_that_cannot_be_built_still_stops_and_nothing_is_published(
     template = json.loads(path.read_text(encoding="utf-8"))
     assert {e["word"] for e in template["overrides"]} == {"'neath"}
     assert not (rig.out / "unknown_learning_tracks").exists()
+    assert rig.staging_empty()
+
+
+def nobody_decided(document: dict[str, Any]) -> None:
+    document["overrides"] = []
+
+
+def test_a_word_nothing_can_build_is_guessed_from_its_spelling_and_flagged(
+    rig: Rig, capsys: pytest.CaptureFixture[str]
+) -> None:
+    decided = rig.pronunciations(nobody_decided)
+    rig.complete_voicebank(decided)
+    capsys.readouterr()
+    assert rig.generate("--keep-project") == 0
+    shown = capsys.readouterr().err
+    assert "PRONUNCIATION_GUESSED" in shown
+    assert "'neath" in shown
+    manifest = json.loads(
+        (rig.out / "unknown_learning_tracks" / "manifest.json").read_text(encoding="utf-8")
+    )
+    records = manifest["pronunciation"]["overrides"]
+    guessed = [r for r in records if r["source"] == "guessed"]
+    built = [r for r in records if r["source"] == "composed"]
+    assert {r["word"] for r in guessed} == {"'neath"}
+    assert {r["word"] for r in built} == {"lov'd", "mammy", "ev'ryone", "o'er"}
+    assert all(r["approved_by"] is None for r in records)  # nobody decided any of them
+    assert "rough letter-to-sound rules" in guessed[0]["composed_how"]
     assert rig.staging_empty()

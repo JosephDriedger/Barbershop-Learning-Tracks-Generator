@@ -58,7 +58,9 @@ class FakePipeline:
         formats = ["wav"] if request.formats and len(request.formats) == 1 else ["mp3", "wav"]
         manifest = {"tracks": list(range(13)), "settings": {"formats": formats}}
         return SimpleNamespace(
-            destination=self.destination, package=SimpleNamespace(manifest=manifest)
+            destination=self.destination,
+            package=SimpleNamespace(manifest=manifest),
+            warnings=(),
         )
 
 

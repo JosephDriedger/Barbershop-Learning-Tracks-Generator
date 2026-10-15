@@ -654,6 +654,7 @@ class AppController(QObject):
                 phonemizer=config.phonemizer or DEFAULT_PHONEMIZER,
                 renderer=config.renderer or DEFAULT_RENDERER,
                 per_voice={role: self.singers[role] for role in VOICE_ORDER},
+                automatic="phonemizer" not in config.sources,
             ),
             formats=formats,
             name=name,

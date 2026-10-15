@@ -51,13 +51,14 @@ class Rig:
         build_voicebank(self.singers)
         self.layout = RuntimeLayout.under(root / "bin", root / "data")
 
-    def backend(self) -> OpenUtauRenderBackend:
+    def backend(self, **options: object) -> OpenUtauRenderBackend:
         return OpenUtauRenderBackend(
             RenderSettings(
                 layout=self.layout,
                 singers_dir=self.singers,
                 host_binaries=require_host(),
                 extra_env={k: v for k, v in host_environment().items() if k == "DOTNET_ROOT"},
+                **options,  # type: ignore[arg-type]
             )
         )
 
@@ -107,7 +108,7 @@ def test_a_word_the_dictionary_lacks_stops_every_voice_until_it_is_decided(
         pytest.skip("the research host guesses instead of stopping")
     plan = plan_with(phonemizer)
     with pytest.raises(PronunciationError) as error:
-        rig.backend().check_pronunciations(plan)
+        rig.backend(compose_unknown_words=False).check_pronunciations(plan)
     assert error.value.code == "PRONUNCIATION_UNKNOWN"
     assert sorted(u["voice"] for u in error.value.details["unknown_words"]) == [
         "Baritone",
@@ -124,7 +125,7 @@ def test_one_decision_unblocks_one_voice_only(rig: Rig, phonemizer: str) -> None
     plan = plan_with(phonemizer)
     resolved = resolve_overrides(plan, [decide(phonemizer, ARPABET)], source_sha256=SHA)
     with pytest.raises(PronunciationError) as error:
-        rig.backend().check_pronunciations(plan, resolved)
+        rig.backend(compose_unknown_words=False).check_pronunciations(plan, resolved)
     named = {u["voice"] for u in error.value.details["unknown_words"]}
     assert named == {"Tenor", "Baritone", "Bass"}  # the Lead was decided; nobody else was touched
     assert "Lead" not in named

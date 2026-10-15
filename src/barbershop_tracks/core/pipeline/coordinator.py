@@ -12,6 +12,7 @@ every exit path; the published package holds only the 13 tracks in the chosen fo
 manifest and any explicitly requested extras. A failure never touches an existing package.
 """
 
+import dataclasses
 import shutil
 import time
 import uuid
@@ -59,6 +60,7 @@ from barbershop_tracks.core.rendering import (
     RenderTimeoutError,
     SynthesisError,
 )
+from barbershop_tracks.core.rendering.engine_detect import detect as detect_engine
 from barbershop_tracks.core.rendering.errors import (
     OutputValidationError,
     ProjectValidationError,
@@ -131,6 +133,8 @@ class EngineChoice:
     phonemizer: str
     renderer: str
     per_voice: Mapping[VoiceRole, str] = field(default_factory=dict)
+    # nobody chose the pronunciation engine: use the one the voices' own sound names point to
+    automatic: bool = False
 
     def refs(self) -> dict[VoiceRole, VoiceEngineRef]:
         removed = removed_phonemizer(self.phonemizer)
@@ -182,6 +186,8 @@ class GenerateRequest:
     accept_recognition: bool = False
     # a word the dictionary lacks is built from dictionary entries; False: it stops for a person
     compose_unknown_words: bool = True
+    # ... and one that cannot is guessed from its spelling (False: it stops for a person)
+    guess_by_spelling: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -407,6 +413,34 @@ def _require_environment(
         )
 
 
+def _matching_engine(
+    request: GenerateRequest, config: ResolvedConfig
+) -> tuple[GenerateRequest, str | None]:
+    """The request with the engine the voices were made for, when nobody chose one.
+
+    Read from the names of the voices' sounds (``core/rendering/engine_detect.py``); used only when
+    every voice points to the same engine. Returns the notice to show the person, or None.
+    """
+    choice = request.engine
+    if not choice.automatic or config.singers_dir is None:
+        return request, None
+    singers = {choice.per_voice.get(role, choice.singer) for role in VOICE_ORDER}
+    found = {s: detect_engine(config.singers_dir / s) for s in singers if s}
+    detections = {d.phonemizer: d for d in found.values() if d is not None}
+    if not found or None in found.values() or len(detections) != 1:
+        return request, None
+    detected = next(iter(detections.values()))
+    if detected.phonemizer == choice.phonemizer:
+        return request, None
+    notice = (
+        f"the voice's sounds are made for {detected.phonemizer.rsplit('.', 1)[-1]} "
+        f"({detected.why}), so that pronunciation engine is used; "
+        "choose another one in Advanced to change it"
+    )
+    engine = dataclasses.replace(choice, phonemizer=detected.phonemizer)
+    return dataclasses.replace(request, engine=engine), notice
+
+
 def check_pronunciations(
     request: GenerateRequest,
     config: ResolvedConfig,
@@ -443,6 +477,9 @@ def _check(
     emit: EventHandler,
 ) -> dict[str, Any]:
     run = _Run(emit, cancel)
+    request, notice = _matching_engine(request, config)
+    if notice is not None:
+        emit({"event": "warning", "code": "ENGINE_AUTO", "message": notice})
     refs = request.engine.refs()
     plan, sha = _load_plan(request, services, run, refs, config.layout.cache / "converted")
     resolved = resolve_overrides(plan, request.pronunciations, source_sha256=sha)
@@ -455,6 +492,7 @@ def _check(
         extra_env=config.host_environment(),
         timeout_seconds=request.timeout_seconds,
         compose_unknown_words=request.compose_unknown_words,
+        guess_by_spelling=request.guess_by_spelling,
     )
     renderer = services.make_renderer(settings)
     result = renderer.check_pronunciations(plan, resolved, cancel=cancel, on_event=emit)
@@ -471,6 +509,10 @@ def _generate(
     run = _Run(emit, cancel)
     started = time.monotonic()
     warnings: list[str] = []
+    request, notice = _matching_engine(request, config)
+    if notice is not None:
+        warnings.append(f"ENGINE_AUTO: {notice}")
+        run.emit({"event": "warning", "code": "ENGINE_AUTO", "message": notice})
     refs = request.engine.refs()  # an unchosen singer is reported before any work
 
     # --- the output location, checked up front (publication re-checks it atomically) ---
@@ -566,6 +608,7 @@ def _render_and_mix(
         extra_env=config.host_environment(),
         timeout_seconds=request.timeout_seconds,
         compose_unknown_words=request.compose_unknown_words,
+        guess_by_spelling=request.guess_by_spelling,
     )
     renderer = services.make_renderer(settings)
     stems_destination = area.path / "stems"
@@ -588,14 +631,19 @@ def _render_and_mix(
         plan, stems_destination, cancel=run.cancel, on_event=on_render_event, overrides=resolved
     )
     pronunciations = provenance_entries(plan, resolved, rendered.host_result)
+    built: dict[tuple[str, str, str, str], list[str]] = {}
     for entry in pronunciations:
-        if entry["source"] == "composed":
-            message = (
-                f"{entry['word']!r} ({entry['where']}) is not in the pronunciation dictionary; "
-                f"it was {entry['composed_how']} (check how it sounds; the score is unchanged)"
-            )
-            warnings.append(f"PRONUNCIATION_COMPOSED: {message}")
-            run.emit({"event": "warning", "code": "PRONUNCIATION_COMPOSED", "message": message})
+        if entry["source"] in ("composed", "guessed"):
+            key = (entry["source"], entry["word"], entry["where"], entry["composed_how"])
+            built.setdefault(key, []).append(str(entry["voice"]).capitalize())
+    for (source, word, where, how), voices in built.items():
+        code = "PRONUNCIATION_GUESSED" if source == "guessed" else "PRONUNCIATION_COMPOSED"
+        message = (
+            f"{word!r} ({where}; {', '.join(voices)}) is not in the pronunciation dictionary; "
+            f"it was {how} (listen to it; the score is unchanged)"
+        )
+        warnings.append(f"{code}: {message}")
+        run.emit({"event": "warning", "code": code, "message": message})
     run.stage(Stage.STEM_RENDERING, "finished")
     run.check()
 

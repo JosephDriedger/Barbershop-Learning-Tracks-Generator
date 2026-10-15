@@ -25,6 +25,8 @@ import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 
+from barbershop_tracks.core.rendering.spelling import guess_symbols
+
 SHORT_WORDS = frozenset(
     {
         "a",
@@ -71,6 +73,7 @@ class Composition:
     pieces: tuple[str, ...]
     symbols: tuple[str, ...]
     how: str  # in words, for the person reading the record
+    guessed: bool = False  # from the spelling alone (spelling.py), not from dictionary entries
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,8 +92,8 @@ def _spellings(word: str) -> list[_Spelling]:
     """The words the dictionary might have for this spelling, most likely first."""
     raw = _NOT_WORD.sub("", word.lower())
     base = raw.strip("'")
-    if not base:
-        return []
+    if not any(letter in "aeiouy" for letter in base):
+        return []  # no vowel: a left-out letter cannot be guessed (a piece such as n't)
     forms: list[tuple[str, str]] = []
     if "'" in base:
         if base.count("'") == 1:
@@ -175,23 +178,41 @@ def _from_pieces(word: str, dictionary: Mapping[str, str | None]) -> Composition
     return Composition(word, chosen[1], symbols, how)
 
 
-def compose(word: str, dictionary: Mapping[str, str | None]) -> Composition | None:
-    """``word`` from dictionary entries, or None when it cannot be covered completely.
+def _guessed(word: str) -> Composition | None:
+    symbols = guess_symbols(word)
+    if not symbols:
+        return None
+    how = "guessed from its spelling by rough letter-to-sound rules (it may be wrong)"
+    return Composition(word, (), symbols, how, guessed=True)
+
+
+def compose(
+    word: str, dictionary: Mapping[str, str | None], *, guess: bool = True
+) -> Composition | None:
+    """``word`` from dictionary entries; failing that, guessed from its spelling (if ``guess``).
 
     ``dictionary`` maps a piece to the dictionary's sounds for it (None or absent: no entry).
+    None when nothing can be made of the word.
     """
-    return _spelled_out(word, dictionary) or _from_pieces(word, dictionary)
+    return (
+        _spelled_out(word, dictionary)
+        or _from_pieces(word, dictionary)
+        or (_guessed(word) if guess else None)
+    )
 
 
 def compose_all(
-    words: Iterable[str], lookup: Callable[[list[str]], Mapping[str, str | None]]
+    words: Iterable[str],
+    lookup: Callable[[list[str]], Mapping[str, str | None]],
+    *,
+    guess: bool = True,
 ) -> dict[str, Composition]:
     """Compose every word that can be; ``lookup`` asks the dictionary about pieces at once."""
     wanted = sorted(set(words))
     dictionary = lookup(candidate_pieces(wanted))
     composed: dict[str, Composition] = {}
     for word in wanted:
-        result = compose(word, dictionary)
+        result = compose(word, dictionary, guess=guess)
         if result is not None:
             composed[word] = result
     return composed

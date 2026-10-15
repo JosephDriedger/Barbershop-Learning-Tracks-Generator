@@ -134,6 +134,13 @@ def add_parsers(commands: Any) -> None:
         "by default such a word is built from dictionary entries (a spelling such as ev'ry for "
         "every, or pieces of other words) and recorded as BLT's own, not as your decision",
     )
+    gen.add_argument(
+        "--no-guessed-pronunciations",
+        action="store_true",
+        help="keep building unknown words from dictionary entries, but stop at a word that "
+        "cannot be built that way instead of guessing it from its spelling (a rough guess, "
+        "recorded as BLT's and shown as a warning)",
+    )
     gen.add_argument("--out", metavar="DIR", help="folder that will hold the package folder")
     gen.add_argument(
         "--assign",
@@ -369,7 +376,13 @@ def _generate(args: argparse.Namespace, json_mode: bool) -> int:
         score=score,
         output=config.output_dir,
         assignments=RoleAssignments(entries=tuple(entries), ignored=tuple(args.ignore)),
-        engine=EngineChoice(config.singer, config.phonemizer, config.renderer, per_voice),
+        engine=EngineChoice(
+            config.singer,
+            config.phonemizer,
+            config.renderer,
+            per_voice,
+            automatic="phonemizer" not in config.sources,
+        ),
         formats=formats,
         name=args.name,
         verse=args.verse,
@@ -383,6 +396,7 @@ def _generate(args: argparse.Namespace, json_mode: bool) -> int:
         follow_lead=False if args.no_follow_lead else None,
         accept_recognition=args.accept_recognition,
         compose_unknown_words=not args.no_composed_pronunciations,
+        guess_by_spelling=not args.no_guessed_pronunciations,
     )
     token = CancelToken()
     previous = _signals(token)

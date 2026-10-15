@@ -143,6 +143,7 @@ class ResolvedOverride:
     # set only when BLT built the pronunciation itself from dictionary entries (no person decided it)
     composed_from: tuple[str, ...] = ()
     composed_how: str = ""
+    composed_guessed: bool = False  # from the spelling alone, not from dictionary entries
 
 
 @dataclass(frozen=True, slots=True)

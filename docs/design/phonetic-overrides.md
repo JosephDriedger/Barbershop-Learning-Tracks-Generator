@@ -60,7 +60,10 @@ score's own lyrics are never changed, the engine itself checks the decision befo
 * **Words built from the dictionary (added after M19, at the user's request).** A word the dictionary lacks is no longer always a stop. For the three dictionary engines (Arpasing, English VCCV, X-SAMPA; each takes ARPAbet in a hint) the backend (`core/rendering/compose.py`, used by `backend.py`) reads the word as a spelling of a dictionary word (an apostrophe for a left-out letter, `in` for `ing`, `Oo` for `ooh`) or cuts it into a few dictionary words and joins their sounds. It
   only ever uses entries the dictionary has (asked through the host's `--lookup-words`), never a model and never letter-to-sound rules, and what it cannot cover stays a stop. The result is sent as an ordinary phonetic hint for that one note; it is recorded (`pronunciation.overrides[*]`: `source: "composed"`, `composed_from`, `composed_how`, `approved_by: null`) and
   warned about (`PRONUNCIATION_COMPOSED`), so it is never taken for a person's decision, and a person's own decision for that note always wins. It is a spelling-based reading, not proof of the right sound: `--no-composed-pronunciations` restores the stop for every word.
-  BLT still does not play anything back; the person listens.
+  A third step was added the same day, also at the user's request ("it should guess if missing syllables ... and give a warning"): a word that cannot be built from
+  dictionary entries is guessed from its spelling (`core/rendering/spelling.py`, hand-written rules, ARPAbet) and recorded as `source: "guessed"` with a `PRONUNCIATION_GUESSED` warning;
+  `--no-guessed-pronunciations` turns that step off. Separately, when nobody chose a pronunciation engine, the voices' own sound names choose it (`core/rendering/engine_detect.py`: names such as `@ p` mean
+  X-SAMPA, `k ae` ARPAbet, plain syllables say nothing) and an `ENGINE_AUTO` notice says so; a choice made by the person is never overridden. BLT still does not play anything back; the person listens.
 
 ## 5. Recommendation (unchanged)
 

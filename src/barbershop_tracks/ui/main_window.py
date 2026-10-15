@@ -540,7 +540,10 @@ class MainWindow(QMainWindow):
         self._tick_final()
         manifest = result.package.manifest
         self.progress_section.show_success(
-            result.destination, len(manifest["tracks"]), list(manifest["settings"]["formats"])
+            result.destination,
+            len(manifest["tracks"]),
+            list(manifest["settings"]["formats"]),
+            [warning.split(": ", 1)[-1] for warning in result.warnings],
         )
         self._last_location = result.destination
         self._last_error = None

@@ -79,13 +79,13 @@ def test_a_word_is_put_together_from_pieces_with_the_fewest_pieces() -> None:
 
 
 def test_a_word_that_cannot_be_covered_completely_is_left_alone() -> None:
-    assert compose("blorptastic", DICTIONARY) is None
-    assert compose("biddlorp", DICTIONARY) is None  # "bid" covers only the start
+    assert compose("blorptastic", DICTIONARY, guess=False) is None
+    assert compose("biddlorp", DICTIONARY, guess=False) is None  # "bid" covers the start
 
 
 def test_two_letter_dictionary_entries_do_not_stand_in_for_syllables() -> None:
     # "an" is a real short word, "ab" is not one BLT trusts as a piece
-    assert compose("abab", DICTIONARY) is None
+    assert compose("abab", DICTIONARY, guess=False) is None
     assert compose("anan", DICTIONARY) is not None
 
 
@@ -109,7 +109,7 @@ def test_compose_all_asks_the_dictionary_once_for_every_word() -> None:
         calls.append(pieces)
         return DICTIONARY
 
-    found = compose_all(["ev'ry", "Oo", "blorptastic", "ev'ry"], lookup)
+    found = compose_all(["ev'ry", "Oo", "blorptastic", "ev'ry"], lookup, guess=False)
     assert len(calls) == 1
     assert set(found) == {"ev'ry", "Oo"}
 

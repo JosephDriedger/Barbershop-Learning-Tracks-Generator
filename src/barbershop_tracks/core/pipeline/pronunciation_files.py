@@ -241,7 +241,7 @@ def provenance_entries(
                 "phonemizer": built["phonemizer"],
                 "alphabet": "arpabet",  # every engine takes the dictionary's own ARPAbet in a hint
                 "symbols": built["symbols"],
-                "source": "composed",
+                "source": "guessed" if built.get("guessed") else "composed",
                 "composed_from": list(built.get("pieces") or []),
                 "composed_how": built.get("how") or "",
                 "approved_by": None,
