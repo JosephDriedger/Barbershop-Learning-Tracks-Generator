@@ -8,6 +8,7 @@ from barbershop_tracks.core.rendering.engine_detect import (
     aliases_of,
     classify,
     detect,
+    neural_kind,
 )
 
 XSAMPA = ["@ p", "@ b", "S@", "tS@", "@ N", "p@", "t@", "k@", "m@", "n@", "l@", "r@", "s@"] * 3
@@ -61,3 +62,31 @@ def test_a_missing_or_empty_folder_says_nothing(tmp_path: Path) -> None:
     assert detect(tmp_path / "nowhere") is None
     (tmp_path / "empty").mkdir()
     assert detect(tmp_path / "empty") is None
+
+
+def test_an_encoding_name_python_does_not_know_stops_nothing(tmp_path: Path) -> None:
+    for index, name in enumerate(["no-such-codec", "utf-16", '"utf-8"']):
+        bank = make_bank(tmp_path / f"bank{index}", XSAMPA)
+        (bank / "character.yaml").write_text(f"text_file_encoding: {name}\n", encoding="utf-8")
+        found = detect(bank)
+        assert found is not None
+        assert found.phonemizer == ENGLISH_XSAMPA
+
+
+def test_pinyin_and_romaji_sounds_are_never_mistaken_for_arpabet() -> None:
+    pinyin = [f"{c} {v}" for c in ("zh", "ch", "sh", "ng", "th") for v in "aiueo"] * 3
+    assert classify(pinyin) is None
+
+
+def test_a_neural_bank_is_recognised_the_way_openutau_does(tmp_path: Path) -> None:
+    plain = make_bank(tmp_path / "plain", ROMAJI)
+    assert neural_kind(plain) is None
+    (plain / "character.yaml").write_text('singer_type: "utau"\n', encoding="utf-8")
+    assert neural_kind(plain) is None
+    (plain / "character.yaml").write_text("singer_type: DiffSinger\n", encoding="utf-8")
+    assert neural_kind(plain) == "DiffSinger"
+    legacy = make_bank(tmp_path / "legacy", ROMAJI)
+    (legacy / "enuconfig.yaml").write_text("x: 1\n", encoding="utf-8")
+    assert neural_kind(legacy) == "ENUNU"
+    (legacy / "character.yaml").write_text("singer_type: utau\n", encoding="utf-8")
+    assert neural_kind(legacy) is None  # a declared kind wins over the legacy files

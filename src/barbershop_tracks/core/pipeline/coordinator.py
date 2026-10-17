@@ -43,6 +43,7 @@ from barbershop_tracks.core.pipeline.config import (
     ResolvedConfig,
     discover_singers,
     removed_phonemizer,
+    voicebanks_without_character_file,
 )
 from barbershop_tracks.core.pipeline.errors import ErrorCategory, PipelineError
 from barbershop_tracks.core.pipeline.events import EventHandler, Stage, ignore
@@ -61,6 +62,7 @@ from barbershop_tracks.core.rendering import (
     SynthesisError,
 )
 from barbershop_tracks.core.rendering.engine_detect import detect as detect_engine
+from barbershop_tracks.core.rendering.engine_detect import neural_kind
 from barbershop_tracks.core.rendering.errors import (
     OutputValidationError,
     ProjectValidationError,
@@ -400,9 +402,18 @@ def _require_environment(
             ErrorCategory.CONFIGURATION,
             "SINGER_NOT_FOUND",
             f"singer(s) {absent} not found in the singers folder; installed: "
-            f"{sorted(available)[:20] or 'none'}",
+            f"{sorted(available)[:20] or 'none'}" + _singer_hints(singers_dir, absent, available),
             {"installed": sorted(available)},
         )
+    for name in wanted:
+        kind = neural_kind(singers_dir / name)
+        if kind is not None:
+            raise PipelineError(
+                ErrorCategory.CONFIGURATION,
+                "SINGER_KIND_UNSUPPORTED",
+                f"'{name}' is a {kind} voicebank; BLT renders UTAU-style voicebanks (recordings "
+                "named in an oto.ini) only, so every note would be silent. Choose another voice",
+            )
     run.stage(Stage.VOICEBANK_DISCOVERY, "finished", installed=len(available))
     run.check()
     if config.host_binaries is None:
@@ -411,6 +422,24 @@ def _require_environment(
             "HOST_NOT_FOUND",
             "the render host was not found; pass --host-dir or set BLT_HOST_DIR",
         )
+
+
+def _singer_hints(singers_dir: Path, absent: list[str], available: set[str]) -> str:
+    """What to tell the person about a voicebank that is there but not under the name used."""
+    unseen = voicebanks_without_character_file(singers_dir)
+    said: list[str] = []
+    for name in absent:
+        if name in unseen:
+            said.append(
+                f"'{name}' has no character.txt, so the singing engine does not list it as a "
+                "voicebank; add a text file named character.txt to that folder with one line, "
+                f"name={name.rsplit(chr(92), 1)[-1]}"
+            )
+            continue
+        nested = sorted(a for a in available if a.lower().endswith(chr(92) + name.lower()))
+        if nested:
+            said.append(f"'{name}' is inside a folder; its name is '{nested[0]}'")
+    return "".join(f". {line}" for line in said)
 
 
 def _matching_engine(

@@ -12,6 +12,7 @@ from barbershop_tracks.core.pipeline.config import (
     load_config_file,
     removed_phonemizer,
     resolve_config,
+    voicebanks_without_character_file,
 )
 from barbershop_tracks.core.pipeline.coordinator import (
     EngineChoice,
@@ -90,4 +91,5 @@ __all__ = [
     "resolve_config",
     "review_report",
     "template_document",
+    "voicebanks_without_character_file",
 ]

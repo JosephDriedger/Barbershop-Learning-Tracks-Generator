@@ -247,28 +247,53 @@ def _profile(name: str | None, file: Path | None) -> GainProfile:
     return PRESETS[name]
 
 
-def discover_singers(singers_dir: Path, *, depth: int = 3) -> set[str]:
-    """Names of folders that look like voicebanks (they hold character.txt/yaml or an oto.ini).
+def _scan_singers(singers_dir: Path, depth: int) -> tuple[set[str], set[str]]:
+    """(voicebanks the render host will find, folders that look like one but will not be found).
 
-    A folder with a character file is a voicebank *root*: what lies below it (the pitch sets A3, C4,
-    ... or the breaths of a multi-pitch bank, each with its own oto.ini) belongs to that one
-    voicebank and is not listed as further voices.
+    The host (OpenUtau) lists a voicebank where it finds a ``character.txt``, at any depth below the
+    singers folder, and knows it by its folder path relative to that folder (``Pack\\Bank`` for
+    ``Singers\\Pack\\Bank``); that is the name a track must store. A folder with a character file is
+    a voicebank *root*: what lies below it (the pitch sets A3, C4, ... or the breaths of a
+    multi-pitch bank, each with its own oto.ini) belongs to that one voicebank and is not listed as
+    further voices. A folder with an ``oto.ini`` or a ``character.yaml`` but no ``character.txt``
+    is a voicebank the host does not list.
     """
     found: set[str] = set()
+    unseen: set[str] = set()
 
-    def walk(folder: Path, remaining: int) -> None:
+    def walk(folder: Path, parts: tuple[str, ...], remaining: int) -> None:
         try:
-            children = [c for c in folder.iterdir() if c.is_dir()]
+            children = sorted(c for c in folder.iterdir() if c.is_dir())
         except OSError:
             return
         for child in children:
-            if any((child / m).is_file() for m in ("character.txt", "character.yaml")):
-                found.add(child.name)
+            here = (*parts, child.name)
+            if (child / "character.txt").is_file():
+                found.add("\\".join(here))
                 continue  # a voicebank root: its subfolders are its own parts
-            if (child / "oto.ini").is_file():
-                found.add(child.name)
+            if (child / "oto.ini").is_file() or (child / "character.yaml").is_file():
+                unseen.add("\\".join(here))
             if remaining > 1:
-                walk(child, remaining - 1)
+                walk(child, here, remaining - 1)
 
-    walk(singers_dir, depth)
-    return found
+    walk(singers_dir, (), depth)
+    return found, unseen
+
+
+def discover_singers(singers_dir: Path, *, depth: int = 5) -> set[str]:
+    """The names the render host knows the voicebanks under ``singers_dir`` by.
+
+    A voicebank directly in the folder is known by its folder name, one inside a pack folder by the
+    path to it (``Pack\\Bank``). Only voicebanks the host can load are listed;
+    :func:`voicebanks_without_character_file` names the folders that look like one but are not.
+    """
+    return _scan_singers(singers_dir, depth)[0]
+
+
+def voicebanks_without_character_file(singers_dir: Path, *, depth: int = 5) -> set[str]:
+    """Folders with an ``oto.ini`` or ``character.yaml`` but no ``character.txt``.
+
+    The singing engine does not list such a folder, so it cannot be chosen; a ``character.txt``
+    holding one line (``name=Anything``) makes it a voicebank.
+    """
+    return _scan_singers(singers_dir, depth)[1]

@@ -412,6 +412,40 @@ def test_an_uninstalled_singer_lists_what_is_installed(rig: Rig) -> None:
     assert rig.renderer.calls == []
 
 
+def test_a_voicebank_inside_a_pack_folder_is_known_by_its_path(rig: Rig) -> None:
+    bank = rig.root / "singers" / "pack" / "inner"
+    bank.mkdir(parents=True)
+    (bank / "character.txt").write_text("name=y", encoding="utf-8")
+    engine = EngineChoice("pack\\inner", "OpenUtau.Core.DefaultPhonemizer", "WORLDLINE-R")
+    rig.run(rig.request(engine=engine))
+    assert rig.renderer.calls[0].engine_ref(VoiceRole.BASS).singer == "pack\\inner"
+    error = error_of(
+        rig, rig.request(engine=EngineChoice("inner", engine.phonemizer, "WORLDLINE-R"), name="b")
+    )
+    assert error.code == "SINGER_NOT_FOUND"
+    assert "its name is 'pack\\inner'" in error.message
+
+
+def test_a_voicebank_without_character_txt_is_explained(rig: Rig) -> None:
+    bank = rig.root / "singers" / "bare"
+    bank.mkdir()
+    (bank / "oto.ini").write_text("a.wav=a,0,1,1,1,1\n", encoding="utf-8")
+    error = error_of(rig, rig.request(engine=EngineChoice("bare", "p.P", "WORLDLINE-R")))
+    assert error.code == "SINGER_NOT_FOUND"
+    assert "character.txt" in error.message
+    assert "name=bare" in error.message
+
+
+def test_a_neural_voicebank_is_refused_before_it_renders_silence(rig: Rig) -> None:
+    (rig.root / "singers" / "my-singer" / "character.yaml").write_text(
+        "singer_type: diffsinger\n", encoding="utf-8"
+    )
+    error = error_of(rig, rig.request())
+    assert error.code == "SINGER_KIND_UNSUPPORTED"
+    assert "DiffSinger" in error.message
+    assert rig.renderer.calls == []
+
+
 def test_a_per_voice_singer_overrides_the_default(rig: Rig) -> None:
     engine = EngineChoice(
         "my-singer",

@@ -299,6 +299,7 @@ def test_no_voice_is_ever_chosen_automatically(
     voices = tmp_path / "voices"
     (voices / "only-voice").mkdir(parents=True)
     (voices / "only-voice" / "oto.ini").write_text("", encoding="utf-8")
+    (voices / "only-voice" / "character.txt").write_text("name=only", encoding="utf-8")
     controller.prefs.singers_dir = str(voices)
     with qtbot.waitSignal(controller.voices_changed, timeout=20000):
         controller.refresh_voices()

@@ -142,6 +142,21 @@ def test_musicxml_to_the_thirteen_track_package(
     assert rig.staging() == []
 
 
+@pytest.mark.parametrize(
+    "folder",
+    ["pack\\bank", "My Voice Bank (v2)", "テスト ボイス é"],
+    ids=["inside-a-pack-folder", "spaces-and-brackets", "non-ascii"],
+)
+def test_voicebanks_are_found_wherever_and_however_they_are_named(rig: Rig, folder: str) -> None:
+    target = rig.singers / folder
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(rig.singers / SINGER_ID), str(target))
+    args = rig.args()
+    args[args.index(SINGER_ID)] = folder
+    assert main(args) == 0
+    assert len(list(rig.package.glob("*.wav"))) == 13
+
+
 def test_the_voice_mapping_decides_which_line_is_which_voice(rig: Rig) -> None:
     swapped = {
         "tenor": LINES["bass"],

@@ -59,7 +59,9 @@ from barbershop_tracks.core.synthesis.plan import (
 # Shorter notes were lengthened on import in A06 (a 7.5-tick duration became 10); the real rule was
 # not isolated, so shorter notes are refused rather than risked.
 MIN_NOTE_TICKS = 10
-_SINGER = re.compile(r'^[^\\/:*?"<>|\x00-\x1f]+$')
+# A voicebank is known to OpenUtau by its folder path below the singers folder: a plain folder
+# name or, for one inside a pack folder, names joined by backslashes (``Pack\Bank``).
+_SINGER = re.compile(r'^[^\\/:*?"<>|\x00-\x1f]+(\\[^\\/:*?"<>|\x00-\x1f]+)*$')
 _PHONEMIZER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$")
 _RESERVED_LYRICS = frozenset({"+", "+~", "-"})
 _BEAT_UNITS = frozenset({1, 2, 4, 8, 16, 32})
@@ -150,7 +152,7 @@ def _ticks(value: Fraction, resolution: int, what: str) -> int:
 
 
 def _check_ref(role_name: str, ref: VoiceEngineRef, target: OpenUtauTarget) -> None:
-    if not _SINGER.match(ref.singer):
+    if not _SINGER.match(ref.singer) or {".", ".."} & set(ref.singer.split("\\")):
         raise UstxError("USTX_SINGER_REF", f"{role_name}: singer {ref.singer!r} is not a plain id")
     if not _PHONEMIZER.match(ref.phonemizer):
         raise UstxError(

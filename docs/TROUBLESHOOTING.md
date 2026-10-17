@@ -28,8 +28,13 @@ the GUI will not open but selftest works, run `"BLT Music Generator.exe" --smoke
 ## Voices
 
 **No voices are listed.** BLT looks in `Documents\OpenUtau\Singers` unless you chose a folder in the Voices
-section. The folder must contain voicebank folders (each with `character.txt` or `oto.ini`). Press *Refresh*.
-BLT does not download or include voices.
+section. The folder must contain voicebank folders (each with a `character.txt`, directly in it or inside a pack
+folder; a voicebank in a pack folder is listed as `Pack\Bank`). A folder that has only an `oto.ini` or a
+`character.yaml` is not a voicebank to the singing engine: put a `character.txt` with one line, `name=Anything`,
+in it. Press *Refresh*. BLT does not download or include voices.
+
+**"is a DiffSinger / ENUNU / VOICEVOX voicebank".** BLT renders UTAU-style voicebanks (recordings named in an
+`oto.ini`) only; choose another voice.
 
 **"A singing voice was not found".** The voice you chose was removed or renamed, or the voices folder moved.
 Fix the folder, press *Refresh*, choose the voice for each part again.

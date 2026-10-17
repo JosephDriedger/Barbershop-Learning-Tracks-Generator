@@ -13,6 +13,7 @@ from barbershop_tracks.core.pipeline import (
     discover_singers,
     load_config_file,
     resolve_config,
+    voicebanks_without_character_file,
 )
 
 
@@ -108,11 +109,21 @@ def test_singers_are_found_by_their_folders_not_by_guessing(tmp_path: Path) -> N
     (tmp_path / "A" / "character.txt").parent.mkdir()
     (tmp_path / "A" / "character.txt").write_text("name=a", encoding="utf-8")
     (tmp_path / "pack" / "B").mkdir(parents=True)
-    (tmp_path / "pack" / "B" / "oto.ini").write_text("", encoding="utf-8")
+    (tmp_path / "pack" / "B" / "character.txt").write_text("name=b", encoding="utf-8")
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "readme.txt").write_text("not a voicebank", encoding="utf-8")
-    assert discover_singers(tmp_path) == {"A", "B"}
+    # the host knows a voicebank in a pack folder by its path below the singers folder
+    assert discover_singers(tmp_path) == {"A", "pack\\B"}
     assert discover_singers(tmp_path / "missing") == set()
+
+
+def test_a_folder_the_singing_engine_would_not_list_is_named_not_offered(tmp_path: Path) -> None:
+    (tmp_path / "bare").mkdir()
+    (tmp_path / "bare" / "oto.ini").write_text("", encoding="utf-8")
+    (tmp_path / "pack" / "yaml-only").mkdir(parents=True)
+    (tmp_path / "pack" / "yaml-only" / "character.yaml").write_text("name: x", encoding="utf-8")
+    assert discover_singers(tmp_path) == set()
+    assert voicebanks_without_character_file(tmp_path) == {"bare", "pack\\yaml-only"}
 
 
 def test_the_pitch_sets_of_a_multi_pitch_voicebank_are_not_listed_as_voices(tmp_path: Path) -> None:

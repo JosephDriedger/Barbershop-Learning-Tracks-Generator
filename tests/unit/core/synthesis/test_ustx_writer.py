@@ -216,6 +216,15 @@ def test_unusable_configuration_is_an_error_not_a_fallback() -> None:
     assert with_ref(phonemizer="a b.C") == "USTX_PHONEMIZER_REF"
     assert with_ref(singer="..\\evil") == "USTX_SINGER_REF"
     assert with_ref(singer="a/b") == "USTX_SINGER_REF"
+    assert with_ref(singer="pack\\..\\evil") == "USTX_SINGER_REF"
+    assert with_ref(singer="pack\\\\bank") == "USTX_SINGER_REF"
+    assert with_ref(singer="\\bank") == "USTX_SINGER_REF"
+
+
+def test_a_voicebank_inside_a_pack_folder_is_written_by_its_path() -> None:
+    ref = VoiceEngineRef(singer="pack\\bank", phonemizer="A.B", renderer="WORLDLINE-R")
+    data = parsed(plan_of(engine_refs=refs(lead=ref)))
+    assert data["tracks"][1]["singer"] == "pack\\bank"
 
 
 # --- readiness and lyrics ---

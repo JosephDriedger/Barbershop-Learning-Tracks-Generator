@@ -344,6 +344,7 @@ def test_a_voice_that_is_gone_is_flagged_not_silently_replaced(
     voices = tmp_path / "voices"
     (voices / "alto-voice").mkdir(parents=True)
     (voices / "alto-voice" / "oto.ini").write_text("", encoding="utf-8")
+    (voices / "alto-voice" / "character.txt").write_text("name=alto", encoding="utf-8")
     prefs.singers_dir = str(voices)
     controller = AppController(
         prefs, environ={"BLT_CONFIG": str(tmp_path / "n.json")}, config_file=tmp_path / "n.json"

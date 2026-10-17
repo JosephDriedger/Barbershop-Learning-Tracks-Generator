@@ -17,6 +17,8 @@ ARPASING = "OpenUtau.Plugin.Builtin.ArpasingPhonemizer"
 ENGLISH_XSAMPA = "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer"
 
 _XSAMPA_MARKS = ("@", "{")
+# ARPAbet sounds that no romanised Japanese, Chinese or Korean sound name can be (sh, ch, zh, ng and
+# th are left out: pinyin and romaji use them)
 _ARPABET = frozenset(
     {
         "aa",
@@ -34,14 +36,9 @@ _ARPABET = frozenset(
         "oy",
         "uh",
         "uw",
-        "sh",
-        "zh",
         "hh",
         "jh",
-        "ng",
         "dh",
-        "th",
-        "ch",
     }
 )
 _MIN_SOUNDS = 20
@@ -58,11 +55,20 @@ class Detection:
 def _encoding(folder: Path) -> str:
     """The encoding the bank says its text files use (UTAU banks are Shift-JIS unless told)."""
     try:
-        text = (folder / "character.yaml").read_text(encoding="utf-8-sig")
+        text = (folder / "character.yaml").read_text(encoding="utf-8-sig", errors="replace")
     except OSError:
         return "shift_jis"
-    found = re.search(r"text_file_encoding:\s*([\w-]+)", text)
+    found = re.search(r"""text_file_encoding:\s*["']?([\w-]+)""", text)
     return found.group(1) if found else "shift_jis"
+
+
+def _read(path: Path, encoding: str) -> str:
+    """The text of a bank's file. A name Python does not know, or bytes that do not fit the
+    encoding, never stop the reading: the sound names that matter here are plain ASCII."""
+    try:
+        return path.read_text(encoding=encoding, errors="replace")
+    except (LookupError, ValueError):
+        return path.read_text(encoding="latin-1")
 
 
 def aliases_of(folder: Path) -> list[str]:
@@ -73,7 +79,7 @@ def aliases_of(folder: Path) -> list[str]:
         if count >= _MAX_FILES:
             break
         try:
-            text = path.read_text(encoding=encoding, errors="replace")
+            text = _read(path, encoding)
         except OSError:
             continue
         for line in text.splitlines():
@@ -104,14 +110,37 @@ def classify(aliases: Iterable[str]) -> Detection | None:
     return None
 
 
+def neural_kind(folder: Path) -> str | None:
+    """ "ENUNU", "DiffSinger" or "VOICEVOX" when the bank is of a kind BLT cannot render, else None.
+
+    OpenUtau decides this the same way: the ``singer_type`` of ``character.yaml``, and, when that
+    names no known kind, the presence of ``enuconfig.yaml`` or ``dsconfig.yaml``. Such a bank has
+    no recordings to stretch, so the renderer BLT uses gives it silence, which would otherwise
+    show up only later as an empty track.
+    """
+    kinds = {"enunu": "ENUNU", "diffsinger": "DiffSinger", "voicevox": "VOICEVOX"}
+    try:
+        text = (folder / "character.yaml").read_text(encoding="utf-8-sig", errors="replace")
+    except OSError:
+        text = ""
+    declared = re.search(r"""^singer_type:\s*["']?([\w-]+)""", text, re.MULTILINE)
+    if declared and declared.group(1).lower() in {"utau", *kinds}:
+        return kinds.get(declared.group(1).lower())
+    if (folder / "enuconfig.yaml").is_file():
+        return kinds["enunu"]
+    if (folder / "dsconfig.yaml").is_file():
+        return kinds["diffsinger"]
+    return None
+
+
 def detect(folder: Path) -> Detection | None:
     """The engine a voicebank folder was made for, if its sound names say so."""
     try:
         if not folder.is_dir():
             return None
         return classify(aliases_of(folder))
-    except OSError:
-        return None
+    except (OSError, ValueError):
+        return None  # reading the bank is only a hint: nothing here may stop a run
 
 
 __all__ = ["ARPASING", "ENGLISH_XSAMPA", "Detection", "aliases_of", "classify", "detect"]
