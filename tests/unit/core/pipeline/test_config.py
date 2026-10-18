@@ -10,7 +10,9 @@ from barbershop_tracks.core.pipeline import (
     ErrorCategory,
     PipelineError,
     config_path,
+    default_voices_dir,
     discover_singers,
+    ensure_default_voices_dir,
     load_config_file,
     resolve_config,
     voicebanks_without_character_file,
@@ -134,3 +136,44 @@ def test_the_pitch_sets_of_a_multi_pitch_voicebank_are_not_listed_as_voices(tmp_
         (root / part).mkdir()
         (root / part / "oto.ini").write_text("", encoding="utf-8")
     assert discover_singers(tmp_path) == {"alys-like"}
+
+
+def test_blt_has_its_own_voices_folder_that_is_the_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("platformdirs.user_documents_dir", lambda: str(tmp_path))
+    own = default_voices_dir()
+    assert own == tmp_path / "BLT Music Generator" / "Voices"
+    resolved = resolve_config({}, environ={})
+    assert resolved.singers_dir == own
+    assert "own voices folder" in resolved.sources["singers_dir"]
+    assert not own.exists()  # resolving creates nothing
+    ensure_default_voices_dir(resolved.singers_dir)
+    assert own.is_dir()
+
+
+def test_the_default_is_blts_folder_even_when_openutau_has_voices(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("platformdirs.user_documents_dir", lambda: str(tmp_path))
+    shared = tmp_path / "OpenUtau" / "Singers" / "old-bank"
+    shared.mkdir(parents=True)
+    (shared / "character.txt").write_text("name=old", encoding="utf-8")
+    assert resolve_config({}, environ={}).singers_dir == default_voices_dir()
+    # voicebanks sorted into folders of the person's own kinds are all found, by their paths
+    for kind, name in (("English", "bennett"), ("Japanese", "kira")):
+        bank = default_voices_dir() / kind / name
+        bank.mkdir(parents=True)
+        (bank / "character.txt").write_text("name=x", encoding="utf-8")
+    assert discover_singers(default_voices_dir()) == {r"English\bennett", r"Japanese\kira"}
+
+
+def test_a_folder_the_user_chose_is_never_created_for_them(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("platformdirs.user_documents_dir", lambda: str(tmp_path))
+    typo = tmp_path / "typo"
+    ensure_default_voices_dir(typo)
+    assert not typo.exists()
+    chosen = resolve_config({"singers_dir": str(typo)}, environ={})
+    assert chosen.singers_dir == typo

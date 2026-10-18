@@ -46,8 +46,12 @@ Installing a newer version over the old one upgrades it and keeps everything of 
 ## First run
 
 1. Start **BLT Music Generator** from the Start menu.
-2. **Voices.** Put your voicebank folder(s) in `Documents\OpenUtau\Singers`, or press *Choose folder* in the
-   Voices section (*Browse…*) and point at the folder that contains them. Press *Refresh*; they are listed.
+2. **Voices.** BLT has its own voices folder, `Documents\BLT Music Generator\Voices` (Setup creates it; Updating
+   and uninstalling never touch it). Press *Add voice…* in the Voices section and choose a voicebank's `.zip` file or
+   its folder: BLT copies it in and lists it. You can also drop voicebank folders into the voices folder yourself
+   (*Open* shows it), inside folders of your own such as `English\` or `Japanese\`, and press *Refresh*. On the
+   command line: `barbershop-tracks voices add FOLDER-OR-ZIP` and `barbershop-tracks voices list`. Voicebanks you already have, even ones OpenUtau uses, are added the same way (BLT copies them; it
+   never needs OpenUtau, and *Browse…* can still point BLT at another folder). OpenUtau itself is not needed.
 3. **Score.** Press *Choose score…* (or drop the file on the window).
 4. **Parts.** Tell BLT which line of the score is Tenor, Lead, Baritone and Bass (*Suggest voices* fills in
    likely ones from the part names; you confirm them).

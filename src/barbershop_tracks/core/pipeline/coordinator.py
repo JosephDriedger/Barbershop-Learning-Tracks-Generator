@@ -41,7 +41,9 @@ from barbershop_tracks.core.musicxml import ParseResult, opened_score, parse_mus
 from barbershop_tracks.core.pipeline.config import (
     ENGLISH_PHONEMIZERS,
     ResolvedConfig,
+    default_voices_dir,
     discover_singers,
+    ensure_default_voices_dir,
     removed_phonemizer,
     voicebanks_without_character_file,
 )
@@ -387,12 +389,14 @@ def _require_environment(
     # --- voicebank ---
     run.stage(Stage.VOICEBANK_DISCOVERY, "started")
     singers_dir = config.singers_dir
+    ensure_default_voices_dir(singers_dir)
     if singers_dir is None or not singers_dir.is_dir():
         raise PipelineError(
             ErrorCategory.CONFIGURATION,
             "SINGERS_DIR_MISSING",
-            "no voices folder is configured; pass --singers-dir, set BLT_SINGERS_DIR, or put your "
-            "voicebanks in Documents/OpenUtau/Singers (OpenUtau itself is not needed)",
+            f"the voices folder {singers_dir or '(none)'} does not exist; pass --singers-dir or "
+            f"set BLT_SINGERS_DIR, or put your voicebanks in {default_voices_dir()} "
+            "(OpenUtau itself is not needed)",
         )
     available = discover_singers(singers_dir)
     wanted = sorted({ref.singer for ref in refs.values()})

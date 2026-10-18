@@ -266,3 +266,20 @@ def test_config_reads_the_config_file_and_reports_a_bad_one(
 
 def test_unused_builders_are_importable() -> None:
     assert quartet_xml(all_lyrics=True).startswith("<")
+
+
+def test_voices_lists_and_adds_a_voicebank(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    voices = tmp_path / "voices"
+    source = tmp_path / "from" / "nice-voice"
+    source.mkdir(parents=True)
+    (source / "character.txt").write_text("name=n", encoding="utf-8")
+    assert main(["voices", "list", "--singers-dir", str(voices)]) == 0
+    assert "(no voices yet)" in capsys.readouterr().out
+    assert main(["voices", "add", str(source), "--singers-dir", str(voices)]) == 0
+    assert "Added nice-voice" in capsys.readouterr().out
+    assert main(["voices", "list", "--singers-dir", str(voices)]) == 0
+    assert "nice-voice" in capsys.readouterr().out
+    assert main(["voices", "add", str(source), "--singers-dir", str(voices)]) == 2
+    assert "VOICE_EXISTS" in capsys.readouterr().err

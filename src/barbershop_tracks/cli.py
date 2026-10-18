@@ -183,6 +183,21 @@ def build_parser() -> argparse.ArgumentParser:
     selftest.add_argument("--host-dir", metavar="DIR", help="the folder with blt-render-host.exe")
     selftest.add_argument("--data-dir", metavar="DIR", help="BLT's working data folder")
     selftest.add_argument("--keep", metavar="DIR", help="keep the generated files in DIR")
+    voices = commands.add_parser(
+        "voices",
+        help="list the installed voices, or add a voicebank you have to the voices folder",
+        description=(
+            "Voices are voicebank folders in BLT's voices folder. 'add' copies a voicebank (a "
+            "folder, or a .zip file) into it; nothing already there is replaced. Exit 0 done, "
+            "2 could not be added."
+        ),
+    )
+    voice_commands = voices.add_subparsers(dest="voices_command", metavar="ACTION", required=True)
+    voice_commands.add_parser("list", help="list the voices BLT can use")
+    add_voice = voice_commands.add_parser("add", help="add a voicebank (a folder or a .zip file)")
+    add_voice.add_argument("source", help="the voicebank folder or .zip file")
+    for sub in (voices, *voice_commands.choices.values()):
+        sub.add_argument("--singers-dir", metavar="DIR", help="the voices folder to use")
     commands.add_parser(
         "diagnostics",
         help="show where BLT finds its engine, voices and settings (for support)",
@@ -299,6 +314,49 @@ def _tolerate_unencodable_output() -> None:
             reconfigure(errors="replace")
 
 
+def _run_voices(args: argparse.Namespace) -> int:
+    from barbershop_tracks.core.pipeline import (
+        PipelineError,
+        config_path,
+        discover_singers,
+        ensure_default_voices_dir,
+        load_config_file,
+        resolve_config,
+    )
+    from barbershop_tracks.core.voices import VoiceInstallError, install_voicebank
+
+    try:
+        config = resolve_config(
+            load_config_file(config_path()), overrides={"singers_dir": args.singers_dir}
+        )
+    except PipelineError as error:
+        print(f"error[{error.code}]: {error.message}", file=sys.stderr)
+        return EXIT_USAGE
+    folder = config.singers_dir
+    if folder is None:
+        print("error: there is no voices folder; pass --singers-dir", file=sys.stderr)
+        return EXIT_USAGE
+    ensure_default_voices_dir(folder)
+    if args.voices_command == "list":
+        print(f"Voices folder: {folder}")
+        names = sorted(discover_singers(folder), key=str.lower)
+        for name in names:
+            print(f"  {name}")
+        if not names:
+            print("  (no voices yet)")
+        return EXIT_READY
+    try:
+        added = install_voicebank(Path(args.source), folder, lambda text: print(f"-> {text}"))
+    except VoiceInstallError as error:
+        print(f"error[{error.code}]: {error.message}", file=sys.stderr)
+        return EXIT_USAGE
+    for one in added:
+        print(f"Added {one.name}")
+        for note in one.notes:
+            print(f"  note: {note}")
+    return EXIT_READY
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     _tolerate_unencodable_output()
     parser = build_parser()
@@ -309,6 +367,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_lines(args)
     if args.command == "export":
         return _run_export(args)
+    if args.command == "voices":
+        return _run_voices(args)
     if args.command == "diagnostics":
         from barbershop_tracks.diagnostics import report
 

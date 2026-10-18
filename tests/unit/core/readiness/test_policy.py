@@ -45,6 +45,7 @@ def codes_in_source() -> set[str]:
             ("core", "rendering"),
             ("core", "mixing"),
             ("core", "pipeline"),
+            ("core", "voices"),  # typed VoiceInstallError codes of adding a voicebank
         }:
             # Narrow on purpose: M5 serialization/package failures are typed ``MidiExportError`` /
             # ``HandoffError`` codes (M7b: ``SynthesisPlanError`` / ``UstxError`` /

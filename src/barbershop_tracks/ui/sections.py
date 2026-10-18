@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
@@ -257,6 +258,9 @@ class AssignmentSection(QGroupBox):
 class VoicesSection(QGroupBox):
     advanced_requested = Signal()
     folder_requested = Signal()
+    open_folder_requested = Signal()
+    add_zip_requested = Signal()
+    add_folder_requested = Signal()
 
     def __init__(self, controller: AppController, parent: QWidget | None = None) -> None:
         super().__init__("Singing Voices", parent)
@@ -265,7 +269,13 @@ class VoicesSection(QGroupBox):
         self.folder.setReadOnly(True)
         self.folder.setAccessibleName("Folder with the installed singing voices")
         self.folder_button = _button("B&rowse…")
+        self.open_button = _button("&Open", "Show the voices folder in Explorer, to add voices")
         self.refresh_button = _button("&Refresh", "Look for installed voices again")
+        self.add_button = _button("&Add voice…", "Add a voicebank you have to the voices folder")
+        add_menu = QMenu(self.add_button)
+        add_menu.addAction("From a .zip file…", self.add_zip_requested.emit)
+        add_menu.addAction("From a folder…", self.add_folder_requested.emit)
+        self.add_button.setMenu(add_menu)
         self.same = _button("Same voice for &all parts", "Use the Tenor's voice for every part")
         self.advanced = _button("Ad&vanced…", "Pronunciation and engine settings")
         self.status = QLabel("")
@@ -285,8 +295,10 @@ class VoicesSection(QGroupBox):
         folder_row = QHBoxLayout()
         folder_row.addWidget(self.folder, 1)
         folder_row.addWidget(self.folder_button)
+        folder_row.addWidget(self.open_button)
         folder_row.addWidget(self.refresh_button)
         buttons = QHBoxLayout()
+        buttons.addWidget(self.add_button)
         buttons.addWidget(self.same)
         buttons.addStretch(1)
         buttons.addWidget(self.advanced)
@@ -297,9 +309,13 @@ class VoicesSection(QGroupBox):
         layout.addLayout(buttons)
         layout.addWidget(self.status)
         layout.addWidget(
-            hint("BLT does not download or include voices. Install yours in the voices folder.")
+            hint(
+                "BLT does not download or include voices. Put each voice's folder in the voices "
+                "folder (press Open); folders for kinds or languages inside it work too."
+            )
         )
         self.folder_button.clicked.connect(self.folder_requested)
+        self.open_button.clicked.connect(self.open_folder_requested)
         self.advanced.clicked.connect(self.advanced_requested)
         self.refresh_button.clicked.connect(controller.refresh_voices)
         self.same.clicked.connect(self._same)
@@ -331,6 +347,7 @@ class VoicesSection(QGroupBox):
             combo.setCurrentIndex(max(combo.findData(chosen), 0))
             combo.blockSignals(False)
         self.same.setEnabled(bool(controller.singers.get(VoiceRole.TENOR)))
+        self.add_button.setEnabled(not controller.adding_voice)
         problems = [
             p
             for role in VOICE_ORDER

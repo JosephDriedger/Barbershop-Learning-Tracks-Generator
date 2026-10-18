@@ -8,14 +8,15 @@ Precedence for every setting, highest first:
 3. the user's config file (``%LOCALAPPDATA%\\BarbershopLearningTracks\\config.json``, or the file
    named by ``BLT_CONFIG``);
 4. discovery, only where it cannot be ambiguous: ``ffmpeg`` on ``PATH``, the platform data
-   directories, the host next to the application (or in a development checkout), and the standard
-   OpenUtau ``Singers`` folder in Documents when it exists.
+   directories, the host next to the application (or in a development checkout), and BLT's own
+   voices folder (``Documents\\BLT Music Generator\\Voices``).
 
 The voicebank itself is never discovered: ``--singer`` (or ``singer`` in the config file) names it
 explicitly and is checked against what is installed. Every resolved value records where it came
 from, so ``barbershop-tracks config`` can say exactly why BLT is using it.
 """
 
+import contextlib
 import json
 import os
 import sys
@@ -153,6 +154,25 @@ class ResolvedConfig:
         return {"DOTNET_ROOT": str(self.dotnet_root)} if self.dotnet_root is not None else {}
 
 
+def default_voices_dir() -> Path:
+    """BLT's own folder for installed voicebanks (``Documents\\BLT Music Generator\\Voices``).
+
+    Visible to the user, who drops voicebank folders into it; neither updating nor uninstalling
+    BLT touches it. Created on demand by :func:`ensure_default_voices_dir`.
+    """
+    return Path(platformdirs.user_documents_dir()) / "BLT Music Generator" / "Voices"
+
+
+def ensure_default_voices_dir(singers_dir: Path | None) -> None:
+    """Create BLT's own voices folder when it is the one in use and does not exist yet.
+
+    A folder the user chose is never created for them: a typo there should be reported.
+    """
+    if singers_dir is not None and singers_dir == default_voices_dir():
+        with contextlib.suppress(OSError):  # reported as a missing folder by whoever needs it
+            singers_dir.mkdir(parents=True, exist_ok=True)
+
+
 def _development_host() -> Path | None:
     """The host build of a source checkout, so developers need no configuration."""
     root = Path(__file__).resolve().parents[4]
@@ -191,8 +211,7 @@ def resolve_config(
             sources[key] = f"discovered: {how}"
         return discovered
 
-    documents = Path(platformdirs.user_documents_dir()) / "OpenUtau" / "Singers"
-    singers = path_of("singers_dir", documents if documents.is_dir() else None, "OpenUtau default")
+    singers = path_of("singers_dir", default_voices_dir(), "BLT's own voices folder")
     ffmpeg = path_of("ffmpeg", find_ffmpeg(), "PATH")
     if "ffmpeg" in values:  # an explicit choice is never second-guessed
         ffmpeg = Path(values["ffmpeg"])

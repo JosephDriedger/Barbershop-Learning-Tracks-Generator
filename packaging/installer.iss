@@ -108,8 +108,14 @@ Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdi
 Source: "{sys}\msvcp140.dll"; DestDir: "{app}\_internal\numpy.libs"; DestName: "{#NumpyMsvcp}"; Flags: external ignoreversion
 #endif
 
+[Dirs]
+; BLT's own folder for the user's voicebanks. It is the user's: uninstalling never removes it, and
+; upgrading never touches what is in it. No voicebank is shipped.
+Name: "{userdocs}\BLT Music Generator\Voices"; Flags: uninsneveruninstall
+
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
+Name: "{group}\Voices folder"; Filename: "{userdocs}\BLT Music Generator\Voices"
 Name: "{group}\Third-party notices"; Filename: "{app}\NOTICES.txt"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 

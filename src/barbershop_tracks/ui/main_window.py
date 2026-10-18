@@ -38,7 +38,12 @@ from PySide6.QtWidgets import (
 from barbershop_tracks import __version__
 from barbershop_tracks.core.musicxml.convert import CONVERTED_SUFFIXES, needs_recognition
 from barbershop_tracks.core.musicxml.source import wrong_file_advice
-from barbershop_tracks.core.pipeline import STAGES, GenerateResult, PipelineError
+from barbershop_tracks.core.pipeline import (
+    STAGES,
+    GenerateResult,
+    PipelineError,
+    ensure_default_voices_dir,
+)
 from barbershop_tracks.diagnostics import collect
 from barbershop_tracks.ui.controller import AppController, LoadedScore, ValidationView
 from barbershop_tracks.ui.dialogs import AdvancedDialog, LyricReviewDialog
@@ -169,6 +174,11 @@ class MainWindow(QMainWindow):
         # wiring
         self.score_section.browse_requested.connect(self.choose_score)
         self.voices_section.folder_requested.connect(self.choose_voices_folder)
+        self.voices_section.open_folder_requested.connect(self.open_voices_folder)
+        self.voices_section.add_zip_requested.connect(self.add_voice_from_zip)
+        self.voices_section.add_folder_requested.connect(self.add_voice_from_folder)
+        self.controller.voice_added.connect(self._voice_added)
+        self.controller.voice_add_failed.connect(self._voice_add_failed)
         self.voices_section.advanced_requested.connect(self.open_advanced)
         self.output_section.browse_requested.connect(self.choose_output_folder)
         self.output_section.ffmpeg_requested.connect(self.choose_ffmpeg)
@@ -285,6 +295,36 @@ class MainWindow(QMainWindow):
         if folder:
             self.prefs.singers_dir = folder
             self.controller.refresh_voices()
+
+    def add_voice_from_zip(self) -> None:
+        path = self.prompts.choose_file(
+            self, "Add a voice from a zip", "", "Voicebank zip (*.zip);;All files (*)"
+        )
+        if path:
+            self.controller.add_voice(Path(path))
+
+    def add_voice_from_folder(self) -> None:
+        folder = self.prompts.choose_folder(self, "The folder of the voicebank to add", "")
+        if folder:
+            self.controller.add_voice(Path(folder))
+
+    def _voice_added(self, added: list[Any]) -> None:
+        notes = [f"{one.name}: {note}" for one in added for note in one.notes]
+        text = "Added: " + ", ".join(one.name for one in added) + "."
+        if notes:
+            text += "\n\n" + "\n".join(notes)
+        self.prompts.inform(self, TITLE, text)
+
+    def _voice_add_failed(self, message: str) -> None:
+        self.prompts.warn(self, TITLE, message)
+
+    def open_voices_folder(self) -> None:
+        folder = self.controller.singers_folder()
+        if folder is None:
+            return
+        ensure_default_voices_dir(folder)
+        if not self.opener(folder):
+            self.prompts.warn(self, TITLE, f"Could not open {folder}.")
 
     def choose_output_folder(self) -> None:
         folder = self.prompts.choose_folder(

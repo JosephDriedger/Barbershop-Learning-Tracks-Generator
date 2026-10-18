@@ -39,6 +39,7 @@ from barbershop_tracks.core.pipeline import (
     config_path,
     default_follow_lead,
     discover_singers,
+    ensure_default_voices_dir,
     generate,
     load_config_file,
     package_dirname,
@@ -56,6 +57,7 @@ from barbershop_tracks.core.synthesis import (
     VoiceEngineRef,
 )
 from barbershop_tracks.core.synthesis.openutau import PronunciationOverride
+from barbershop_tracks.core.voices import Installed, VoiceInstallError, install_voicebank
 from barbershop_tracks.models import VoiceRole
 from barbershop_tracks.ui.assignments import AssignmentState, Choice
 from barbershop_tracks.ui.background import Dispatcher
@@ -122,6 +124,8 @@ class AppController(QObject):
     state_changed = Signal()  # anything the window displays may have changed
     validation_changed = Signal(object)  # ValidationView
     voices_changed = Signal(object)  # list[str]
+    voice_added = Signal(object)  # list[Installed]
+    voice_add_failed = Signal(str)
     generation_started = Signal()
     generation_event = Signal(object)  # dict
     generation_finished = Signal(object)  # GenerateResult
@@ -151,6 +155,7 @@ class AppController(QObject):
         self.assignments: AssignmentState | None = None
         self.singers: dict[VoiceRole, str] = {r: prefs.singer(r) for r in VOICE_ORDER}
         self.installed: list[str] | None = None  # None until the voices folder was scanned
+        self.adding_voice = False
         self.review: LyricReviewState | None = None
         self.approvals: tuple[LyricApproval, ...] = ()
         # the words the dictionary lacks (learned when a run stops at them) and what is decided
@@ -344,11 +349,40 @@ class AppController(QObject):
         folder = self.singers_folder()
 
         def work(_emit: Callable[[dict[str, Any]], None]) -> list[str]:
+            ensure_default_voices_dir(folder)
             if folder is None or not folder.is_dir():
                 return []
             return sorted(discover_singers(folder), key=str.lower)
 
         self.dispatcher.submit(work, self._voices_ready, lambda error: self._voices_ready([]))
+
+    def add_voice(self, source: Path) -> None:
+        """Copy a voicebank (a folder, or a .zip) into the voices folder, then look again."""
+        folder = self.singers_folder()
+        if folder is None:
+            self.voice_add_failed.emit("Choose the voices folder first.")
+            return
+        self.adding_voice = True
+        self.state_changed.emit()
+
+        def work(_emit: Callable[[dict[str, Any]], None]) -> list[Installed]:
+            ensure_default_voices_dir(folder)
+            return install_voicebank(source, folder)
+
+        def done(added: list[Installed]) -> None:
+            self.adding_voice = False
+            self.voice_added.emit(added)
+            self.refresh_voices()
+
+        def failed(error: BaseException) -> None:
+            self.adding_voice = False
+            self.state_changed.emit()
+            if isinstance(error, VoiceInstallError):
+                self.voice_add_failed.emit(error.message)
+            else:
+                self.voice_add_failed.emit(f"Could not add {source.name}: {error}")
+
+        self.dispatcher.submit(work, done, failed)
 
     def _voices_ready(self, names: list[str]) -> None:
         self.installed = names

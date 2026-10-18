@@ -727,3 +727,34 @@ def test_the_step_where_it_stopped_is_marked(rig: Rig) -> None:
     progress.stage_started("rendering")
     progress.show_failure(Explanation("cancelled", "Cancelled", "", cancelled=True))
     assert [progress.steps.item(i).text()[0] for i in range(2)] == ["○", "■"]
+
+
+def test_a_voice_can_be_added_from_a_folder_or_a_zip_and_is_listed(rig: Rig) -> None:
+    import zipfile
+
+    source = rig.tmp / "mine" / "fresh-voice"
+    source.mkdir(parents=True)
+    (source / "character.txt").write_text("name=f", encoding="utf-8")
+    rig.prompts.answers["The folder of the voicebank to add"] = str(source)
+    with rig.qtbot.waitSignal(rig.controller.voices_changed, timeout=10000):
+        rig.window.add_voice_from_folder()
+    assert "Added: fresh-voice" in rig.prompts.informed[-1]
+    archive = rig.tmp / "zipped.zip"
+    with zipfile.ZipFile(archive, "w") as z:
+        z.writestr("zipped-voice/character.txt", "name=z")
+    rig.prompts.answers["file"] = str(archive)
+    with rig.qtbot.waitSignal(rig.controller.voices_changed, timeout=10000):
+        rig.window.add_voice_from_zip()
+    combo = rig.window.voices_section.combos[VoiceRole.LEAD]
+    names = [combo.itemText(i) for i in range(1, combo.count())]
+    assert "fresh-voice" in names
+    assert "zipped-voice" in names
+
+
+def test_a_voice_that_cannot_be_added_says_why(rig: Rig) -> None:
+    junk = rig.tmp / "readme.txt"
+    junk.write_text("hello", encoding="utf-8")
+    rig.prompts.answers["file"] = str(junk)
+    with rig.qtbot.waitSignal(rig.controller.voice_add_failed, timeout=10000):
+        rig.window.add_voice_from_zip()
+    assert "folder or a .zip" in rig.prompts.warnings[-1]
