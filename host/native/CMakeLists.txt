@@ -50,6 +50,10 @@ target_include_directories(worldline PRIVATE
   ${WL} wl wl/world/src wl/world/tools wl/libpyin wl/libgvps wl/libnpy/include wl/miniaudio wl/xxhash)
 target_compile_definitions(worldline PRIVATE FP_TYPE=double _CRT_SECURE_NO_WARNINGS $<$<COMPILE_LANGUAGE:CXX>:NOMINMAX>)
 target_link_libraries(worldline PRIVATE absl::strings)
+if(NOT MSVC)
+  # the patched effects.cpp includes "effects.h" from its original folder; MSVC finds it, clang does not
+  target_include_directories(worldline PRIVATE ${WL}/worldline/model)
+endif()
 if(MSVC)
   target_compile_options(worldline PRIVATE /O2 /Gy /Brepro)
   target_link_options(worldline PRIVATE /MAP /OPT:REF /OPT:ICF /Brepro)
