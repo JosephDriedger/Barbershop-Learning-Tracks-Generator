@@ -73,7 +73,16 @@ try {
     Check ((Start-Gui) -eq 0) "the GUI starts with the replaced library (no pinning or integrity check in BLT)"
 }
 finally {
-    cmd /c rmdir /s /q "$base" 2>$null | Out-Null
+    # Removing the scratch copy is housekeeping: the GUI just closed may hold a file for a moment, so try a
+    # few times, and never let a leftover temp folder fail the test (the checks above are the test)
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    foreach ($attempt in 1..5) {
+        cmd /c rmdir /s /q "$base" 2>&1 | Out-Null
+        if (-not (Test-Path -LiteralPath $base)) { break }
+        Start-Sleep -Seconds 2
+    }
+    $ErrorActionPreference = $previous
 }
 if ($failures.Count) {
     Write-Output "REPLACEABILITY TEST FAILED ($($failures.Count))"
