@@ -375,8 +375,8 @@ def test_ctrl_break_cancels_cleanly(rig: Rig) -> None:
         text=True,
         env=os.environ.copy(),
         **(
-            {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
-            if sys.platform == "win32"
+            {"creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)}
+            if os.name == "nt"
             else {"start_new_session": True}
         ),
     )
@@ -390,7 +390,7 @@ def test_ctrl_break_cancels_cleanly(rig: Rig) -> None:
             break  # the host is up and rendering
         assert time.monotonic() < deadline
     try:
-        child.send_signal(signal.CTRL_BREAK_EVENT if sys.platform == "win32" else signal.SIGINT)
+        child.send_signal(getattr(signal, "CTRL_BREAK_EVENT", signal.SIGINT))
     except OSError:  # no console to deliver Ctrl+Break through (some CI sessions)
         child.kill()
         child.communicate(timeout=60)

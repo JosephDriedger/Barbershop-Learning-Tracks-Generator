@@ -4,8 +4,8 @@ Tests come before cleverness here: each invariant the plan states has its own te
 """
 
 import json
+import os
 import subprocess
-import sys
 import time
 from pathlib import Path
 
@@ -335,7 +335,9 @@ def make_link(link: Path, target: Path) -> bool:
         return True
     except (OSError, NotImplementedError):
         pass
-    if not sys.platform.startswith("win"):  # (a str test: mypy folds a literal platform check)
+    if (
+        os.name != "nt"
+    ):  # (not sys.platform: mypy folds that and would flag the rest as unreachable)
         return False
     # a junction needs no privilege
     result = subprocess.run(
