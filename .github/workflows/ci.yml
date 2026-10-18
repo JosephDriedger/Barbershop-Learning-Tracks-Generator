@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# a newer push to a pull request replaces the run of the older one
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   checks:
     runs-on: windows-latest
@@ -158,6 +163,52 @@ jobs:
         run: pytest -m integration tests/integration
       - name: Negative control - the checks must REFUSE a host built from the unpatched OpenUtau (Voicevox, plus dictionary, C+V)
         run: python host/negative_control.py
+
+  package-macos:
+    # Builds the macOS app and an unsigned, not notarised disk image once per architecture, audits every file
+    # in the app, smoke-tests it in a stripped environment and checks that the Qt libraries are replaceable.
+    # The disk image IS kept for 14 days as a workflow artifact so that a person can try it on a real Mac
+    # (nothing is published: that is the publish workflow's job, behind the release gate).
+    name: package-macos (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-latest
+          - arch: x64
+            runner: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install the pinned build environment
+        run: |
+          python -m pip install -r packaging/requirements-build-macos.txt
+          python -m pip install -e . --no-deps
+      - name: Build the app and the disk image (smoke tests included)
+        run: python packaging/build_macos.py --allow-audit-gaps
+      - name: What is in the app (top levels)
+        if: always()
+        run: |
+          find "research-output/release-macos/app/BLT Music Generator.app" -maxdepth 4 | sort | head -300
+          find "research-output/release-macos/app/BLT Music Generator.app" -type f | sed 's|research-output/release-macos/app/||' | sort > app-files.txt
+          wc -l app-files.txt
+      - name: Keep the disk image and the text metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          retention-days: 14
+          path: |
+            research-output/release-macos/artifacts/*
+            app-files.txt
 
   package:
     # Builds the Windows package and installer from pinned inputs, audits every file in it against

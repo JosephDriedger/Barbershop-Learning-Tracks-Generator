@@ -1,0 +1,10 @@
+{
+  "schema": "blt.components-overlay/1",
+  "about": "The differences of the macOS app from the Windows package described by components.json (packaging/inventory.py applies them). Placeholder: filled in from the first macOS build.",
+  "remove": [],
+  "override": {},
+  "add": [],
+  "excluded": [],
+  "external": [],
+  "installer": []
+}

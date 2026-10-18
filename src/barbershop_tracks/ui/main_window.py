@@ -239,7 +239,16 @@ class MainWindow(QMainWindow):
         self.prompts.inform(self, TITLE, "Copied: paste it into a message to support.")
 
     def _open_notices(self) -> None:
-        notices = Path(sys.executable).resolve().parent / "NOTICES.txt"
+        program = Path(sys.executable).resolve().parent
+        # inside BLT Music Generator.app the notices are in Contents/Resources
+        notices = next(
+            (
+                p
+                for p in (program / "NOTICES.txt", program.parent / "Resources" / "NOTICES.txt")
+                if p.is_file()
+            ),
+            program / "NOTICES.txt",
+        )
         if not notices.is_file():
             self.prompts.inform(
                 self, TITLE, "The third-party notices are installed with BLT (NOTICES.txt)."

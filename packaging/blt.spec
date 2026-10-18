@@ -5,13 +5,22 @@
 # (packaging/build.ps1 uses research-output/release/app instead.) The result (the folder 'BLT Music Generator') is completed by packaging/build.ps1, which
 # adds the published render host (host/), the notices and the licence texts, then runs
 # packaging/inventory.py: every file must belong to a component listed in the dependency audit.
+#
+# On macOS the same spec builds 'BLT Music Generator.app' (the windowed program as the app's executable, the console
+# program 'blt' beside it in Contents/MacOS); packaging/build_macos.py completes it the same way
+# (render host in Contents/Helpers/host, notices in Contents/Resources) and audits it.
 import os
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(SPECPATH).parent
+MAC = sys.platform == "darwin"
 VERSION_FILE = str(ROOT / "research-output" / "work" / "version_info.txt")
-ICON = str(ROOT / "packaging" / "blt.ico")
+ICON = str(ROOT / "packaging" / ("blt.icns" if MAC else "blt.ico"))
+APP_VERSION = re.search(
+    r'__version__ = "([^"]+)"', (ROOT / "src" / "barbershop_tracks" / "__init__.py").read_text(encoding="utf-8")
+).group(1)
 
 # Qt parts BLT does not use. Dropping them keeps the package small and, more to the point, keeps
 # libraries out of it whose licences were never reviewed. QtNetwork/QtSvg/QtPdf/QtOpenGL/QtQml...
@@ -28,8 +37,19 @@ DROP_PATTERNS = (
     "qcertonlybackend", "qopensslbackend", "qgenericbearer", "qsvg", "qgif", "qjpeg", "qpdf", "qtiff",
     "qwebp", "qicns", "qwbmp", "qtga", "qmodernwindowsstyle", "qwindowsvistastyle",
 )
-# qoffscreen.dll is kept so the packaged program can be smoke-tested without a display
+# The same on macOS, where Qt's modules are frameworks (QtNetwork, not Qt6Network.dll) and the plugins are
+# lib*.dylib. QtCore, QtGui and QtWidgets are not listed: they are the ones the program uses.
+if MAC:
+    DROP_PATTERNS += tuple(
+        "Qt" + name[3:] for name in DROP_PATTERNS if name.startswith("Qt6")
+    ) + (
+        "qsecuretransportbackend", "cocoaprintersupport", "qtuiotouchplugin", "qgenericbearer",
+        "qmacheif", "qmacjp2", "qpdf", "qiconengine", "qsvgicon",
+    )
+# qoffscreen is kept so the packaged program can be smoke-tested without a display
 KEEP_ALWAYS = ("qwindows.dll", "qico.dll", "qoffscreen.dll")
+if MAC:
+    KEEP_ALWAYS = ("libqcocoa.dylib", "libqico.dylib", "libqoffscreen.dylib")
 
 
 RUNTIME_FILE = re.compile(r"^(vcruntime|msvcp|concrt|vcomp|vccorlib)\d+(_\d+|_[a-z_]+)?(-[0-9a-f]{32})?\.dll$", re.I)
@@ -68,15 +88,37 @@ for analysis in (gui, cli):
     analysis.datas = [d for d in analysis.datas if wanted(d[0]) or wanted(d[1])]
 
 gui_pyz, cli_pyz = PYZ(gui.pure), PYZ(cli.pure)
+# a version resource is a Windows thing
+VERSION_ARGS = {} if MAC else {"version": VERSION_FILE}
 gui_exe = EXE(
     gui_pyz, gui.scripts, [], exclude_binaries=True, name="BLT Music Generator", console=False,
-    icon=ICON, version=VERSION_FILE, upx=False, debug=False, bootloader_ignore_signals=False, strip=False,
+    icon=ICON, upx=False, debug=False, bootloader_ignore_signals=False, strip=False, **VERSION_ARGS,
 )
 cli_exe = EXE(
     cli_pyz, cli.scripts, [], exclude_binaries=True, name="blt", console=True,
-    icon=ICON, version=VERSION_FILE, upx=False, debug=False, bootloader_ignore_signals=False, strip=False,
+    icon=ICON, upx=False, debug=False, bootloader_ignore_signals=False, strip=False, **VERSION_ARGS,
 )
-COLLECT(
+collected = COLLECT(
     gui_exe, gui.binaries, gui.datas, cli_exe, cli.binaries, cli.datas,
     upx=False, strip=False, name="BLT Music Generator",
 )
+if MAC:
+    # Unsigned and not notarised: signing needs an Apple Developer account the owner has not decided on
+    # (packaging/build_macos.py has the off-by-default signing and notarisation steps).
+    app = BUNDLE(
+        collected,
+        name="BLT Music Generator.app",
+        icon=ICON,
+        bundle_identifier="io.github.josephdriedger.blt-music-generator",
+        version=APP_VERSION,
+        info_plist={
+            "CFBundleName": "BLT Music Generator",
+            "CFBundleDisplayName": "BLT Music Generator",
+            "CFBundleShortVersionString": APP_VERSION,
+            "CFBundleVersion": APP_VERSION,
+            "LSMinimumSystemVersion": "12.0",
+            "NSHighResolutionCapable": True,
+            "NSHumanReadableCopyright": "Copyright 2026 Joseph Driedger. Apache-2.0; see NOTICES.txt.",
+            "LSApplicationCategoryType": "public.app-category.music",
+        },
+    )

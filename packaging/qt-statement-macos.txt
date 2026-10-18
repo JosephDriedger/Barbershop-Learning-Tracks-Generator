@@ -1,0 +1,26 @@
+Qt and PySide6 (LGPL-3.0)
+-------------------------
+This program uses Qt 6.11.2 and PySide6 / shiboken6 6.11.2 (Qt for Python), which are licensed
+under the GNU Lesser General Public License version 3 (LGPL-3.0; its text and the GPL-3.0 text it
+refers to are in licenses/LGPL-3.0-only.txt and licenses/GPL-3.0-only.txt). The Qt and PySide6
+libraries are shipped as separate files (the Qt frameworks, the Qt plugins and the PySide6 and
+shiboken6 libraries and modules below Contents/Frameworks/PySide6 and Contents/Frameworks/shiboken6
+of BLT Music Generator.app), not merged into the executables (only four small Python modules of the
+bindings are frozen into them), and have not been modified. You may replace them with another build
+of the same Qt / PySide6 version (RELINKING.md in the source bundle below says how, including how
+to rebuild the program for those four modules) and run this program with it. macOS refuses to run
+a library whose code signature no longer matches its contents (on Apple silicon: any unsigned
+library), so a replacement must be signed again; an ad hoc signature is enough:
+codesign --force --sign - <the file>.
+
+Corresponding source code: each release on the project's GitHub page carries the asset
+BLT-Music-Generator-<version>-corresponding-source.zip, which holds the Qt Project's own source
+archives of Qt 6.11.2 (qtbase) and PySide6 6.11.2 (pyside-setup), checksummed, BLT's own source at
+the release commit, a written offer and the instructions for replacing the libraries, for Windows
+and for macOS:
+  https://github.com/JosephDriedger/Barbershop-Learning-Tracks-Generator/releases
+The same archives come from the Qt Project:
+  Qt 6.11.2:        https://download.qt.io/official_releases/qt/6.11/6.11.2/submodules/
+  PySide6 6.11.2:   https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.11.2-src/
+If you cannot get the bundle, open an issue at the project page and a copy will be provided, for at
+least three years after this version was last distributed.

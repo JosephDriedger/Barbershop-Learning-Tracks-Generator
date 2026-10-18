@@ -8,6 +8,7 @@ The licensing audit is only as good as its coverage, so the build fails when:
 * an installed Python package / NuGet package version differs from the one that was audited.
 
     python packaging/inventory.py DIST --runtime-pack DIR [--deps-json FILE] [--out FILE]
+    python packaging/inventory.py APP --platform macos --runtime-pack DIR [...]   # BLT Music Generator.app
 
 Exit status 0: complete. 1: gaps (listed). Blockers are reported but are not gaps: they are the
 audit's findings, decided on by a person (``--fail-on-blockers`` turns them into a failure for a
@@ -26,6 +27,10 @@ from typing import Any
 Component = dict[str, Any]
 
 COMPONENTS = Path(__file__).with_name("components.json")
+# the macOS package differs from the Windows one in file names and in a few components; the file holds only
+# the differences (see ``apply_overlay``)
+COMPONENTS_MACOS = Path(__file__).with_name("components-macos.json")
+HOST_PREFIX = {"windows": "host/", "macos": "Contents/Helpers/host/"}
 
 
 def glob_regex(pattern: str) -> re.Pattern[str]:
@@ -48,10 +53,51 @@ def glob_regex(pattern: str) -> re.Pattern[str]:
     return re.compile("".join(out) + r"\Z")
 
 
-def load_components(path: Path = COMPONENTS) -> list[Component]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+def apply_overlay(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+    """The component table of another platform: ``base`` with the overlay's differences applied.
+
+    ``remove``: ids that do not exist there. ``override``: id -> the keys that differ (``patterns`` above
+    all). ``add``: whole components that exist only there. ``excluded`` and ``external`` are appended to
+    the base's lists; ``installer`` is replaced (the macOS disk image has no installer stub).
+    """
+    if overlay.get("schema") != "blt.components-overlay/1":
+        raise SystemExit(f"unexpected overlay schema {overlay.get('schema')!r}")
+    merged: dict[str, Any] = json.loads(json.dumps(base))
+    known = {c["id"] for c in merged["components"]}
+    for name in (*overlay.get("remove", []), *overlay.get("override", {})):
+        if name not in known:
+            raise SystemExit(f"the overlay names {name!r}, which is not a component")
+    components = [c for c in merged["components"] if c["id"] not in overlay.get("remove", [])]
+    for component in components:
+        component.update(overlay.get("override", {}).get(component["id"], {}))
+    components += overlay.get("add", [])
+    merged["components"] = components
+    merged["excluded"] = [*merged["excluded"], *overlay.get("excluded", [])]
+    merged["external"] = [*merged["external"], *overlay.get("external", [])]
+    merged["installer"] = overlay.get("installer", [])
+    return merged
+
+
+def load_components_data(platform: str = "windows") -> dict[str, Any]:
+    """The whole component table (``components`` and the lists around it) for a platform."""
+    data: dict[str, Any] = json.loads(COMPONENTS.read_text(encoding="utf-8"))
     if data.get("schema") != "blt.components/1":
-        raise SystemExit(f"{path}: unexpected schema {data.get('schema')!r}")
+        raise SystemExit(f"{COMPONENTS}: unexpected schema {data.get('schema')!r}")
+    if platform == "macos":
+        overlay = json.loads(COMPONENTS_MACOS.read_text(encoding="utf-8"))
+        return apply_overlay(data, overlay)
+    if platform != "windows":
+        raise SystemExit(f"unknown platform {platform!r}")
+    return data
+
+
+def load_components(path: Path = COMPONENTS, platform: str = "windows") -> list[Component]:
+    if path != COMPONENTS:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if data.get("schema") != "blt.components/1":
+            raise SystemExit(f"{path}: unexpected schema {data.get('schema')!r}")
+    else:
+        data = load_components_data(platform)
     components: list[Component] = data["components"]
     return components
 
@@ -70,7 +116,10 @@ def runtime_pack_hashes(pack: Path) -> dict[str, str]:
 
 
 def classify(
-    dist: Path, components: list[Component], runtime_pack: dict[str, str] | None
+    dist: Path,
+    components: list[Component],
+    runtime_pack: dict[str, str] | None,
+    host_prefix: str = "host/",
 ) -> dict[str, Any]:
     files = sorted(p for p in dist.rglob("*") if p.is_file())
     compiled = [(c["id"], [glob_regex(pat) for pat in c["patterns"]]) for c in components]
@@ -81,7 +130,7 @@ def classify(
     for path in files:
         rel = path.relative_to(dist).as_posix()
         owner = None
-        if runtime_pack is not None and runtime_component and rel.startswith("host/"):
+        if runtime_pack is not None and runtime_component and rel.startswith(host_prefix):
             name = rel.rsplit("/", 1)[-1]
             if name in runtime_pack and runtime_pack[name] == sha256(path):
                 owner = runtime_component
@@ -131,6 +180,7 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("dist", type=Path)
+    parser.add_argument("--platform", choices=("windows", "macos"), default="windows")
     parser.add_argument(
         "--runtime-pack", type=Path, help="runtimes/win-x64 folder of the .NET runtime pack"
     )
@@ -139,17 +189,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fail-on-blockers", action="store_true")
     args = parser.parse_args(argv)
 
-    components = load_components()
+    components = load_components(platform=args.platform)
+    host_prefix = HOST_PREFIX[args.platform]
     pack = runtime_pack_hashes(args.runtime_pack) if args.runtime_pack else None
-    if pack is None and (args.dist / "host").is_dir():
+    if pack is None and (args.dist / host_prefix).is_dir():
         print(
             "error: --runtime-pack is required to attribute the .NET runtime files", file=sys.stderr
         )
         return 1
-    result = classify(args.dist, components, pack)
+    result = classify(args.dist, components, pack, host_prefix)
     problems = version_problems(components, args.deps_json)
     # the model-free build (the default) is recorded in the build; model-only parts must be gone
-    record = args.dist / "host" / "blt-host-build.json"
+    record = args.dist / host_prefix / "blt-host-build.json"
     excluded = (
         record.is_file()
         and json.loads(record.read_text(encoding="utf-8")).get("g2p_model") == "excluded"
