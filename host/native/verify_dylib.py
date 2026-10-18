@@ -55,9 +55,10 @@ def exports(library: Path) -> set[str]:
 
 
 def libraries(library: Path) -> list[str]:
-    """The libraries the dylib loads (its own install name is the first line and is skipped)."""
+    """The libraries the dylib loads (its own install name, listed first, is not one of them)."""
     lines = run("otool", "-L", str(library)).splitlines()[1:]
-    return [line.split(" (", 1)[0].strip() for line in lines if line.strip()]
+    names = [line.split(" (", 1)[0].strip() for line in lines if line.strip()]
+    return [name for name in names if name.rsplit("/", 1)[-1] != library.name]
 
 
 def main() -> int:
