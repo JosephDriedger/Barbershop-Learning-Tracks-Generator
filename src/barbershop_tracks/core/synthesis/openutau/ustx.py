@@ -33,6 +33,7 @@ from enum import Enum
 from fractions import Fraction
 from typing import Any
 
+from barbershop_tracks.core.singer_names import SINGER_SEPARATOR, split_singer_name
 from barbershop_tracks.core.synthesis.errors import PlanNotReadyError
 from barbershop_tracks.core.synthesis.openutau.expressions_0_7 import STATIC_BLOCK
 from barbershop_tracks.core.synthesis.openutau.overrides import NO_OVERRIDES, ResolvedOverrides
@@ -60,8 +61,10 @@ from barbershop_tracks.core.synthesis.plan import (
 # not isolated, so shorter notes are refused rather than risked.
 MIN_NOTE_TICKS = 10
 # A voicebank is known to OpenUtau by its folder path below the singers folder: a plain folder
-# name or, for one inside a pack folder, names joined by backslashes (``Pack\Bank``).
-_SINGER = re.compile(r'^[^\\/:*?"<>|\x00-\x1f]+(\\[^\\/:*?"<>|\x00-\x1f]+)*$')
+# name or, for one inside a pack folder, names joined by the platform's path separator
+# (``Pack\Bank`` on Windows, ``Pack/Bank`` on macOS).
+_SINGER_PART = r'[^\\/:*?"<>|\x00-\x1f]+'
+_SINGER = re.compile(f"^{_SINGER_PART}({re.escape(SINGER_SEPARATOR)}{_SINGER_PART})*$")
 _PHONEMIZER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$")
 _RESERVED_LYRICS = frozenset({"+", "+~", "-"})
 _BEAT_UNITS = frozenset({1, 2, 4, 8, 16, 32})
@@ -152,7 +155,7 @@ def _ticks(value: Fraction, resolution: int, what: str) -> int:
 
 
 def _check_ref(role_name: str, ref: VoiceEngineRef, target: OpenUtauTarget) -> None:
-    if not _SINGER.match(ref.singer) or {".", ".."} & set(ref.singer.split("\\")):
+    if not _SINGER.match(ref.singer) or {".", ".."} & set(split_singer_name(ref.singer)):
         raise UstxError("USTX_SINGER_REF", f"{role_name}: singer {ref.singer!r} is not a plain id")
     if not _PHONEMIZER.match(ref.phonemizer):
         raise UstxError(

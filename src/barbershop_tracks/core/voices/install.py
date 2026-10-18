@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
 from barbershop_tracks.core.rendering.engine_detect import neural_kind
+from barbershop_tracks.core.singer_names import join_singer_name
 
 MAX_ENTRIES = 200_000
 MAX_BYTES = 12 * 1024**3  # an unpacked bank larger than this is not a voicebank
@@ -36,7 +37,7 @@ class VoiceInstallError(Exception):
 
 @dataclass(frozen=True, slots=True)
 class Installed:
-    name: str  # as the singing engine knows it (``Pack\Bank`` inside a pack folder)
+    name: str  # as the singing engine knows it (a path: ``Pack\Bank``, ``Pack/Bank`` on macOS)
     path: Path
     notes: tuple[str, ...] = field(default=())  # things worth telling the person
 
@@ -139,7 +140,7 @@ def _free_name(parent: Path, relative: tuple[str, ...]) -> Path:
     if target.exists():
         raise VoiceInstallError(
             "VOICE_EXISTS",
-            f"a voice named {'\\'.join(relative)!r} is already in the voices folder; "
+            f"a voice named {join_singer_name(relative)!r} is already in the voices folder; "
             "BLT does not replace it. Remove or rename that folder first",
         )
     return target
@@ -204,9 +205,10 @@ def install_voicebank(
                 notes.append(f"it is a {kind} voice, which BLT cannot sing with (UTAU-style only)")
             target = voices_dir.joinpath(*relative)
             target.parent.mkdir(parents=True, exist_ok=True)
-            say(f"adding {'\\'.join(relative)} …")
+            name = join_singer_name(relative)
+            say(f"adding {name} …")
             shutil.move(str(root), str(target))
-            done.append(Installed("\\".join(relative), target, tuple(notes)))
+            done.append(Installed(name, target, tuple(notes)))
         return done
     finally:
         shutil.rmtree(scratch, ignore_errors=True)

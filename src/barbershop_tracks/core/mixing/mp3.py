@@ -21,6 +21,7 @@ succeed without a warning and produce a length within the same tolerance.
 import os
 import shutil
 import subprocess
+import sys
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -40,6 +41,9 @@ TOLERANCE_FRAMES = 3  # MP3 frames of difference allowed against the expected le
 _BITRATES = (0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0)
 
 
+_MACOS_TOOL_FOLDERS = ("/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin")
+
+
 def find_ffmpeg(configured: Path | None = None) -> Path | None:
     """An explicit path, else ``BLT_FFMPEG``, else ``ffmpeg`` on ``PATH``; ``None`` if absent."""
     for candidate in (configured, os.environ.get("BLT_FFMPEG")):
@@ -47,6 +51,9 @@ def find_ffmpeg(configured: Path | None = None) -> Path | None:
             path = Path(candidate)
             return path if path.is_file() else None
     found = shutil.which("ffmpeg")
+    if found is None and sys.platform == "darwin":
+        # an app started from the Finder gets a minimal PATH without Homebrew's folders
+        found = shutil.which("ffmpeg", path=os.pathsep.join(_MACOS_TOOL_FOLDERS))
     return Path(found) if found else None
 
 

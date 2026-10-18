@@ -5,7 +5,9 @@ process with that pid exists and started at that moment; a different process tha
 pid has another start time and the directory is stale.
 """
 
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 if sys.platform == "win32":
@@ -50,8 +52,28 @@ if sys.platform == "win32":
 
 else:
 
+    def _start_time_from_ps(pid: int) -> int | None:
+        """macOS has no /proc: ``ps`` prints the start moment (whole seconds, C locale)."""
+        try:
+            done = subprocess.run(
+                ["/bin/ps", "-p", str(pid), "-o", "lstart="],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+                env={"LC_ALL": "C", "PATH": "/bin:/usr/bin"},
+            )
+            text = " ".join(done.stdout.split())
+            if done.returncode != 0 or not text:
+                return None
+            return int(time.mktime(time.strptime(text, "%a %b %d %H:%M:%S %Y")))
+        except (OSError, ValueError, subprocess.SubprocessError):
+            return None
+
     def process_start_time(pid: int) -> int | None:
         stat = Path(f"/proc/{pid}/stat")
+        if not stat.parent.parent.is_dir():
+            return _start_time_from_ps(pid)
         try:
             fields = stat.read_text(encoding="utf-8").rsplit(")", 1)[1].split()
             return int(fields[19])  # starttime, in clock ticks since boot

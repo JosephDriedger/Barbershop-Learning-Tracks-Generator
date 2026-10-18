@@ -57,6 +57,7 @@ from barbershop_tracks.core.pipeline import (
 )
 from barbershop_tracks.core.readiness import RoleAssignments
 from barbershop_tracks.core.rendering import CancelToken
+from barbershop_tracks.core.runtime.host_install import HOST_EXE
 from barbershop_tracks.core.synthesis import LyricApproval
 from barbershop_tracks.core.synthesis.openutau import PronunciationOverride
 from barbershop_tracks.models import VoiceRole
@@ -101,7 +102,7 @@ def add_config_options(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group("configuration (command line > environment > config file)")
     group.add_argument("--config", metavar="FILE", help="a config file (default: per-user file)")
     group.add_argument("--singers-dir", metavar="DIR", help="the folder that holds the voicebanks")
-    group.add_argument("--host-dir", metavar="DIR", help="the folder with blt-render-host.exe")
+    group.add_argument("--host-dir", metavar="DIR", help="the folder with the render host")
     group.add_argument("--dotnet-root", metavar="DIR", help="the .NET runtime the host needs")
     group.add_argument("--ffmpeg", metavar="PATH", help="the FFmpeg executable (MP3 output only)")
     group.add_argument("--data-dir", metavar="DIR", help="BLT's own working data")
@@ -522,7 +523,7 @@ def _config_report(args: argparse.Namespace, config: ResolvedConfig) -> dict[str
         },
         "host": {
             "path": str(host) if host else None,
-            "found": bool(host and (host / "blt-render-host.exe").is_file()),
+            "found": bool(host and (host / HOST_EXE).is_file()),
             "source": config.sources.get("host_dir"),
         },
         "dotnet_root": {

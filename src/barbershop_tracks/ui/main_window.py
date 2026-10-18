@@ -336,8 +336,12 @@ class MainWindow(QMainWindow):
             self.controller.set_output_dir(folder)
 
     def choose_ffmpeg(self) -> None:
+        windows = sys.platform == "win32"
         path = self.prompts.choose_file(
-            self, "Find ffmpeg.exe", self.prefs.ffmpeg_path, "Programs (*.exe);;All files (*)"
+            self,
+            "Find ffmpeg.exe" if windows else "Find ffmpeg",
+            self.prefs.ffmpeg_path,
+            "Programs (*.exe);;All files (*)" if windows else "All files (*)",
         )
         if path:
             self.prefs.ffmpeg_path = path
