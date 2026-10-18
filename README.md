@@ -60,6 +60,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File packaging/build.ps1
 
 See [docs/m12-packaging.md](docs/m12-packaging.md). Nothing is uploaded or published by the build.
 
+## Credits
+
+BLT is a front end for work done by others. The full list of bundled components and their licences is
+`NOTICES.txt` (installed beside the program and in the Start menu; how it is made and checked is in
+[docs/dependency-audit.md](docs/dependency-audit.md)). In particular:
+
+* **[OpenUtau](https://github.com/stakira/OpenUtau)** (MIT, by its contributors) is the singing engine. BLT's render
+  host is built from OpenUtau 0.1.565 with a small, documented set of patches that remove parts BLT cannot
+  redistribute ([docs/openutau-integration.md](docs/openutau-integration.md)). Its native resampler `worldline`
+  builds on the **[WORLD vocoder](https://github.com/mmorise/World)** by Masanori Morise (BSD-3-Clause) and other
+  libraries named in the notices.
+* **CMUdict** (Carnegie Mellon University) is the English pronunciation dictionary, embedded in OpenUtau.
+* **[Qt](https://www.qt.io/) and [Qt for Python (PySide6)](https://doc.qt.io/qtforpython-6/)** (The Qt Company,
+  LGPL-3.0) draw the window; they stay separate, replaceable libraries.
+* **Python**, **NumPy**, **mido**, **defusedxml**, **platformdirs**, **PyInstaller** and the **.NET** runtime,
+  with the NAudio, Concentus, Newtonsoft.Json, YamlDotNet and other libraries listed in the notices.
+* **[Inno Setup](https://jrsoftware.org/isinfo.php)** builds the installer; it is not part of what is installed.
+* Scores can be prepared with **MuseScore**, and recognised from PDF with **Audiveris**; MP3 output uses
+  **FFmpeg**. These are programs you install yourself; BLT ships none of them.
+
+**Voices.** BLT includes no voicebank. The voice the developer tested with is **Bennett (ENG)** by
+**[VoCreatures](https://vocreatures.carrd.co)**: if you use Bennett, the terms ask you to credit him as
+"Bennett from VoCreatures" with a link to VoCreatures, not to redistribute the voicebank and not to use its audio to
+train AI models. Respect the licence of whichever voicebank you use and credit its author in what you publish.
+
 ## Repository rules
 
 Generated audio, OpenUtau projects, voicebanks, FFmpeg binaries and copyrighted

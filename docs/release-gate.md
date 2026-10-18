@@ -61,6 +61,7 @@ on `main` that requires that review. (Those repository settings are the owner's 
 | `packaging/build.ps1` (default) | builds as before and prints the gate's status; the artifacts stay marked NOT FOR RELEASE and `release-gate-status.txt` lists what is open |
 | `packaging/build.ps1 -ForRelease` | stops at once if the gate is closed, and checks the finished build against it (`check --release`) |
 | `.github/workflows/release.yml` | on a pushed version tag (`v*`) or a manual run, runs `release_gate.py check`; the workflow **fails** while anything is open. It contains no publishing step |
+| `.github/workflows/publish.yml` | started by hand only: runs `release_gate.py check` first (the later jobs `need` it), builds with `build.ps1 -ForRelease`, runs `check --release --package-dir` on the files it will publish, and creates a **draft** GitHub release; nothing is public until the owner presses Publish. Closed gate = it stops at the first job |
 | `.github/workflows/ci.yml` | prints `release_gate.py status` for information; does not gate (CI must stay able to go green while reviews are pending) |
 
 There is no override flag. To publish while an item is open, a commit would have to change `required` in `compliance/release-gate.json`: a visible change that needs the owner's approval.

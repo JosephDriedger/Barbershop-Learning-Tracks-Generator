@@ -1,0 +1,125 @@
+name: Publish release
+
+# Builds the release packages and creates a DRAFT GitHub release from them. Started by hand only (Actions > Publish
+# release > Run workflow): no tag push, schedule or other event starts it.
+#
+# The release gate (docs/release-gate.md, docs/OWNER-RELEASE-STEPS.md) comes first: while any required review,
+# acceptance result or owner decision is open, the `gate` job fails and nothing else runs. Green CI cannot open it. Every
+# later job `needs: gate`, and the job that creates the release runs `release_gate.py check --release` on the very
+# files it publishes. The release it creates is a draft: it becomes public only when the owner presses Publish.
+#
+# Windows is built here. A macOS job is added beside `windows` when the macOS port exists, and `publish` then lists it
+# in `needs:`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "version to release, exactly as in pyproject.toml (for example 0.1.0)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The version asked for is the version in the code
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python - <<'EOF'
+          import os, re, sys, pathlib
+          wanted = os.environ["VERSION"]
+          found = re.search(r'^version = "([^"]+)"', pathlib.Path("pyproject.toml").read_text(encoding="utf-8"), re.M).group(1)
+          if wanted != found:
+              sys.exit(f"asked for {wanted} but pyproject.toml says {found}")
+          print("version", found)
+          EOF
+      - name: Show the gate
+        run: python packaging/release_gate.py status
+      - name: Refuse while anything required is open
+        run: python packaging/release_gate.py check
+
+  windows:
+    needs: gate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install the pinned build environment
+        run: |
+          python -m pip install -r packaging/requirements-build.txt
+          python -m pip install -e . --no-deps
+      - name: Inno Setup
+        run: |
+          foreach ($attempt in 1..5) {
+            if (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe") { break }
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -eq 0) { break }
+            Start-Sleep -Seconds (20 * $attempt)
+          }
+      - name: Build the package and installer (refuses unless the gate is open)
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File packaging/build.ps1 -ForRelease
+      - name: Keep what is to be published
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          if-no-files-found: error
+          path: |
+            research-output/release/artifacts/BLT-Music-Generator-*-Setup.exe
+            research-output/release/artifacts/SHA256SUMS.txt
+            research-output/release/artifacts/NOTICES.txt
+            research-output/release/artifacts/release-info.json
+            research-output/release/artifacts/inventory.json
+            research-output/release/compliance/*-corresponding-source.zip
+
+  publish:
+    needs: [gate, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-files
+      - name: The gate again, on the files that will be published
+        run: |
+          mkdir -p package
+          find release-files -type f | sort
+          find release-files -type f -exec cp {} package/ \;
+          python packaging/release_gate.py check --release --package-dir package
+      - name: Create the draft release (nothing is public until the owner publishes it)
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          version="$VERSION"
+          files=$(find release-files -type f | sort)
+          gh release create "v$version" $files \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "BLT Music Generator $version" \
+            --notes-file "docs/RELEASE-NOTES-$version.md"

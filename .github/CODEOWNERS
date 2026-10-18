@@ -8,4 +8,5 @@
 /docs/review/                     @JosephDriedger
 /docs/acceptance/                 @JosephDriedger
 /.github/workflows/release.yml    @JosephDriedger
+/.github/workflows/publish.yml    @JosephDriedger
 /.github/CODEOWNERS               @JosephDriedger

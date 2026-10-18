@@ -2,9 +2,9 @@ name: Release gate
 
 # Runs when a version tag is pushed (or by hand). It checks the release gate (docs/release-gate.md) and FAILS while
 # any required review, acceptance result or owner decision is open, however green CI is. There is deliberately no
-# publishing step here: nothing in this repository publishes, signs or uploads a release. Any publishing job that is
-# added later must `needs: gate`, and must also run `release_gate.py check --release --package-dir <artifacts>`
-# on the build it publishes.
+# publishing step here: this workflow publishes, signs and uploads nothing. Publishing is publish.yml, which is started by
+# hand, `needs: gate`, runs `release_gate.py check --release --package-dir <artifacts>` on the build it publishes, and
+# only ever creates a draft release for the owner to publish.
 
 on:
   push:
