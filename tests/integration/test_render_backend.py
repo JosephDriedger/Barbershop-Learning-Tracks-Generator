@@ -9,7 +9,6 @@ jobs, and repeated cold and warm runs.
 import array
 import json
 import shutil
-import subprocess
 import threading
 import time
 from pathlib import Path
@@ -29,7 +28,7 @@ from barbershop_tracks.core.rendering import (
 from barbershop_tracks.core.runtime import RuntimeLayout
 from barbershop_tracks.core.synthesis import SynthesisPlan, VoiceEngineRef
 from barbershop_tracks.models import VoiceRole
-from host_support import PINNED_COMMIT, host_environment, require_host
+from host_support import PINNED_COMMIT, host_environment, host_processes, require_host
 from synth_builders import ROLES, full_lyrics, plan_of, sung
 from synthetic_voicebank import SINGER_ID, build_voicebank
 
@@ -84,20 +83,6 @@ def make_plan(
 ) -> SynthesisPlan:
     engine = VoiceEngineRef(singer=singer, phonemizer=phonemizer, renderer="WORLDLINE-R")
     return plan_of(voices=voices or full_lyrics(words), engine_refs=dict.fromkeys(ROLES, engine))
-
-
-def host_processes(runtime: Path) -> int:
-    script = (
-        "(Get-Process blt-render-host -ErrorAction SilentlyContinue | "
-        f"Where-Object {{ $_.Path -like '{runtime}*' }} | Measure-Object).Count"
-    )
-    done = subprocess.run(
-        ["powershell", "-NoProfile", "-Command", script],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return int(done.stdout.strip() or "0")
 
 
 def no_hosts_soon(runtime: Path) -> bool:

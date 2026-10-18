@@ -45,12 +45,16 @@ FORBIDDEN_NAMES = re.compile(
 ASSEMBLIES = ("OpenUtau.Core.dll", "OpenUtau.Plugin.Builtin.dll")
 FORBIDDEN_BYTES = re.compile(rb"Voicevox[A-Za-z_]|ArpabetPlus|ArpasingPlus|EnglishCpV|ARPAPlus")
 MODEL_MEMBER = "g2p.onnx"
+WINDOWS = sys.platform == "win32"
+HOST_EXE = "blt-render-host.exe" if WINDOWS else "blt-render-host"
+# the native runtime that exists only to run the g2p model
+ONNXRUNTIME = "onnxruntime.dll" if WINDOWS else "libonnxruntime.dylib"
 DEFAULT_PHONEMIZER = "OpenUtau.Core.DefaultPhonemizer"
 
 
 def run_inventory(host_dir: Path) -> dict[str, Any]:
     """Run ``blt-render-host --inventory`` and return its result object."""
-    exe = host_dir / "blt-render-host.exe"
+    exe = host_dir / HOST_EXE
     if not exe.is_file():
         raise SystemExit(f"{exe} does not exist")
     done = subprocess.run(
@@ -203,13 +207,13 @@ def file_problems(host_dir: Path, model_present: bool) -> list[str]:
                 name = found.group().decode("ascii")
                 problems.append(f"{dll} contains the name {name}: removed code is in the build")
     # the published host keeps onnxruntime.dll beside the exe; a plain `dotnet build` under runtimes/
-    beside = host_dir / "onnxruntime.dll"
-    nested = host_dir / "runtimes" / "win-x64" / "native" / "onnxruntime.dll"
-    if model_present and not (beside.is_file() or nested.is_file()):
-        problems.append("the g2p model is present but onnxruntime.dll is not beside the host")
+    beside = host_dir / ONNXRUNTIME
+    nested = tuple((host_dir / "runtimes").glob(f"*/native/{ONNXRUNTIME}"))
+    if model_present and not (beside.is_file() or nested):
+        problems.append(f"the g2p model is present but {ONNXRUNTIME} is not beside the host")
     if not model_present and beside.is_file():
         problems.append(
-            "the g2p model is excluded but the native onnxruntime.dll is still shipped "
+            f"the g2p model is excluded but the native {ONNXRUNTIME} is still shipped "
             "(it only runs that model)"
         )
     info_path = host_dir / "blt-host-build.json"

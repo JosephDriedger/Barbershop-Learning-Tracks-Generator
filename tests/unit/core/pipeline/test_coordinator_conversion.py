@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -11,6 +10,7 @@ from test_coordinator import Rig, error_of
 
 from barbershop_tracks.core.pipeline import PipelineError
 from cli_scores import quartet_xml
+from shims import write_shim
 
 FAKE = Path(__file__).resolve().parents[3] / "fake_converter.py"
 
@@ -20,12 +20,8 @@ def rig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Rig:
     made = Rig(tmp_path)
     exported = tmp_path / "exported.musicxml"
     exported.write_text(quartet_xml(all_lyrics=True), encoding="utf-8")
-    for name in ("musescore", "audiveris"):
-        (tmp_path / f"{name}.cmd").write_text(
-            f'@"{sys.executable}" "{FAKE}" %*\r\n', encoding="ascii"
-        )
-    monkeypatch.setenv("BLT_MUSESCORE", str(tmp_path / "musescore.cmd"))
-    monkeypatch.setenv("BLT_AUDIVERIS", str(tmp_path / "audiveris.cmd"))
+    monkeypatch.setenv("BLT_MUSESCORE", str(write_shim(tmp_path, "musescore", FAKE)))
+    monkeypatch.setenv("BLT_AUDIVERIS", str(write_shim(tmp_path, "audiveris", FAKE)))
     monkeypatch.setenv("FAKE_CONVERTER_SOURCE", str(exported))
     monkeypatch.setenv("FAKE_CONVERTER_LOG", str(tmp_path / "converter.log"))
     monkeypatch.setenv("FAKE_CONVERTER_MODE", "ok")

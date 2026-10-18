@@ -1,7 +1,6 @@
 """A MuseScore project or a PDF in the window: converted, flagged, never recognised silently."""
 
 import hashlib
-import sys
 from pathlib import Path
 
 import pytest
@@ -12,6 +11,7 @@ from test_ui_window import Rig
 from barbershop_tracks.core.pipeline import ErrorCategory, PipelineError
 from barbershop_tracks.ui.explain import explain
 from cli_scores import quartet_xml
+from shims import write_shim
 
 pytestmark = pytest.mark.gui
 
@@ -22,11 +22,8 @@ FAKE = Path(__file__).resolve().parents[2] / "fake_converter.py"
 def rig(qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Rig:
     exported = tmp_path / "exported.musicxml"
     exported.write_text(quartet_xml(all_lyrics=True), encoding="utf-8")
-    for name in ("musescore", "audiveris"):
-        wrapper = tmp_path / f"{name}.cmd"
-        wrapper.write_text(f'@"{sys.executable}" "{FAKE}" %*\r\n', encoding="ascii")
-    monkeypatch.setenv("BLT_MUSESCORE", str(tmp_path / "musescore.cmd"))
-    monkeypatch.setenv("BLT_AUDIVERIS", str(tmp_path / "audiveris.cmd"))
+    monkeypatch.setenv("BLT_MUSESCORE", str(write_shim(tmp_path, "musescore", FAKE)))
+    monkeypatch.setenv("BLT_AUDIVERIS", str(write_shim(tmp_path, "audiveris", FAKE)))
     monkeypatch.setenv("FAKE_CONVERTER_SOURCE", str(exported))
     monkeypatch.setenv("FAKE_CONVERTER_LOG", str(tmp_path / "converter.log"))
     monkeypatch.setenv("FAKE_CONVERTER_MODE", "ok")

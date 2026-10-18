@@ -24,8 +24,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- the native resampler the OpenUtau GUI project copies beside the app (win-x64) -->
-    <None Include="$(OpenUtauSrc)\runtimes\win-x64\native\worldline.dll" Link="worldline.dll" CopyToOutputDirectory="PreserveNewest" />
+    <!-- the native resampler the OpenUtau GUI project copies beside the app (win-x64); host/build.ps1 replaces it with BLT's own build -->
+    <None Include="$(OpenUtauSrc)\runtimes\win-x64\native\worldline.dll" Link="worldline.dll" CopyToOutputDirectory="PreserveNewest" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <!-- the same on macOS (universal); host/build.sh replaces it with BLT's own build -->
+    <None Include="$(OpenUtauSrc)/runtimes/osx/native/libworldline.dylib" Link="libworldline.dylib" CopyToOutputDirectory="PreserveNewest" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
   </ItemGroup>
 
   <ItemGroup>
