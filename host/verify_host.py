@@ -36,7 +36,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "packaging"))
 
-import verify_host_inventory as inventory  # noqa: E402  (a sibling script, not an installed module)
+import verify_host_inventory as base  # noqa: E402  (a sibling script, not an installed module)
+import verify_host_inventory_macos as inventory  # noqa: E402
 
 REMOVED_NAMES = re.compile(r"Voicevox[A-Za-z_]|ArpabetPlus|ArpasingPlus|EnglishCpV|ARPAPlus")
 NATIVE = "worldline.dll" if sys.platform == "win32" else "libworldline.dylib"
@@ -67,7 +68,7 @@ def problems_of(host_dir: Path, openutau_src: Path, *, allow_stock_worldline: bo
         problems.append("blt-host-build.json is missing")
     g2p_model = str(info.get("g2p_model") or "included")
 
-    for assembly in inventory.ASSEMBLIES:
+    for assembly in base.ASSEMBLIES:
         found = REMOVED_NAMES.search((host_dir / assembly).read_text(encoding="latin-1"))
         if found:
             problems.append(

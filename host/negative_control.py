@@ -98,8 +98,8 @@ def main() -> int:
     failures: list[str] = []
     python = sys.executable
     expect_refusal(
-        "verify_host_inventory.py",
-        [python, "-I", str(ROOT / "packaging" / "verify_host_inventory.py"), str(out)],
+        "verify_host_inventory_macos.py",
+        [python, "-I", str(ROOT / "packaging" / "verify_host_inventory_macos.py"), str(out)],
         [
             "ArpasingPlusPhonemizer",
             "EnglishCpVPhonemizer",
