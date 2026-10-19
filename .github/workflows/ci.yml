@@ -150,6 +150,16 @@ jobs:
         run: python -I packaging/verify_absent_data.py research-output/host/build --openutau-src research-output/openutau-src --without-g2p-model
       - name: The host contains exactly what the reviewed allow-list names (phonemizers, embedded data, g2p model)
         run: python -I packaging/verify_host_inventory_macos.py research-output/host/build --g2p-model excluded
+      - name: Candidate allow-list for a person to review (only when the inventory check failed)
+        if: failure()
+        run: python -I packaging/verify_host_inventory_macos.py research-output/host/build --write-expected
+      - name: Keep the candidate
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-inventory-macos-candidate-${{ matrix.arch }}
+          path: compliance/host-inventory-macos.json
+          if-no-files-found: ignore
       - name: FFmpeg for the MP3 test (CI only; BLT never bundles it)
         run: |
           for attempt in 1 2 3 4 5; do

@@ -104,9 +104,19 @@ def main(argv: list[str]) -> int:
         expected["about"] = (
             "Reviewed allow-list of what the macOS blt-render-host may contain "
             "(packaging/verify_host_inventory_macos.py). Generated from the pinned, patched "
-            "OpenUtau build on macOS; edit only with a reviewer."
+            "OpenUtau build on macOS; edit only with a reviewer. The phonemizers and the model "
+            "are the Windows list's; types and resources are what the macOS host reports."
         )
         expected["types"] = base.type_digest(actual["types"])
+        expected["resources"] = actual["resources"]
+        old = {base.resource_key(r): r for r in windows["resources"]}
+        new = {base.resource_key(r): r for r in expected["resources"]}
+        print(
+            f"types: {windows['types']['count']} on Windows, {len(actual['types'])} here; "
+            f"resources that differ from the Windows list: "
+            f"{[base.describe(k) for k in sorted(new) if old.get(k) != new[k]]}, "
+            f"missing here: {[base.describe(k) for k in sorted(set(old) - set(new))]}"
+        )
         EXPECTED_MACOS.write_text(json.dumps(expected, indent=2) + "\n", encoding="utf-8")
         print(f"wrote {EXPECTED_MACOS}")
         return 0

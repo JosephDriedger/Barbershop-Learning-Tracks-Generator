@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -6,13 +7,15 @@ import pytest
 from barbershop_tracks.core.runtime import HostInstallError, ensure_host_runtime
 from barbershop_tracks.core.runtime.host_install import COMPLETE_MARKER, HOST_EXE, fingerprint
 
+NATIVE_NAME = "worldline.dll" if sys.platform == "win32" else "libworldline.dylib"
+
 
 def fake_build(root: Path, *, payload: bytes = b"core-v1") -> Path:
     root.mkdir(parents=True, exist_ok=True)
     (root / HOST_EXE).write_bytes(b"exe")
     (root / "blt-render-host.dll").write_bytes(b"host")
     (root / "OpenUtau.Core.dll").write_bytes(payload)
-    (root / "worldline.dll").write_bytes(b"native")
+    (root / NATIVE_NAME).write_bytes(b"native")
     (root / "sub").mkdir(exist_ok=True)
     (root / "sub" / "extra.dll").write_bytes(b"x")
     return root
@@ -61,7 +64,7 @@ def test_missing_binaries_are_a_typed_error(tmp_path: Path) -> None:
         ensure_host_runtime(tmp_path / "nothing", tmp_path / "rt")
     assert error.value.code == "HOST_BINARIES_MISSING"
     partial = fake_build(tmp_path / "bin")
-    (partial / "worldline.dll").unlink()
+    (partial / NATIVE_NAME).unlink()
     with pytest.raises(HostInstallError) as incomplete:
         ensure_host_runtime(partial, tmp_path / "rt")
     assert incomplete.value.code == "HOST_BINARIES_INCOMPLETE"
