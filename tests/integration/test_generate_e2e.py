@@ -23,6 +23,7 @@ import yaml
 
 from barbershop_tracks.cli import main
 from barbershop_tracks.core.rendering.wav import read_raw
+from barbershop_tracks.core.singer_names import SINGER_SEPARATOR as SEP
 from cli_scores import LINES, quartet_xml
 from host_support import host_environment, host_processes, require_host
 from shims import write_shim
@@ -135,7 +136,7 @@ def test_musicxml_to_the_thirteen_track_package(
 
 @pytest.mark.parametrize(
     "folder",
-    ["pack\\bank", "My Voice Bank (v2)", "テスト ボイス é"],
+    [f"pack{SEP}bank", "My Voice Bank (v2)", "テスト ボイス é"],
     ids=["inside-a-pack-folder", "spaces-and-brackets", "non-ascii"],
 )
 def test_voicebanks_are_found_wherever_and_however_they_are_named(rig: Rig, folder: str) -> None:

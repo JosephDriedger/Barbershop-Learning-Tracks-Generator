@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from barbershop_tracks.core.pipeline import discover_singers
+from barbershop_tracks.core.singer_names import SINGER_SEPARATOR as SEP
 from barbershop_tracks.core.voices import VoiceInstallError, install_voicebank
 
 
@@ -66,8 +67,8 @@ def test_a_pack_keeps_its_folders_and_every_bank_in_it_is_added(tmp_path: Path) 
         {"Pack/A/character.txt": b"", "Pack/B/character.txt": b"", "Pack/readme.txt": b""},
     )
     done = install_voicebank(archive, tmp_path / "v")
-    assert sorted(d.name for d in done) == ["Pack\\A", "Pack\\B"]
-    assert discover_singers(tmp_path / "v") == {"Pack\\A", "Pack\\B"}
+    assert sorted(d.name for d in done) == [f"Pack{SEP}A", f"Pack{SEP}B"]
+    assert discover_singers(tmp_path / "v") == {f"Pack{SEP}A", f"Pack{SEP}B"}
 
 
 def test_a_bank_without_a_character_file_gets_one_in_the_copy_only(tmp_path: Path) -> None:

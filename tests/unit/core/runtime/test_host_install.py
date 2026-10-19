@@ -4,12 +4,12 @@ from typing import Any
 import pytest
 
 from barbershop_tracks.core.runtime import HostInstallError, ensure_host_runtime
-from barbershop_tracks.core.runtime.host_install import COMPLETE_MARKER, fingerprint
+from barbershop_tracks.core.runtime.host_install import COMPLETE_MARKER, HOST_EXE, fingerprint
 
 
 def fake_build(root: Path, *, payload: bytes = b"core-v1") -> Path:
     root.mkdir(parents=True, exist_ok=True)
-    (root / "blt-render-host.exe").write_bytes(b"exe")
+    (root / HOST_EXE).write_bytes(b"exe")
     (root / "blt-render-host.dll").write_bytes(b"host")
     (root / "OpenUtau.Core.dll").write_bytes(payload)
     (root / "worldline.dll").write_bytes(b"native")
@@ -22,10 +22,10 @@ def test_the_first_call_installs_a_complete_private_copy(tmp_path: Path) -> None
     binaries = fake_build(tmp_path / "bin")
     runtime = ensure_host_runtime(binaries, tmp_path / "data" / "runtime")
     assert runtime.freshly_installed
-    assert runtime.exe == runtime.directory / "blt-render-host.exe"
+    assert runtime.exe == runtime.directory / HOST_EXE
     assert (runtime.directory / COMPLETE_MARKER).is_file()
     assert (runtime.directory / "sub" / "extra.dll").read_bytes() == b"x"
-    assert (binaries / "blt-render-host.exe").is_file()  # the shipped binaries are untouched
+    assert (binaries / HOST_EXE).is_file()  # the shipped binaries are untouched
 
 
 def test_the_second_call_reuses_the_copy_and_keeps_data_written_beside_it(tmp_path: Path) -> None:
@@ -50,7 +50,7 @@ def test_an_incomplete_earlier_copy_is_never_reused(tmp_path: Path) -> None:
     binaries = fake_build(tmp_path / "bin")
     target = tmp_path / "rt" / f"host-{fingerprint(binaries)[:16]}"
     target.mkdir(parents=True)
-    (target / "blt-render-host.exe").write_bytes(b"truncated")  # no completion marker
+    (target / HOST_EXE).write_bytes(b"truncated")  # no completion marker
     runtime = ensure_host_runtime(binaries, tmp_path / "rt")
     assert runtime.freshly_installed
     assert (runtime.directory / "blt-render-host.dll").read_bytes() == b"host"

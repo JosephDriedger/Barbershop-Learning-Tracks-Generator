@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 import yaml
 
+from barbershop_tracks.core.singer_names import SINGER_SEPARATOR as SEP
 from barbershop_tracks.core.synthesis import (
     LyricProvenance,
     LyricState,
@@ -214,17 +215,18 @@ def test_unusable_configuration_is_an_error_not_a_fallback() -> None:
     assert with_ref(renderer="TURBO") == "USTX_RENDERER_UNKNOWN"
     assert with_ref(phonemizer="DefaultPhonemizer") == "USTX_PHONEMIZER_REF"
     assert with_ref(phonemizer="a b.C") == "USTX_PHONEMIZER_REF"
-    assert with_ref(singer="..\\evil") == "USTX_SINGER_REF"
-    assert with_ref(singer="a/b") == "USTX_SINGER_REF"
-    assert with_ref(singer="pack\\..\\evil") == "USTX_SINGER_REF"
-    assert with_ref(singer="pack\\\\bank") == "USTX_SINGER_REF"
-    assert with_ref(singer="\\bank") == "USTX_SINGER_REF"
+    other = "/" if SEP == "\\" else "\\"  # the separator of the other platform is no part of a name
+    assert with_ref(singer=f"..{SEP}evil") == "USTX_SINGER_REF"
+    assert with_ref(singer=f"a{other}b") == "USTX_SINGER_REF"
+    assert with_ref(singer=f"pack{SEP}..{SEP}evil") == "USTX_SINGER_REF"
+    assert with_ref(singer=f"pack{SEP}{SEP}bank") == "USTX_SINGER_REF"
+    assert with_ref(singer=f"{SEP}bank") == "USTX_SINGER_REF"
 
 
 def test_a_voicebank_inside_a_pack_folder_is_written_by_its_path() -> None:
-    ref = VoiceEngineRef(singer="pack\\bank", phonemizer="A.B", renderer="WORLDLINE-R")
+    ref = VoiceEngineRef(singer=f"pack{SEP}bank", phonemizer="A.B", renderer="WORLDLINE-R")
     data = parsed(plan_of(engine_refs=refs(lead=ref)))
-    assert data["tracks"][1]["singer"] == "pack\\bank"
+    assert data["tracks"][1]["singer"] == f"pack{SEP}bank"
 
 
 # --- readiness and lyrics ---

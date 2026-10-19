@@ -1,6 +1,7 @@
 """MuseScore projects and PDFs: converted by an installed program; recognition needs consent."""
 
 import hashlib
+import os
 import sys
 import tempfile
 import threading
@@ -297,12 +298,12 @@ def test_the_converter_is_not_started_with_bltss_qt_or_python_settings(rig: Rig)
 
 def test_blts_own_folders_are_taken_out_of_the_path() -> None:
     ours = str(Path(sys.prefix) / "Lib" / "site-packages" / "PySide6")
-    elsewhere = r"C:\Program Files\MuseScore 4in"
+    elsewhere = str(Path("/Program Files") / "MuseScore 4" / "bin")
     env = clean_environment(
-        {"PATH": f"{ours};{elsewhere}", "QT_QPA_PLATFORM": "offscreen", "TEMP": "t"}
+        {"PATH": f"{ours}{os.pathsep}{elsewhere}", "QT_QPA_PLATFORM": "offscreen", "TEMP": "t"}
     )
     assert "QT_QPA_PLATFORM" not in env
     assert env["TEMP"] == "t"
-    parts = env["PATH"].split(";")
+    parts = env["PATH"].split(os.pathsep)
     assert elsewhere in parts
     assert ours not in parts
