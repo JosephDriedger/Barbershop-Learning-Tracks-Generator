@@ -116,6 +116,8 @@ class OutputOptions:
     mp3_quality: int = 2
     keep_stems: bool = False
     keep_project: bool = False
+    tune_up: bool = False  # a note to tune to before the music
+    count_in: bool = False  # a bar of metronome clicks before the music
     replace: bool = False
 
 
@@ -179,6 +181,8 @@ class AppController(QObject):
             mp3_quality=prefs.mp3_quality,
             keep_stems=prefs.keep_stems,
             keep_project=prefs.keep_project,
+            tune_up=prefs.tune_up,
+            count_in=prefs.count_in,
         )
         self.output_dir = prefs.output_dir
         self._debounce = QTimer(self)
@@ -414,6 +418,8 @@ class AppController(QObject):
         prefs.mp3_quality = options.mp3_quality
         prefs.keep_stems = options.keep_stems
         prefs.keep_project = options.keep_project
+        prefs.tune_up = options.tune_up
+        prefs.count_in = options.count_in
         self.state_changed.emit()
 
     def set_output_dir(self, folder: str) -> None:
@@ -698,6 +704,8 @@ class AppController(QObject):
             replace=options.replace,
             keep_stems=options.keep_stems,
             keep_project=options.keep_project,
+            tune_up=options.tune_up,
+            count_in=options.count_in,
             timeout_seconds=float(self.prefs.timeout_minutes * 60),
             mp3_quality=options.mp3_quality,
             follow_lead=self.follow_lead(),

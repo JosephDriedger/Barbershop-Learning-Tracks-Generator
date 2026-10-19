@@ -487,6 +487,15 @@ class OutputSection(QGroupBox):
         self.others.setAccessibleName("Other voices loudness")
         self.keep_stems = QCheckBox("Keep the Four Separate Voice Recordings")
         self.keep_project = QCheckBox("Keep the Singing Project File")
+        self.tune_up = QCheckBox("Add a &Tune-Up Note Before the Music")
+        self.tune_up.setToolTip(
+            "Plays the key note of the song (the tonic of its first key signature) for three "
+            "seconds at the start of every track"
+        )
+        self.count_in = QCheckBox("Add a Metronome &Count-In Before the Music")
+        self.count_in.setToolTip(
+            "One bar of metronome clicks at the song's tempo before the music starts"
+        )
         self.replace = QCheckBox("&Replace Existing Tracks with This Name")
         self.status = QLabel("")
         self.status.setWordWrap(True)
@@ -526,6 +535,8 @@ class OutputSection(QGroupBox):
         layout.addLayout(form)
         layout.addWidget(self.keep_stems)
         layout.addWidget(self.keep_project)
+        layout.addWidget(self.tune_up)
+        layout.addWidget(self.count_in)
         layout.addWidget(self.replace)
         layout.addWidget(QLabel("The tracks will be saved in:"))
         layout.addWidget(self.location)
@@ -544,6 +555,8 @@ class OutputSection(QGroupBox):
         self.others.valueChanged.connect(lambda v: controller.set_options(custom_others=v))
         self.keep_stems.toggled.connect(lambda v: controller.set_options(keep_stems=v))
         self.keep_project.toggled.connect(lambda v: controller.set_options(keep_project=v))
+        self.tune_up.toggled.connect(lambda v: controller.set_options(tune_up=v))
+        self.count_in.toggled.connect(lambda v: controller.set_options(count_in=v))
         self.replace.toggled.connect(lambda v: controller.set_options(replace=v))
 
     def _format_toggled(self, on: bool, key: str) -> None:
@@ -562,6 +575,8 @@ class OutputSection(QGroupBox):
             self.others,
             self.keep_stems,
             self.keep_project,
+            self.tune_up,
+            self.count_in,
             self.replace,
             self.name,
         )
@@ -584,6 +599,8 @@ class OutputSection(QGroupBox):
             self.others.setValue(options.custom_others)
             self.keep_stems.setChecked(options.keep_stems)
             self.keep_project.setChecked(options.keep_project)
+            self.tune_up.setChecked(options.tune_up)
+            self.count_in.setChecked(options.count_in)
             self.replace.setChecked(options.replace)
         finally:
             for widget in widgets:

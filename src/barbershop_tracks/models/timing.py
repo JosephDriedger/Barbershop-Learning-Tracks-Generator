@@ -69,3 +69,48 @@ class TimeSignature:
     def measure_length(self) -> Fraction:
         """Length of one measure in quarter notes (6/8 -> 3, 4/4 -> 4)."""
         return Fraction(4 * self.beats, self.beat_type)
+
+
+# semitones above the tonic of the key's major scale (the relative major) to the tonic of the mode
+_MODE_OFFSETS = {
+    "major": 0,
+    "ionian": 0,
+    "dorian": 2,
+    "phrygian": 4,
+    "lydian": 5,
+    "mixolydian": 7,
+    "minor": 9,
+    "aeolian": 9,
+    "locrian": 11,
+}
+_SHARP_NAMES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
+_FLAT_NAMES = ("C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B")
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class KeySignature:
+    """The key signature at the start of the score: ``fifths`` sharps (negative: flats) and a mode.
+
+    ``mode`` is the MusicXML ``<mode>`` text (``major`` when the file gives none).
+    """
+
+    fifths: int
+    mode: str | None = None
+
+    def __post_init__(self) -> None:
+        require_int(self.fifths, name="fifths")
+        if not -14 <= self.fifths <= 14:
+            raise ValueError("fifths must be between -14 and 14")
+
+    @property
+    def tonic_pitch_class(self) -> int | None:
+        """0 for C ... 11 for B; ``None`` for a mode that has no tonic (``none``, unknown)."""
+        offset = _MODE_OFFSETS.get((self.mode or "major").strip().lower())
+        return None if offset is None else (7 * self.fifths + offset) % 12
+
+    @property
+    def tonic_name(self) -> str | None:
+        pitch_class = self.tonic_pitch_class
+        if pitch_class is None:
+            return None
+        return (_FLAT_NAMES if self.fifths < 0 else _SHARP_NAMES)[pitch_class]

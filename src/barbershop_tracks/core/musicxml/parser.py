@@ -26,6 +26,7 @@ from barbershop_tracks.core.timeline import perform_song
 from barbershop_tracks.models import (
     ClefChange,
     EndingSpan,
+    KeySignature,
     MeasureSpan,
     Note,
     Part,
@@ -97,6 +98,7 @@ def parse_score(source: MusicXmlSource) -> ParseResult:
         measures=measures,
         repeat_marks=marks,
         ending_spans=endings,
+        key_signature=_first_key(root),
     )
     performed = perform_song(song)
     issues.extend(performed.issues)
@@ -220,6 +222,18 @@ def _build_parts(timelines: list[PartTimeline], names: dict[str, str]) -> list[P
 
 
 # --- metadata -------------------------------------------------------------------------
+
+
+def _first_key(root: ET.Element) -> KeySignature | None:
+    """The first key signature in the file (the song's key at its start), if it has a usable one."""
+    key = root.find("part/measure/attributes/key")
+    if key is None:
+        return None
+    try:
+        fifths = int((child_text(key, "fifths") or "").strip())
+        return KeySignature(fifths=fifths, mode=child_text(key, "mode"))
+    except ValueError:
+        return None
 
 
 def _title(root: ET.Element) -> str:

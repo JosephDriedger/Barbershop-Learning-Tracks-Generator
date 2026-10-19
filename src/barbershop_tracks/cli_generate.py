@@ -188,6 +188,18 @@ def add_parsers(commands: Any) -> None:
     gen.add_argument("--keep-stems", action="store_true", help="also publish the four stems")
     gen.add_argument("--keep-project", action="store_true", help="also publish the USTX project")
     gen.add_argument(
+        "--tune-up",
+        action="store_true",
+        help="start every track with a three-second note to tune to: the tonic of the score's "
+        "first key signature (refused when the score has none)",
+    )
+    gen.add_argument(
+        "--count-in",
+        action="store_true",
+        help="start every track with a bar of metronome clicks at the score's first tempo "
+        "and time signature (after the tune-up note, if there is one)",
+    )
+    gen.add_argument(
         "--timeout", type=float, default=900.0, metavar="SECONDS", help="render time limit (900)"
     )
     gen.add_argument(
@@ -392,6 +404,8 @@ def _generate(args: argparse.Namespace, json_mode: bool) -> int:
         replace=args.replace,
         keep_stems=args.keep_stems,
         keep_project=args.keep_project,
+        tune_up=args.tune_up,
+        count_in=args.count_in,
         timeout_seconds=args.timeout,
         mp3_quality=args.mp3_quality,
         follow_lead=False if args.no_follow_lead else None,

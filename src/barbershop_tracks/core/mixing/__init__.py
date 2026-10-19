@@ -22,8 +22,10 @@ from barbershop_tracks.core.mixing.package import (
     PackageSource,
     build_learning_tracks,
     is_our_package,
+    prelude_for,
     stems_from_render,
 )
+from barbershop_tracks.core.mixing.prelude import PreludeOptions, tonic_midi
 from barbershop_tracks.core.mixing.specs import (
     DEFAULT_PROFILE,
     PRESETS,
@@ -56,11 +58,14 @@ __all__ = [
     "PackageSettings",
     "PackageSource",
     "PackagedFile",
+    "PreludeOptions",
     "TailPolicy",
     "build_learning_tracks",
     "find_ffmpeg",
     "is_our_package",
+    "prelude_for",
     "profile_from_dict",
     "standard_mix_specs",
     "stems_from_render",
+    "tonic_midi",
 ]

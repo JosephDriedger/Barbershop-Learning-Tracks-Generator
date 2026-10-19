@@ -160,6 +160,21 @@ bytes. `tests/integration/test_mixing_pipeline.py` renders four stems with the r
 generated voicebank, deletes the host runtime, and builds the 13-track package from the stems alone;
 its MP3 test uses a real FFmpeg when one is available (CI installs one).
 
+## Tune-up note and count-in (optional)
+
+Two options put audio before the music of **every** track (`--tune-up`, `--count-in`; two checkboxes in the app). They are
+off by default, and the music itself is never changed: it only starts later, and `manifest.json` says where
+(`audio.music_starts_at_frame`, with the details in `audio.prelude`). `audio.frames` is the whole file;
+`audio.duration_exact_seconds` is still the music's own length.
+
+* **Tune-up note**: three seconds of a plain sine tone at the tonic of the score's **first** key signature (major keys,
+  minor keys and the church modes are understood; the mode defaults to major), in the octave nearest the Lead's first note,
+  followed by one second of silence. A score with no key signature (or one in a mode with no tonic) is refused before any
+  singing is rendered: BLT does not guess a key.
+* **Count-in**: one bar of metronome clicks (not spoken numbers), the first one higher, at the score's first tempo and
+  time signature, one click per notated beat (6/8 gives six clicks). The music starts one beat after the last click. It is
+  not repeated during the song.
+
 ## Known limitations
 
 * Mono output only (the stems are mono); no panning, reverb, EQ or loudness matching.

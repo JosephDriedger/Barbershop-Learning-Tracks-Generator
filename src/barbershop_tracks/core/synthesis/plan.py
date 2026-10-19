@@ -272,6 +272,9 @@ class SourceIdentity:
     title: str | None = None
     # how the score came from a file that is not MusicXML (MuseScore project, recognised PDF)
     conversion: Mapping[str, object] | None = None
+    # the key signature at the start of the score (sharps, negative: flats) and its mode, if any
+    key_fifths: int | None = None
+    key_mode: str | None = None
 
     def __post_init__(self) -> None:
         if not self.display_name.strip():

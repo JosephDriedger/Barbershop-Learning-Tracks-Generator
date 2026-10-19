@@ -8,7 +8,7 @@ from pathlib import Path
 from barbershop_tracks.models.notation import ClefChange
 from barbershop_tracks.models.part import Part
 from barbershop_tracks.models.structure import EndingSpan, MeasureSpan, RepeatMark
-from barbershop_tracks.models.timing import TempoChange, TimeSignature
+from barbershop_tracks.models.timing import KeySignature, TempoChange, TimeSignature
 from barbershop_tracks.models.voice import VoiceRole
 
 
@@ -42,6 +42,7 @@ class Song:
     measures: tuple[MeasureSpan, ...] = ()
     repeat_marks: tuple[RepeatMark, ...] = ()
     ending_spans: tuple[EndingSpan, ...] = ()
+    key_signature: KeySignature | None = None  # at the start of the score, if the file gives one
 
     def __post_init__(self) -> None:
         parts = tuple(self.parts)

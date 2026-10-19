@@ -33,8 +33,10 @@ from barbershop_tracks.core.mixing import (
     PackageResult,
     PackageSettings,
     PackageSource,
+    PreludeOptions,
     build_learning_tracks,
     is_our_package,
+    prelude_for,
     stems_from_render,
 )
 from barbershop_tracks.core.musicxml import ParseResult, opened_score, parse_musicxml
@@ -194,6 +196,10 @@ class GenerateRequest:
     compose_unknown_words: bool = True
     # ... and one that cannot is guessed from its spelling (False: it stops for a person)
     guess_by_spelling: bool = True
+    # before the music of every track: a note to tune to (the tonic of the score's first key
+    # signature) and a bar of metronome clicks
+    tune_up: bool = False
+    count_in: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -340,6 +346,8 @@ def _load_plan(
         sha256=sha,
         title=parsed.song.title or None,
         conversion=conversion,
+        key_fifths=None if parsed.song.key_signature is None else parsed.song.key_signature.fifths,
+        key_mode=None if parsed.song.key_signature is None else parsed.song.key_signature.mode,
     )
     prepared = prepare(
         parsed,
@@ -582,6 +590,13 @@ def _generate(
         )
 
     plan, sha = _load_plan(request, services, run, refs, config.layout.cache / "converted")
+    if request.tune_up or request.count_in:  # refused now, not after the voices are sung
+        try:
+            prelude_for(
+                PackageSource.from_plan(plan), PreludeOptions(request.tune_up, request.count_in)
+            )
+        except MixConfigurationError as error:
+            raise PipelineError(ErrorCategory.CONFIGURATION, error.code, error.message) from error
 
     run.stage(Stage.USTX_PREPARATION, "started")
     # every pronunciation a person gave must belong to this score, voice, note, word and engine
@@ -734,6 +749,7 @@ def _render_and_mix(
             formats=request.formats,
             profile=config.gain_profile,
             mp3=mp3,
+            prelude=PreludeOptions(request.tune_up, request.count_in),
         ),
         cancel=run.cancel,
         on_progress=on_package_event,

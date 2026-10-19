@@ -51,7 +51,7 @@ from barbershop_tracks.models.structure import (
     RepeatKind,
     RepeatMark,
 )
-from barbershop_tracks.models.timing import TempoChange, TimeSignature
+from barbershop_tracks.models.timing import KeySignature, TempoChange, TimeSignature
 from barbershop_tracks.models.validation import Severity, ValidationIssue, ValidationResult
 from barbershop_tracks.models.voice import VoiceRole
 
@@ -66,6 +66,7 @@ __all__ = [
     "JobRequest",
     "JobResult",
     "JobStatus",
+    "KeySignature",
     "LineLyricAnalysis",
     "LocatedIssue",
     "Lyric",

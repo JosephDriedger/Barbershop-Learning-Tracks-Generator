@@ -63,6 +63,8 @@ def test_help_lists_the_command_and_its_options(capsys: pytest.CaptureFixture[st
         "--ffmpeg",
         "--gain-profile",
         "--keep-stems",
+        "--tune-up",
+        "--count-in",
     ):
         assert option in text
     with pytest.raises(SystemExit):

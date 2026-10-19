@@ -25,6 +25,7 @@ from barbershop_tracks.core.mixing import (
     PackageResult,
     PackageSettings,
     PackageSource,
+    PreludeOptions,
     TailPolicy,
     build_learning_tracks,
     standard_mix_specs,
@@ -32,7 +33,7 @@ from barbershop_tracks.core.mixing import (
 from barbershop_tracks.core.rendering import CancelToken
 from barbershop_tracks.core.rendering.wav import read_raw
 from barbershop_tracks.core.runtime import RuntimeLayout
-from barbershop_tracks.core.synthesis import VOICE_ORDER, SourceIdentity, TempoPoint
+from barbershop_tracks.core.synthesis import VOICE_ORDER, MeterPoint, SourceIdentity, TempoPoint
 from barbershop_tracks.models import VoiceRole
 from wav_builders import RATE, wav16, write
 
@@ -521,3 +522,61 @@ def test_unused_default_profile_import() -> None:
     assert DEFAULT_PROFILE.name == "default"
     assert TailPolicy().max_trim_seconds == 0.05
     assert RATE == 44100
+
+
+# --- a tune-up note and a count-in before the music ---
+
+KEYED_SOURCE = PackageSource(
+    SourceIdentity(
+        display_name="demo.musicxml", sha256="ab" * 32, title="Demo", key_fifths=2, key_mode="major"
+    ),
+    (TempoPoint(position=Fraction(0), bpm=Fraction(100)),),
+    Fraction(4),
+    meter=(MeterPoint(position=Fraction(0), beats=4, beat_type=4),),
+    reference_midi=62,
+)
+
+
+def test_the_prelude_comes_before_the_unchanged_music_in_every_track(rig: Rig) -> None:
+    plain = rig.build()
+    before = {packaged.name: rig.samples(packaged.name).copy() for packaged in plain.files}
+    rig.destination = rig.destination.parent / "with-prelude"
+    settings = rig.settings(prelude=PreludeOptions(tune_up=True, count_in=True))
+    result = build_learning_tracks(KEYED_SOURCE, rig.stems, rig.destination, settings)
+    lead_in = result.manifest["audio"]["music_starts_at_frame"]
+    assert lead_in > 0
+    assert result.frames == TARGET + lead_in
+    assert result.manifest["audio"]["frames"] == TARGET + lead_in
+    assert result.manifest["audio"]["duration_exact_seconds"] == "12/5"  # the music's own length
+    assert result.manifest["audio"]["prelude"]["tune_up"]["note"] == "D4"
+    assert result.manifest["audio"]["prelude"]["count_in"]["beats"] == 4
+    assert len(result.files) == 13
+    first_prelude = rig.samples(result.files[0].name)[:lead_in].copy()
+    assert first_prelude.any()
+    for packaged in result.files:
+        samples = rig.samples(packaged.name)
+        assert samples.shape[0] == TARGET + lead_in
+        assert np.array_equal(samples[:lead_in], first_prelude)  # the same on every track
+        assert np.array_equal(samples[lead_in:], before[packaged.name])  # the music is untouched
+    entry = result.manifest["tracks"][0]["files"][0]
+    assert entry["frames"] == TARGET + lead_in
+
+
+def test_without_the_option_the_package_is_as_it_was(rig: Rig) -> None:
+    result = rig.build()
+    assert result.frames == TARGET
+    assert result.manifest["audio"]["prelude"] is None
+    assert result.manifest["audio"]["music_starts_at_frame"] == 0
+
+
+def test_a_tune_up_note_needs_a_key_signature(rig: Rig) -> None:
+    settings = rig.settings(prelude=PreludeOptions(tune_up=True))
+    with pytest.raises(MixConfigurationError, match="key signature"):
+        build_learning_tracks(SOURCE, rig.stems, rig.destination, settings)
+    assert not rig.destination.exists()
+
+
+def test_a_count_in_needs_a_time_signature(rig: Rig) -> None:
+    settings = rig.settings(prelude=PreludeOptions(count_in=True))
+    with pytest.raises(MixConfigurationError, match="time signature"):
+        build_learning_tracks(SOURCE, rig.stems, rig.destination, settings)

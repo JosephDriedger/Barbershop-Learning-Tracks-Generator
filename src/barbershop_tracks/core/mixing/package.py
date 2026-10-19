@@ -32,6 +32,7 @@ from barbershop_tracks.core.mixing.errors import (
     MixInputError,
     MixOutputError,
 )
+from barbershop_tracks.core.mixing.prelude import Prelude, PreludeOptions, build_prelude
 from barbershop_tracks.core.mixing.specs import (
     DEFAULT_PROFILE,
     GainProfile,
@@ -45,8 +46,14 @@ from barbershop_tracks.core.rendering.cancel import CancelToken
 from barbershop_tracks.core.rendering.wav import WavFormatError, inspect_file
 from barbershop_tracks.core.runtime import RuntimeLayout, StagingArea, StagingError
 from barbershop_tracks.core.runtime.staging import cleanup_stale, publish_directory, remove_staging
-from barbershop_tracks.core.synthesis import VOICE_ORDER, SourceIdentity, SynthesisPlan, TempoPoint
-from barbershop_tracks.models import VoiceRole
+from barbershop_tracks.core.synthesis import (
+    VOICE_ORDER,
+    MeterPoint,
+    SourceIdentity,
+    SynthesisPlan,
+    TempoPoint,
+)
+from barbershop_tracks.models import KeySignature, VoiceRole
 
 MANIFEST_NAME = "manifest.json"
 MANIFEST_SCHEMA = "blt.learning-tracks/1"
@@ -81,12 +88,28 @@ class PackageSource:
     length: Fraction  # performed length in quarter notes
     # the pronunciations a person decided for this score (empty: the dictionary alone was used)
     pronunciations: tuple[Mapping[str, Any], ...] = ()
+    meter: tuple[MeterPoint, ...] = ()  # for the count-in
+    reference_midi: int | None = None  # the Lead's first note: the tune-up note sits near it
 
     @classmethod
     def from_plan(
         cls, plan: SynthesisPlan, *, pronunciations: Sequence[Mapping[str, Any]] = ()
     ) -> "PackageSource":
-        return cls(plan.source, plan.tempo, plan.output.performed_length, tuple(pronunciations))
+        lead = next((v for v in plan.voices if v.role is VoiceRole.LEAD), None)
+        reference = lead.notes[0].midi_pitch if lead is not None and lead.notes else None
+        return cls(
+            plan.source,
+            plan.tempo,
+            plan.output.performed_length,
+            tuple(pronunciations),
+            plan.meter,
+            reference,
+        )
+
+    @property
+    def key(self) -> KeySignature | None:
+        fifths = self.identity.key_fifths
+        return None if fifths is None else KeySignature(fifths=fifths, mode=self.identity.key_mode)
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +119,7 @@ class PackageSettings:
     profile: GainProfile = DEFAULT_PROFILE
     tail: TailPolicy = field(default_factory=TailPolicy)
     mp3: Mp3Encoder | None = None
+    prelude: PreludeOptions = field(default_factory=PreludeOptions)  # tune-up note, count-in
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,6 +224,7 @@ def build_learning_tracks(
             f"{destination} exists and is not a learning-track package; it will not be replaced",
         )
     frames = duration_frames(source.tempo, source.length, SAMPLE_RATE)
+    prelude = prelude_for(source, settings.prelude)
     _check_cancel(token)
 
     placed: dict[VoiceRole, PlacedStem] = {
@@ -222,14 +247,15 @@ def build_learning_tracks(
         package.mkdir()
         work.mkdir()
         entries, files = _produce(
-            specs, placed, frames, package, work, settings, token, on_progress
+            specs, placed, frames, package, work, settings, token, on_progress, prelude
         )
         extra_entries = _copy_extras(package, wanted)
-        manifest = _manifest(source, settings, specs, entries, placed, stem_hashes, frames)
+        manifest = _manifest(source, settings, specs, entries, placed, stem_hashes, frames, prelude)
         manifest["extras"] = extra_entries
         text = json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=True) + "\n"
         (package / MANIFEST_NAME).write_text(text, encoding="utf-8", newline="\n")
-        _verify_package(package, specs, settings.formats, frames, set(wanted))
+        total = frames + (0 if prelude is None else prelude.frames)
+        _verify_package(package, specs, settings.formats, total, set(wanted))
         _check_cancel(token)
         if on_progress is not None:
             on_progress({"event": "publish", "status": "started"})
@@ -243,7 +269,7 @@ def build_learning_tracks(
             PackagedFile(f.mix, f.format, f.name, destination / f.name, f.bytes, f.sha256)
             for f in files
         )
-        return PackageResult(destination, published, manifest, frames, job)
+        return PackageResult(destination, published, manifest, total, job)
     finally:
         _discard(area.path)
 
@@ -257,7 +283,9 @@ def _produce(
     settings: PackageSettings,
     token: CancelToken,
     on_progress: ProgressHandler | None,
+    prelude: Prelude | None = None,
 ) -> tuple[list[dict[str, Any]], list[PackagedFile]]:
+    total = frames + (0 if prelude is None else prelude.frames)
     entries: list[dict[str, Any]] = []
     files: list[PackagedFile] = []
     for spec in specs:
@@ -265,7 +293,14 @@ def _produce(
         wav_name = f"{spec.filename_stem}.wav"
         keep_wav = AudioFormat.WAV in settings.formats
         wav_path = (package if keep_wav else work) / wav_name
-        peak = write_mix(spec, placed, frames, wav_path, should_stop=lambda: token.cancelled)
+        peak = write_mix(
+            spec,
+            placed,
+            frames,
+            wav_path,
+            should_stop=lambda: token.cancelled,
+            lead_in=None if prelude is None else prelude.samples,
+        )
         _check_cancel(token)
         entry_files: list[dict[str, Any]] = []
         if keep_wav:
@@ -289,14 +324,14 @@ def _produce(
                     "sample_rate": SAMPLE_RATE,
                     "bit_depth": 16,
                     "channels": 1,
-                    "frames": frames,
+                    "frames": total,
                 }
             )
         if AudioFormat.MP3 in settings.formats:
             assert settings.mp3 is not None
             mp3_name = f"{spec.filename_stem}.mp3"
             mp3_path = package / mp3_name
-            info = settings.mp3.encode(wav_path, mp3_path, expected_frames=frames, cancel=token)
+            info = settings.mp3.encode(wav_path, mp3_path, expected_frames=total, cancel=token)
             if on_progress is not None:
                 on_progress({"event": "mp3", "number": spec.number, "of": len(specs)})
             digest = _sha256(mp3_path)
@@ -350,6 +385,7 @@ def _manifest(
     placed: Mapping[VoiceRole, PlacedStem],
     stem_hashes: Mapping[VoiceRole, str],
     frames: int,
+    prelude: Prelude | None = None,
 ) -> dict[str, Any]:
     seconds = exact_seconds(source.tempo, source.length)
     profile = settings.profile
@@ -370,9 +406,13 @@ def _manifest(
             "sample_rate": SAMPLE_RATE,
             "bit_depth": 16,
             "channels": 1,
-            "frames": frames,
+            "frames": frames + (0 if prelude is None else prelude.frames),
             "duration_exact_seconds": f"{seconds.numerator}/{seconds.denominator}",
             "duration_seconds": round(float(seconds), 6),
+            # what comes before the music in every track (a tune-up note, a count-in), or None;
+            # the duration above is the music's, which starts ``music_starts_at_frame`` frames in
+            "prelude": None if prelude is None else prelude.info,
+            "music_starts_at_frame": 0 if prelude is None else prelude.frames,
         },
         "settings": {
             "gain_profile": {
@@ -413,6 +453,25 @@ def _manifest(
         ],
         "tracks": entries,
     }
+
+
+def prelude_for(source: PackageSource, options: PreludeOptions) -> Prelude | None:
+    """The tune-up note and count-in wanted, built before any stem is touched."""
+    if not options.enabled:
+        return None
+    meter = source.meter[0] if source.meter else None
+    if options.count_in and meter is None:
+        raise MixConfigurationError(
+            "MIX_COUNT_IN", "the score has no time signature, so there is nothing to count in"
+        )
+    return build_prelude(
+        options,
+        key=source.key,
+        reference_midi=source.reference_midi,
+        bpm=source.tempo[0].bpm,
+        beats=meter.beats if meter else 4,
+        beat_type=meter.beat_type if meter else 4,
+    )
 
 
 def _check_extras(extras: Mapping[str, Path]) -> dict[str, Path]:
@@ -490,5 +549,6 @@ __all__ = [
     "PackagedFile",
     "build_learning_tracks",
     "is_our_package",
+    "prelude_for",
     "stems_from_render",
 ]

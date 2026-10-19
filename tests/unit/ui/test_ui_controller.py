@@ -364,6 +364,22 @@ def test_generation_runs_in_the_background_and_reports_back_on_the_gui_thread(
     assert handler_threads == {threading.get_ident()}  # delivered on the GUI thread
 
 
+def test_the_tune_up_note_and_the_count_in_reach_the_request(
+    qtbot: QtBot, controller: AppController, fake: FakeGenerate, tmp_path: Path
+) -> None:
+    ready_to_generate(qtbot, controller, tmp_path)
+    assert not controller.options.tune_up
+    assert not controller.options.count_in
+    controller.set_options(tune_up=True, count_in=True)
+    assert controller.prefs.tune_up is True  # remembered for the next start
+    assert controller.prefs.count_in is True
+    with qtbot.waitSignal(controller.generation_finished, timeout=20000):
+        assert controller.start_generation()
+    (request,) = fake.requests
+    assert request.tune_up
+    assert request.count_in
+
+
 def test_the_request_carries_exactly_what_the_user_chose(
     qtbot: QtBot, controller: AppController, fake: FakeGenerate, tmp_path: Path
 ) -> None:

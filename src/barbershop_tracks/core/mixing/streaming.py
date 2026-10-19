@@ -20,6 +20,7 @@ from barbershop_tracks.core.mixing.audio import (
     SAMPLE_RATE,
     SCALE,
     Float,
+    Int16,
     TailPolicy,
     clipping_error,
     quantize_block,
@@ -116,8 +117,12 @@ def write_mix(
     *,
     should_stop: Callable[[], bool] = lambda: False,
     block_frames: int = BLOCK_FRAMES,
+    lead_in: Int16 | None = None,
 ) -> float:
     """Write the mix as a canonical WAV, block by block; returns the float peak.
+
+    ``lead_in`` (a tune-up note, a count-in: ``prelude.py``) is written first, as it is, so the
+    file is ``len(lead_in) + frames`` frames long and the mix starts after it.
 
     Raises ``MixClippingError`` (after the whole mix has been checked) if any sample would exceed
     full scale; the partial file is the caller's to discard.
@@ -134,7 +139,10 @@ def write_mix(
     clipped = 0
     first_clipped: int | None = None
     with destination.open("wb") as out:
-        out.write(wav_header(frames))
+        lead = 0 if lead_in is None else int(lead_in.shape[0])
+        out.write(wav_header(lead + frames))
+        if lead_in is not None:
+            out.write(lead_in.astype("<i2", copy=False).tobytes())
         for start in range(0, frames, block_frames):
             if should_stop():
                 return peak

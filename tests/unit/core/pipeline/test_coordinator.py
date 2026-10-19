@@ -483,6 +483,21 @@ def test_mp3_without_ffmpeg_is_refused_before_any_work(rig: Rig) -> None:
     assert rig.renderer.calls == []
 
 
+def test_a_tune_up_note_without_a_key_signature_is_refused_before_any_work(rig: Rig) -> None:
+    error = error_of(rig, rig.request(tune_up=True))  # the test score has no key signature
+    assert error.code == "MIX_TUNE_NO_KEY"
+    assert error.category is ErrorCategory.CONFIGURATION
+    assert rig.renderer.calls == []
+
+
+def test_a_count_in_alone_needs_no_key_signature(rig: Rig) -> None:
+    result = rig.run(rig.request(count_in=True))
+    prelude = result.package.manifest["audio"]["prelude"]
+    assert prelude["tune_up"] is None
+    assert prelude["count_in"]["beats"] == 4
+    assert result.package.manifest["audio"]["music_starts_at_frame"] == prelude["frames"]
+
+
 def test_an_unusable_package_name_is_refused(rig: Rig) -> None:
     assert error_of(rig, rig.request(name="CON")).category is ErrorCategory.CONFIGURATION
 
