@@ -105,10 +105,19 @@ def main(argv: list[str]) -> int:
             "Reviewed allow-list of what the macOS blt-render-host may contain "
             "(packaging/verify_host_inventory_macos.py). Generated from the pinned, patched "
             "OpenUtau build on macOS; edit only with a reviewer. The phonemizers and the model "
-            "are the Windows list's; types and resources are what the macOS host reports."
+            "are the Windows list's; so are the resources, except those whose bytes differ here "
+            "(see the macOS build in CI)."
         )
         expected["types"] = base.type_digest(actual["types"])
-        expected["resources"] = actual["resources"]
+        # the Windows entries, except the ones whose bytes differ here (the English pack is compared
+        # by its members, not by its size, so it stays as it is)
+        here = {base.resource_key(r): r for r in actual["resources"]}
+        expected["resources"] = [
+            here[base.resource_key(r)]
+            if base.resource_key(r) in here and r["name"] != base.ENGLISH_PACK
+            else r
+            for r in windows["resources"]
+        ]
         old = {base.resource_key(r): r for r in windows["resources"]}
         new = {base.resource_key(r): r for r in expected["resources"]}
         print(
