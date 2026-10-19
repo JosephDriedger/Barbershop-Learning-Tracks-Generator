@@ -19,6 +19,7 @@ import argparse
 import hashlib
 import importlib.metadata
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -128,7 +129,16 @@ def classify(
     runtime_pack: dict[str, str] | None,
     host_prefix: str = "host/",
 ) -> dict[str, Any]:
-    files = sorted(p for p in dist.rglob("*") if p.is_file())
+    files: list[Path] = []
+    links: list[Path] = []
+    for folder, directories, names in os.walk(dist):  # symbolic links are looked at, never followed
+        for name in (*directories, *names):
+            path = Path(folder) / name
+            if path.is_symlink():
+                links.append(path)
+            elif path.is_file():
+                files.append(path)
+    files.sort()
     compiled = [(c["id"], [glob_regex(pat) for pat in c["patterns"]]) for c in components]
     owners: dict[str, str] = {}
     unowned: list[str] = []
@@ -151,6 +161,15 @@ def classify(
         else:
             owners[rel] = owner
             matched[owner] += 1
+    # a symbolic link owns no bytes (macOS apps are full of them); it must not lead out of the package or nowhere
+    for link in sorted(links):
+        target = link.resolve()
+        if not target.exists() or (
+            dist.resolve() != target and dist.resolve() not in target.parents
+        ):
+            unowned.append(
+                f"{link.relative_to(dist).as_posix()} (a symbolic link to {link.readlink()})"
+            )
     stale = [c["id"] for c in components if c["patterns"] and not matched[c["id"]]]
     return {"owners": owners, "unowned": unowned, "stale": stale, "files": files}
 

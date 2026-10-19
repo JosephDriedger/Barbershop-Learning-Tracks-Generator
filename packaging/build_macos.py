@@ -49,6 +49,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # -I leaves the script
 import release_gate  # noqa: E402
 
 APP_NAME = "BLT Music Generator.app"
+KEPT_QT_FRAMEWORKS = ("QtCore.framework", "QtGui.framework", "QtWidgets.framework")
 VOLUME = "BLT Music Generator"
 README_FIRST = """\
 BLT Music Generator for macOS (unsigned)
@@ -260,6 +261,16 @@ def main() -> int:
     )  # fmt: skip
     if not app.is_dir():
         raise SystemExit(f"PyInstaller did not make {app}")
+
+    # PyInstaller leaves the shells of the Qt frameworks that blt.spec dropped (the folders and links, no files):
+    # remove them, and any link that points nowhere now
+    qt_lib = contents / "Frameworks" / "PySide6" / "Qt" / "lib"
+    for framework in sorted(qt_lib.glob("*.framework")):
+        if framework.name not in KEPT_QT_FRAMEWORKS:
+            shutil.rmtree(framework)
+    for path in sorted(app.rglob("*"), reverse=True):
+        if path.is_symlink() and not path.exists():
+            path.unlink()
 
     # 3. the host and the notices go in ---------------------------------------------------------
     step("Adding the render host")
