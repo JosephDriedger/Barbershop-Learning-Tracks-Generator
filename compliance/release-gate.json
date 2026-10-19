@@ -167,7 +167,17 @@
    "who": "the owner",
    "packet": "docs/release-gate.md",
    "subjects": [],
-   "signoff": null
+   "signoff": {
+    "by": "Joseph Driedger",
+    "role": "project owner (approval stated in the session of 2026-10-19)",
+    "date": "2026-10-19",
+    "conclusion": "approved",
+    "subjects": {},
+    "evidence": [
+     "compliance/evidence/owner-release-approval.md"
+    ],
+    "installer_sha256": "18fd0a387138a5c9e2343f565e481adeee72a1ad967470ca84af7b544f1b2da0"
+   }
   },
   {
    "id": "upstream-plus-dictionary-answer",
