@@ -12,6 +12,7 @@ a silent omission. ``audit`` regenerates the tables in ``docs/dependency-audit.m
 
 import argparse
 import importlib.metadata
+import json
 import os
 import platform
 import shutil
@@ -20,7 +21,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from inventory import load_components, load_components_data
+from inventory import COMPONENTS_MACOS, load_components, load_components_data
 
 REPO = Path(__file__).resolve().parents[1]
 LICENSES = Path(__file__).with_name("licenses")
@@ -276,8 +277,42 @@ def audit_region() -> str:
     out += ["", "### Inside the installer only", ""]
     for e in data["installer"]:
         out.append(f"- **{e['name']}**: {e['license']}. {e['copyright']}. {e['obligation']}")
+    out += macos_region(data)
     out += ["", END]
     return "\n".join(out)
+
+
+def macos_region(windows: dict[str, Any]) -> list[str]:
+    """The macOS app's differences from the tables above (``packaging/components-macos.json``)."""
+    overlay = json.loads(COMPONENTS_MACOS.read_text(encoding="utf-8"))
+    mac = load_components_data("macos")
+    names = {c["id"]: c["name"] for c in windows["components"]}
+    blockers = [c for c in mac["components"] if c["status"] == "blocker"]
+    out = ["", "### The macOS app", ""]
+    out.append(
+        f"`BLT Music Generator.app` ships {len(mac['components'])} components (the Windows package: "
+        f"{len(windows['components'])}), **{len(blockers)} of them release blockers** "
+        f"({', '.join(c['id'] for c in blockers)}: the same open items as on Windows). "
+        "Everything is audited exactly like the Windows package (`packaging/inventory.py "
+        "--platform macos`: every file of the app must belong to a component), with the file names of "
+        "the macOS layout: the program and its libraries in `Contents/Frameworks`, the render host in "
+        "`Contents/Helpers/host`, the notices in `Contents/Resources`. The tables above apply to every "
+        "component not named below. The app is unsigned and not notarised."
+    )
+    out += ["", "| Component | In the macOS app |", "|---|---|"]
+    for component_id in overlay["remove"]:
+        out.append(
+            f"| {md_cell(names[component_id])} | not present (Windows-only, or provided by macOS) |"
+        )
+    for component_id, changes in overlay["override"].items():
+        what = ", ".join(sorted(changes))
+        out.append(f"| {md_cell(names[component_id])} | same component; different {what} |")
+    for component in overlay["add"]:
+        out.append(f"| {md_cell(component['name'])} | added |")
+    out += ["", "Not shipped on macOS either:", ""]
+    for e in overlay["excluded"]:
+        out.append(f"- {e['name']}: {e['why']}")
+    return out
 
 
 def update_audit(check: bool) -> int:
