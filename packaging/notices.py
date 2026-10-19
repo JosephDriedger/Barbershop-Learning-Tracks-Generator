@@ -61,6 +61,12 @@ Source:
   The changes:      the project source (host\\), included in the corresponding-source bundle.
 """
 
+MACOS_PATCH_STATEMENT = """The macOS host has one further change, made by host/patch_macos.py: in OpenUtau.Classic.ResamplerItem the
+length of a pitch curve, computed as a double, is converted to an int so that a value that is not a number
+or does not fit gives 0 on Apple silicon as it always did on x64 (otherwise the conversion saturates there
+and the render stops with an out-of-memory error). No other line is changed.
+"""
+
 PYINSTALLER_STATEMENT = """\
 PyInstaller bootloader (GPL-2.0-or-later with the bootloader exception)
 ------------------------------------------------------------------------
@@ -167,7 +173,7 @@ def bundle(out: Path, where: dict[str, Path], platform: str = "windows") -> list
         "own licences; MP3 output uses an FFmpeg the user installs.",
         "",
         QT_STATEMENT_MACOS if macos else QT_STATEMENT,
-        for_macos(OPENUTAU_STATEMENT) if macos else OPENUTAU_STATEMENT,
+        (for_macos(OPENUTAU_STATEMENT) + MACOS_PATCH_STATEMENT) if macos else OPENUTAU_STATEMENT,
         for_macos(PYINSTALLER_STATEMENT) if macos else PYINSTALLER_STATEMENT,
         RULE,
         "Components",
