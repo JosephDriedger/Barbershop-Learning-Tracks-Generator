@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
 )
 
 from barbershop_tracks.core.pipeline import PipelineError
+from barbershop_tracks.core.wording import agree, counted
 from barbershop_tracks.ui.controller import AppController
 from barbershop_tracks.ui.explain import explain
 from barbershop_tracks.ui.prompts import Prompts
@@ -207,24 +208,24 @@ class PronunciationDialog(QDialog):
             return b
 
         self.same_button = button(
-            "&Same for the other voices here",
+            "&Same for the Other Voices Here",
             self.fill_same_place,
             "Copy the selected row's pronunciation to the other voices that sing the same word "
             "at the same place (nothing else is changed)",
         )
         self.check_button = button(
-            "&Check with the engine",
+            "&Check with the Engine",
             self.check,
             "Ask the pronunciation engine whether it accepts these pronunciations; nothing is rendered",
         )
         actions = [
             self.same_button,
-            button("Clear selected", self.clear_selected),
+            button("Clear Selected", self.clear_selected),
             self.check_button,
         ]
         files = [
-            button("&Load pronunciations…", self.load_file),
-            button("&Save pronunciations…", self.save_file),
+            button("&Load Pronunciations…", self.load_file),
+            button("&Save Pronunciations…", self.save_file),
         ]
         top = QHBoxLayout()
         top.addStretch(1)
@@ -282,7 +283,10 @@ class PronunciationDialog(QDialog):
 
     def _update_summary(self) -> None:
         state = self.state
-        text = f"{state.decided} of {len(state.rows)} places decided; {state.undecided} still need a pronunciation"
+        text = (
+            f"{state.decided} of {counted(len(state.rows), 'place')} decided; "
+            f"{state.undecided} still {agree(state.undecided, 'needs', 'need')} a pronunciation"
+        )
         if state.invalid:
             text += f"; {state.invalid} cannot be used as written"
         self.summary.setText(text + ".")
@@ -347,11 +351,11 @@ class PronunciationDialog(QDialog):
             return
         self.model.changed_all()
         self._update_summary()
-        note = f"{applied} pronunciation(s) applied."
+        note = f"{counted(applied, 'pronunciation')} applied."
         if ignored:
             note += (
                 f" {ignored} did not match any place listed here (another voice, place, word or "
-                "pronunciation engine) and were ignored."
+                f"pronunciation engine) and {agree(ignored, 'was', 'were')} ignored."
             )
         self._prompts.inform(self, "Pronunciations loaded", note)
 

@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from PySide6.QtCore import QMimeData, QPointF, Qt, QUrl
 from PySide6.QtGui import QDropEvent
-from PySide6.QtWidgets import QDialog, QGroupBox, QWidget
+from PySide6.QtWidgets import QDialog, QGroupBox, QLabel, QWidget
 from pytestqt.qtbot import QtBot
 
 from barbershop_tracks.core.pipeline import ErrorCategory, PipelineError
@@ -321,7 +321,7 @@ def test_installed_voices_are_listed_and_none_is_preselected(rig: Rig) -> None:
         "bass-voice",
     ]
     assert combo.currentData() == ""
-    assert "2 voice(s) installed" in rig.window.voices_section.status.text()
+    assert "2 voices installed" in rig.window.voices_section.status.text()
 
 
 def test_choosing_voices_and_using_the_same_for_all(rig: Rig) -> None:
@@ -383,6 +383,20 @@ def test_the_exact_output_location_is_shown(rig: Rig) -> None:
     section.name.setText("My Song")
     section.name.textEdited.emit("My Song")
     assert section.location.text() == str(rig.tmp / "out" / "My_Song_learning_tracks")
+
+
+def test_a_label_with_a_shortcut_letter_has_its_field_so_no_ampersand_shows(rig: Rig) -> None:
+    # a QLabel shows "&" literally ("Output &Folder:") unless it has a buddy to focus
+    labels = [label for label in rig.window.findChildren(QLabel) if "&" in label.text()]
+    assert {label.text() for label in labels} >= {
+        "Output &Folder:",
+        "Package &Name:",
+        "MP3 &Quality:",
+        "Mix &Balance:",
+    }
+    assert all(label.buddy() is not None for label in labels), [
+        label.text() for label in labels if label.buddy() is None
+    ]
 
 
 def test_format_choice_controls_the_mp3_widgets(rig: Rig) -> None:

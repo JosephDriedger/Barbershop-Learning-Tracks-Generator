@@ -98,7 +98,7 @@ def test_a_chord_is_aggregated_per_line_with_a_count() -> None:
     report = with_lead(sorted(notes, key=lambda n: n.start))
     finding = report.by_code("LINE_SIMULTANEOUS_NOTES")
     assert len(finding) == 1
-    assert "3 attack(s)" in finding[0].issue.message
+    assert "3 notes" in finding[0].issue.message
 
 
 def test_monophony_is_a_capability_requirement() -> None:
@@ -128,7 +128,7 @@ def test_integral_sounding_pitch_is_accepted() -> None:
 def test_a_microtonal_pitch_blocks_a_capability_that_needs_integral_pitch() -> None:
     report = with_lead([note(0, 1, C4), note(1, 1, MICRO)])
     assert codes(report) == ["PITCH_NOT_INTEGRAL"]
-    assert "not rounded" in report.by_code("PITCH_NOT_INTEGRAL")[0].issue.message
+    assert "never rounded" in report.by_code("PITCH_NOT_INTEGRAL")[0].issue.message
     assert not report.ready
 
 
@@ -161,7 +161,7 @@ def test_pitches_outside_the_capability_midi_range_are_errors_for_integral_pitch
     )
     lead = [f for f in report.by_code("PITCH_OUT_OF_MIDI_RANGE") if f.role is VoiceRole.LEAD]
     assert len(lead) == 1  # one aggregated finding for the lead line
-    assert "2 attack(s)" in lead[0].issue.message
+    assert "2 notes" in lead[0].issue.message
     assert not report.ready
 
 

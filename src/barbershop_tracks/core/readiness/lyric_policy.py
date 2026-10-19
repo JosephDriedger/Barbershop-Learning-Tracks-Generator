@@ -18,6 +18,7 @@ harmony voice without lyrics gets words is not decided here (that is the backend
 from barbershop_tracks.core.readiness.capability import LyricPolicy
 from barbershop_tracks.core.readiness.context import Facts, make_finding
 from barbershop_tracks.core.readiness.findings import ReadinessFinding
+from barbershop_tracks.core.wording import agree, counted
 from barbershop_tracks.models import (
     LineLyricAnalysis,
     PerformanceNote,
@@ -141,7 +142,12 @@ def check_lyrics(facts: Facts, analysis: SongLyricAnalysis) -> list[ReadinessFin
         add(
             "LYRIC_SOURCE_INCOMPLETE",
             f"no assigned line carries complete lyrics; {first} {describe(first)}"
-            + (f" (and {len(partial) - 1} other line(s) are partial)" if len(partial) > 1 else ""),
+            + (
+                f" (and {counted(len(partial) - 1, 'other line')} "
+                f"{agree(len(partial) - 1, 'is', 'are')} partial)"
+                if len(partial) > 1
+                else ""
+            ),
             first,
             facts.role_of(first),
         )

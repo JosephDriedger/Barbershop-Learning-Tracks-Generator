@@ -91,6 +91,7 @@ from barbershop_tracks.core.synthesis.openutau import (
     resolve_overrides,
     write_ustx,
 )
+from barbershop_tracks.core.wording import agree, counted
 from barbershop_tracks.models import VoiceRole
 
 PACKAGE_SUFFIX = "_learning_tracks"
@@ -353,8 +354,8 @@ def _load_plan(
         raise PipelineError(
             ErrorCategory.SOURCE,
             "SOURCE_NOT_READY",
-            f"{len(prepared.report.blocking)} problem(s) in the score or the voice mapping block "
-            "generation",
+            f"{counted(len(prepared.report.blocking), 'problem')} in the score or the voice "
+            f"mapping {agree(len(prepared.report.blocking), 'blocks', 'block')} generation",
             {"findings": blocking_details(prepared.report)},
         )
     assert prepared.plan is not None
@@ -363,7 +364,9 @@ def _load_plan(
         raise PipelineError(
             ErrorCategory.REVIEW,
             "LYRICS_NEED_REVIEW",
-            f"{len(plan.review_items)} note(s) have no decided lyric; nothing is guessed (a part "
+            f"{counted(len(plan.review_items), 'note')} "
+            f"{agree(len(plan.review_items), 'has', 'have')} no decided lyric; nothing is "
+            "guessed (a part "
             "sings the Lead's words only where the Lead is singing at that moment)",
             {"review": prepared.review},
         )
@@ -406,7 +409,8 @@ def _require_environment(
         raise PipelineError(
             ErrorCategory.CONFIGURATION,
             "SINGER_NOT_FOUND",
-            f"singer(s) {absent} not found in the singers folder; installed: "
+            f"{agree(len(absent), 'singer', 'singers')} {absent} not found in the singers "
+            "folder; installed: "
             f"{sorted(available)[:20] or 'none'}" + _singer_hints(singers_dir, absent, available),
             {"installed": sorted(available)},
         )

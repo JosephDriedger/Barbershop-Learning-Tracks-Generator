@@ -35,6 +35,7 @@ from barbershop_tracks.core.synthesis import (
     LyricApproval,
     SynthesisPlan,
 )
+from barbershop_tracks.core.wording import agree, counted
 
 REVIEW_SCHEMA = "blt.lyric-review/1"
 APPROVALS_SCHEMA = "blt.lyric-approvals/1"
@@ -104,7 +105,7 @@ def render_review_text(report: dict[str, Any], *, limit: int = 12) -> str:
     for item in items:
         by_voice[item["voice"]] = by_voice.get(item["voice"], 0) + 1
     lines = [
-        f"{len(items)} note(s) have no decided lyric "
+        f"{counted(len(items), 'note')} {agree(len(items), 'has', 'have')} no decided lyric "
         f"({', '.join(f'{v}: {n}' for v, n in by_voice.items())}):"
     ]
     for item in items[:limit]:

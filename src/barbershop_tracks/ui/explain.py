@@ -174,7 +174,7 @@ def _conversion(error: PipelineError) -> Explanation:
             "A recognised score has to be accepted first",
             error.message + ".",
             (
-                'Open the file in the app and choose "Recognise it", or pass --accept-recognition '
+                'Open the file in the app and choose "Recognise It", or pass --accept-recognition '
                 "on the command line.",
                 "Check every part against the original before generating.",
             ),

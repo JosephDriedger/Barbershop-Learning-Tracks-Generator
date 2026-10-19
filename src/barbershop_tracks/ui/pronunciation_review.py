@@ -199,11 +199,11 @@ class PronunciationState:
             symbol = item.get("symbol")
             reason = str(item.get("reason", ""))
             if reason == "symbol_unknown" and symbol is not None:
-                row.error = f"the pronunciation engine does not know the symbol {symbol!r}"
+                row.error = f"The pronunciation engine does not know the symbol {symbol!r}"
             elif reason == "engine_error":
-                row.error = "the pronunciation engine failed on these symbols"
+                row.error = "The pronunciation engine failed on these symbols"
             else:
-                row.error = "these symbols make no sound"
+                row.error = "These symbols make no sound"
             marked += 1
         return marked
 
@@ -216,7 +216,7 @@ class PronunciationState:
                 continue
             row = self._find((role, Fraction(position, 480)))
             if row is not None and not row.error:
-                row.note = "accepted; the engine sings: " + ", ".join(
+                row.note = "Accepted; the engine sings: " + ", ".join(
                     str(p) for p in item.get("phonemes", [])
                 )
 

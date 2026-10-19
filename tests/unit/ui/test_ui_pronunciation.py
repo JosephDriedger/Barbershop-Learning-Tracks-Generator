@@ -351,7 +351,7 @@ def test_save_then_load_keeps_decisions_bound_to_the_score(box: Box, tmp_path: P
     box.rig.prompts.answers["file"] = str(path)
     box.dialog.load_file()
     assert box.state.rows[1].text == "eh v r iy"
-    assert "1 pronunciation(s) applied" in box.rig.prompts.informed[-1]
+    assert "1 pronunciation applied" in box.rig.prompts.informed[-1]
 
 
 def test_a_file_for_another_score_is_refused_with_a_message(box: Box, tmp_path: Path) -> None:
@@ -384,7 +384,7 @@ def test_check_asks_the_controller_and_shows_what_the_engine_says(
     with box.rig.qtbot.waitSignal(box.rig.controller.pronunciation_checked, timeout=20000):
         assert box.dialog.check()
     assert [o.role.value for o in calls[0]] == ["lead"]
-    assert "accepted; the engine sings: eh v" in box.cell(1, "Status")
+    assert "Accepted; the engine sings: eh v" in box.cell(1, "Status")
     assert box.rig.prompts.informed[-1].startswith("Nothing was rendered")
 
 

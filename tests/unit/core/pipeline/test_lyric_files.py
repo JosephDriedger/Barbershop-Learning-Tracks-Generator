@@ -77,7 +77,7 @@ def test_the_report_names_voice_note_time_and_reason() -> None:
 def test_the_text_summary_counts_by_voice_and_truncates() -> None:
     plan = plan_of(voices={**full_lyrics(), "bass": sung(VoiceRole.BASS, [None] * 4)})
     text = render_review_text(review_report(plan), limit=2)
-    assert "4 note(s)" in text
+    assert "4 notes" in text
     assert "bass: 4" in text
     assert "and 2 more" in text
 

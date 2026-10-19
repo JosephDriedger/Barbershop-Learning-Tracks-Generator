@@ -61,6 +61,7 @@ from barbershop_tracks.core.voices import Installed, VoiceInstallError, install_
 from barbershop_tracks.models import VoiceRole
 from barbershop_tracks.ui.assignments import AssignmentState, Choice
 from barbershop_tracks.ui.background import Dispatcher
+from barbershop_tracks.ui.formatting import sentence
 from barbershop_tracks.ui.lyric_review import FOLLOWING_STATES, LyricReviewState, has_rows
 from barbershop_tracks.ui.preferences import Preferences
 from barbershop_tracks.ui.pronunciation_review import PronunciationState
@@ -264,7 +265,7 @@ class AppController(QObject):
                 raise translate(error) from error
             if parsed.song is None:
                 raise PipelineError(
-                    ErrorCategory.SOURCE, "SCORE_LOAD_FAILED", "no music was found in this file"
+                    ErrorCategory.SOURCE, "SCORE_LOAD_FAILED", "No music was found in this file"
                 )
             problems = tuple(issue.message for issue in parsed.issues.errors)
             return LoadedScore(
@@ -764,9 +765,9 @@ def _view(effective: Preparation, baseline: Preparation) -> ValidationView:
         text = finding.issue.message
         technical.append(f"{finding.code}: {text}")
         if finding.disposition.value == "blocking":
-            messages.append(Message("error", text))
+            messages.append(Message("error", sentence(text)))
         elif finding.disposition.value == "advisory":
-            messages.append(Message("warning", text))
+            messages.append(Message("warning", sentence(text)))
     unresolved = 0 if effective.plan is None else len(effective.plan.review_items)
     following = 0 if effective.plan is None else _following(effective.plan)
     return ValidationView(
