@@ -72,6 +72,12 @@ What is **not** verified:
 * Process handling on macOS is the POSIX path (the render host leads its own process group and is ended with it); the Windows job
   objects have no counterpart. Cancelling a render, a time-out and Ctrl+C are covered by the same integration tests as on Windows.
 * The kit for testers (`packaging/tester-kit`) and its output checker are Windows PowerShell; they are not part of the macOS build.
+* **Two differences of the macOS host from OpenUtau as it is.** (1) OpenUtau keeps its data, logs and render cache in the user's home folder on a Mac
+  (`~/Library/OpenUtau`, shared with the OpenUtau application); BLT's host is started with a home folder of its own inside its private runtime copy,
+  so it neither reads nor deletes the user's OpenUtau data. (2) The macOS build changes one line of OpenUtau (`host/patch_macos.py`): the length of a
+  pitch curve is computed as a `double` and converted to `int`, which OpenUtau does not guard; where the value is out of range x64 gives 0 (the note is
+  rendered without a pitch curve) while Apple silicon would stop the render with an out-of-memory error. The macOS build gives 0 on both, which is what
+  Windows has always done. The cause of the out-of-range value (seen only in the pronunciation tests with the synthetic voicebank) was not investigated.
 * A voicebank's file names that differ only in case, or in Unicode normalisation, behave as the Mac's file system does; not tested with real banks.
 
 ## Installation and trust
