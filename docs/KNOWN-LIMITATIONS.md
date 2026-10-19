@@ -49,6 +49,33 @@ Things that are not done, not verified, or deliberately restricted. Nothing here
   background: [m12-verification.md](m12-verification.md)). Automated tests ran in a stripped
   environment on the development PC.
 
+## macOS (experimental)
+
+What is verified, and only by machines: on GitHub's Apple-silicon (`macos-latest`) and Intel (`macos-15-intel`) runners CI runs ruff, mypy
+and the unit tests; builds the render host with BLT's own `libworldline.dylib` (clang and CMake, no spline: checked by
+`host/native/verify_dylib.py`) and the same inventory, removed-data and negative-control checks as on Windows; runs the integration tests
+with the host and a generated synthetic voicebank; builds `BLT Music Generator.app` and the `.dmg`, audits every file of the app
+against the component tables, runs `blt selftest` in a stripped environment (no Python, no .NET, ASCII and non-ASCII paths), and checks
+that the Qt libraries are separate, replaceable files.
+
+What is **not** verified:
+
+* **No person has run it on a real Mac.** CI is a headless runner: nothing has been seen in a window, no sound was played, and a real
+  voicebank was not used (only a generated sine-wave one). The macOS version of the clean-machine and listening checks is open. The
+  [release gate](release-gate.md) has no item for it: it is the owner's call whether a draft release with the `.dmg` is published
+  before someone has tried it.
+* **Unsigned and not notarised.** Gatekeeper blocks the first start (see [INSTALL.md](INSTALL.md#installing-on-macos)); the signing and
+  notarisation steps in `packaging/build_macos.py` exist but are off and have never been run. The owner has not decided on an Apple
+  Developer account. Nothing about Gatekeeper's behaviour on a downloaded copy was tested (CI copies carry no quarantine flag).
+* Two separate disk images (Apple silicon, Intel), not one universal app. macOS 12 or later is what the build targets; older releases and
+  the oldest supported macOS (as opposed to the runners' current one) were not tried.
+* Process handling on macOS is the POSIX path (the render host leads its own process group and is ended with it); the Windows job
+  objects have no counterpart. Cancelling a render, a time-out and Ctrl+C are covered by the same integration tests as on Windows.
+* The kit for testers (`packaging/tester-kit`) and its output checker are Windows PowerShell; they are not part of the macOS build.
+* NumPy's macOS wheels bundle `libquadmath` (LGPL-2.1-or-later); like the Qt arrangement it is a licensing item for a person to review
+  ([dependency-audit.md](dependency-audit.md)).
+* A voicebank's file names that differ only in case, or in Unicode normalisation, behave as the Mac's file system does; not tested with real banks.
+
 ## Installation and trust
 
 * The installer and executables are **unsigned**: SmartScreen warns, the publisher shows as unverified, and some

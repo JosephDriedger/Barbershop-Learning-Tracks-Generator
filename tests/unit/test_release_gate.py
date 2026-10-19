@@ -332,3 +332,37 @@ def test_signing_an_item_with_a_decision_records_it(
     assert gate_module.main([*base, "--decision", "excluded"]) == 0
     saved = json.loads(gate_file.read_text(encoding="utf-8"))["items"][0]["signoff"]
     assert saved["g2p_model"] == "excluded"
+
+
+def test_macos_build_records_are_held_to_the_same_rules(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(gate_module, "git_head", lambda repo=None: "c" * 40)
+    info = {
+        "architecture": "arm64",
+        "commit": "c" * 40,
+        "uncommitted_changes": False,
+        "release_blockers": [],
+        "worldline_spline_free": True,
+        "g2p_model": "excluded",
+        "disk_image": "BLT-Music-Generator-0.1.0-macos-arm64.dmg",
+    }
+    record = tmp_path / "release-info-macos-arm64.json"
+    record.write_text(json.dumps(info), encoding="utf-8")
+    # no checksum for the disk image yet
+    assert any("no checksum" in p for p in gate_module.macos_package_problems(tmp_path))
+    (tmp_path / "SHA256SUMS-macos-arm64.txt").write_text(
+        f"{'b' * 64} *{info['disk_image']}\n", encoding="utf-8"
+    )
+    assert gate_module.macos_package_problems(tmp_path) == []
+    info.update(uncommitted_changes=True, g2p_model="included", release_blockers=["pyside6"])
+    record.write_text(json.dumps(info), encoding="utf-8")
+    problems = " | ".join(gate_module.macos_package_problems(tmp_path))
+    assert "uncommitted" in problems
+    assert "model-free build" in problems
+    assert "blockers" in problems
+    assert all(p.startswith("release-info-macos-arm64.json") for p in problems.split(" | "))
+
+
+def test_a_folder_without_macos_records_has_no_macos_problems(tmp_path: Path) -> None:
+    assert gate_module.macos_package_problems(tmp_path) == []

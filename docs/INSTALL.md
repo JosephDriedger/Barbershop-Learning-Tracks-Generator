@@ -10,7 +10,9 @@ missing part).
 
 ## What you need
 
-* Windows 10 or 11, 64-bit. No Python and no .NET are needed. BLT does need Microsoft's **Visual C++ Redistributable
+* Windows 10 or 11, 64-bit, or macOS 12 or later (Apple silicon or Intel; see [Installing on macOS](#installing-on-macos)).
+  The rest of this page describes Windows; the macOS differences are in that section.
+* On Windows: No Python and no .NET are needed. BLT does need Microsoft's **Visual C++ Redistributable
   (x64)**, which most PCs already have; if yours does not, Setup offers to download it from Microsoft or to use a copy you
   have (see below). BLT does not contain Microsoft's runtime files itself.
 * A **singing voicebank** that works with OpenUtau (UTAU-style), for example an English one. BLT does not
@@ -83,5 +85,38 @@ Open Command Prompt or PowerShell in the install folder (or use the Start-menu g
 It builds a tiny score and a synthetic test voice and generates the 13 files; it prints "selftest passed" when
 the installation is sound. (It proves the program works, not how a real voice sounds.)
 `blt.exe diagnostics`, or *Help > Copy diagnostics*, tells you where BLT found everything.
+
+## Installing on macOS
+
+> **Experimental.** The macOS build is made and tested by CI on GitHub's Mac runners, but nobody has run it on a real Mac yet,
+> and it is neither signed nor notarised (see [KNOWN-LIMITATIONS.md](KNOWN-LIMITATIONS.md)). Please report what you see.
+
+1. Download the disk image for your Mac: `BLT-Music-Generator-<version>-macos-arm64.dmg` (Apple silicon: M1 and later) or
+   `...-macos-x64.dmg` (Intel). Check it against `SHA256SUMS-macos-<arch>.txt` published with it:
+   `shasum -a 256 BLT-Music-Generator-*.dmg`.
+2. Open the disk image and drag **BLT Music Generator** onto **Applications**.
+3. The app is not signed with an Apple Developer ID, so macOS blocks the first start. Open it once with **right-click
+   (Control-click) > Open**, then **Open** in the dialog. On recent macOS releases the dialog has no Open button; then try to start
+   the app, open **System Settings > Privacy & Security**, and press **Open Anyway**. If macOS says the app is "damaged", it is the
+   download flag on an unsigned app; remove it:
+   `xattr -dr com.apple.quarantine "/Applications/BLT Music Generator.app"`.
+4. Nothing else is needed: no Python, no .NET, no Rosetta (the app is native to the Mac it was built for). Uninstall by dragging
+   the app to the Bin; your voicebanks (`~/Documents/BLT Music Generator/Voices`), tracks and settings
+   (`~/Library/Application Support/BarbershopLearningTracks`) are left in place.
+
+The first run is as described above, with these differences: BLT's voices folder is `~/Documents/BLT Music Generator/Voices` (BLT
+creates it when it first needs it; *Open* in the Voices section shows it in the Finder); a voicebank inside a pack folder is known by
+its path with a slash (`English/Bennett`); for MP3 install FFmpeg yourself (for example `brew install ffmpeg`; BLT also looks in
+`/opt/homebrew/bin` and `/usr/local/bin`, which a Finder-started app does not have on its PATH) and choose it with *Choose FFmpeg…* if
+BLT does not find it.
+
+The command line program is inside the app:
+
+```
+"/Applications/BLT Music Generator.app/Contents/MacOS/blt" selftest
+```
+
+It builds a tiny score and a synthetic test voice and generates the 13 files; it prints "selftest passed" when the installation is sound.
+`blt diagnostics`, or *Help > Copy diagnostics*, tells you where BLT found everything.
 
 Problems: see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).

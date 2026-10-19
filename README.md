@@ -20,8 +20,14 @@ Renaming them would break installs and make existing packages unrecognisable to 
 
 ## Requirements
 
-To use the installed app: Windows 10/11 x64 and a voicebank of your own (nothing else; MP3 also needs an FFmpeg
-you install). To develop: Windows, Python 3.12, a .NET 8 SDK (render host), Inno Setup 6 (installer).
+To use the installed app: Windows 10/11 x64, **or macOS 12 or later (Apple silicon or Intel; experimental, see below)**,
+and a voicebank of your own (nothing else; MP3 also needs an FFmpeg you install). To develop: Python 3.12 and a .NET 8 SDK
+(render host), on Windows plus Inno Setup 6 (installer) and the Visual Studio C++ build tools, on macOS plus the Xcode
+command line tools and CMake.
+
+**macOS status.** The macOS app is built and tested by CI on GitHub's Apple-silicon and Intel runners (checks, the render host
+with a generated test voicebank, the packaged app in a stripped environment). It is **unsigned and not notarised**, and no
+person has yet run it on a real Mac: see [docs/KNOWN-LIMITATIONS.md](docs/KNOWN-LIMITATIONS.md).
 
 ## Development setup (PowerShell)
 
@@ -59,6 +65,29 @@ powershell -NoProfile -ExecutionPolicy Bypass -File packaging/build.ps1
 ```
 
 See [docs/m12-packaging.md](docs/m12-packaging.md). Nothing is uploaded or published by the build.
+
+## Development setup and checks (macOS)
+
+```bash
+python3.12 -m venv .venv && . .venv/bin/activate
+python -m pip install -e ".[dev]"
+ruff check . && ruff format --check . && mypy && pytest
+host/build.sh                     # the render host (pinned OpenUtau, BLT's own libworldline.dylib via clang and CMake)
+python host/verify_host.py research-output/host/build research-output/openutau-src
+pytest -m integration tests/integration     # real host, generated test voicebank (MP3 tests need ffmpeg)
+```
+
+## Build the macOS app
+
+```bash
+python -m pip install -r packaging/requirements-build-macos.txt
+python -m pip install -e . --no-deps
+python packaging/build_macos.py
+```
+
+Builds `BLT Music Generator.app` and an unsigned `BLT-Music-Generator-<version>-macos-<arch>.dmg` for the kind of Mac it runs on
+(arm64 or x64) under `research-output/release-macos`, audits every file in the app against the component tables, and smoke-tests
+the app. Signing and notarisation are off unless `--sign-identity` / `--notarize` are given; the project has never used them.
 
 ## Credits
 
