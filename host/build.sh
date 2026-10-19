@@ -102,6 +102,8 @@ if [ "$publish" = 1 ]; then
         # nothing runs a neural model any more: the native runtime (and its third-party notices) is not shipped
         rm -f "$out/libonnxruntime.dylib" "$out/onnxruntime.dylib"
     fi
+    # DryWetMidi's native library for Windows, which the macOS publish also copies (the host never reads MIDI)
+    rm -f "$out/Melanchall_DryWetMidi_Native64.dll"
 else
     log="$out.build.log"
     if ! dotnet build "$project" -c Release -o "$out" "-p:OpenUtauSrc=$patched" "-p:OpenUtauCommit=$build_commit"         >"$log" 2>&1; then

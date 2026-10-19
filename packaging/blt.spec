@@ -69,7 +69,9 @@ def wanted(name: str) -> bool:
     # own redistributable (see packaging/installer.iss and docs/m13-compliance.md).
     if RUNTIME_FILE.match(base):
         return False
-    return not any(pattern.lower() in base.lower() for pattern in DROP_PATTERNS)
+    # on macOS a Qt module is a folder (QtNetwork.framework) of several files: judge the whole path
+    name_to_judge = name.replace("\\", "/") if MAC else base
+    return not any(pattern.lower() in name_to_judge.lower() for pattern in DROP_PATTERNS)
 
 
 EXCLUDES = [

@@ -56,7 +56,8 @@ def glob_regex(pattern: str) -> re.Pattern[str]:
 def apply_overlay(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     """The component table of another platform: ``base`` with the overlay's differences applied.
 
-    ``remove``: ids that do not exist there. ``override``: id -> the keys that differ (``patterns`` above
+    ``rewrite_prefixes``: folders that moved (``host/`` is ``Contents/Helpers/host/`` in the app), applied to
+    the patterns of every component that does not override them. ``remove``: ids that do not exist there. ``override``: id -> the keys that differ (``patterns`` above
     all). ``add``: whole components that exist only there. ``excluded`` and ``external`` are appended to
     the base's lists; ``installer`` is replaced (the macOS disk image has no installer stub).
     """
@@ -69,7 +70,13 @@ def apply_overlay(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, An
             raise SystemExit(f"the overlay names {name!r}, which is not a component")
     components = [c for c in merged["components"] if c["id"] not in overlay.get("remove", [])]
     for component in components:
-        component.update(overlay.get("override", {}).get(component["id"], {}))
+        changes = overlay.get("override", {}).get(component["id"], {})
+        if "patterns" not in changes:  # the same files, in another folder
+            for old, new in overlay.get("rewrite_prefixes", {}).items():
+                component["patterns"] = [
+                    new + p[len(old) :] if p.startswith(old) else p for p in component["patterns"]
+                ]
+        component.update(changes)
     components += overlay.get("add", [])
     merged["components"] = components
     merged["excluded"] = [*merged["excluded"], *overlay.get("excluded", [])]

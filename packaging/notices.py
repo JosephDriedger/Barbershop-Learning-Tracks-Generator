@@ -13,6 +13,7 @@ a silent omission. ``audit`` regenerates the tables in ``docs/dependency-audit.m
 import argparse
 import importlib.metadata
 import os
+import platform
 import shutil
 import site
 import sys
@@ -89,6 +90,8 @@ def roots(openutau_src: Path | None, nuget: Path | None) -> dict[str, Path]:
         "site": sites[0],
         "nuget": cache,
         "openutau": openutau,
+        # the .NET runtime pack of this Mac (a Path only so that the table of places stays one type)
+        "rid": Path({"arm64": "osx-arm64", "x86_64": "osx-x64"}.get(platform.machine(), "osx-x64")),
     }
 
 

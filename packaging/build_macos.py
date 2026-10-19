@@ -303,6 +303,11 @@ def main() -> int:
         cwd=ROOT,
     )  # fmt: skip
 
+    # the bundle's seal (PyInstaller signs the app ad hoc) no longer covers what was added: seal it again,
+    # still ad hoc. This is not a Developer ID signature and says nothing about who made the app.
+    step("Sealing the finished app ad hoc")
+    run(["codesign", "--force", "--deep", "--sign", "-", str(app)])
+
     # 4. the audit -----------------------------------------------------------------------------------
     step(
         "Auditing every file of the app against packaging/components.json and components-macos.json"

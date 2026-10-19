@@ -72,8 +72,6 @@ What is **not** verified:
 * Process handling on macOS is the POSIX path (the render host leads its own process group and is ended with it); the Windows job
   objects have no counterpart. Cancelling a render, a time-out and Ctrl+C are covered by the same integration tests as on Windows.
 * The kit for testers (`packaging/tester-kit`) and its output checker are Windows PowerShell; they are not part of the macOS build.
-* NumPy's macOS wheels bundle `libquadmath` (LGPL-2.1-or-later); like the Qt arrangement it is a licensing item for a person to review
-  ([dependency-audit.md](dependency-audit.md)).
 * A voicebank's file names that differ only in case, or in Unicode normalisation, behave as the Mac's file system does; not tested with real banks.
 
 ## Installation and trust

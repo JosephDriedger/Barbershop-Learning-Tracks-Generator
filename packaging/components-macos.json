@@ -1,10 +1,137 @@
 {
   "schema": "blt.components-overlay/1",
-  "about": "The differences of the macOS app from the Windows package described by components.json (packaging/inventory.py applies them). Placeholder: filled in from the first macOS build.",
-  "remove": [],
-  "override": {},
+  "about": "The differences of the macOS app (BLT Music Generator.app) from the Windows package described by components.json; packaging/inventory.py applies them (apply_overlay). Everything not named here is the same component with the same audited version and licence.",
+  "rewrite_prefixes": {
+    "host/": "Contents/Helpers/host/"
+  },
+  "remove": [
+    "msvc-runtime",
+    "libffi",
+    "openblas",
+    "nuget-naudio",
+    "nuget-naudio.asio",
+    "nuget-naudio.midi",
+    "nuget-naudio.wasapi",
+    "nuget-naudio.winmm"
+  ],
+  "override": {
+    "blt": {
+      "patterns": [
+        "Contents/MacOS/BLT Music Generator",
+        "Contents/MacOS/blt",
+        "Contents/Info.plist",
+        "Contents/_CodeSignature/**",
+        "Contents/Resources/LICENSE.txt",
+        "Contents/Resources/NOTICE",
+        "Contents/Resources/NOTICES.txt",
+        "Contents/Resources/blt.icns",
+        "Contents/Resources/licenses/**",
+        "Contents/Helpers/host/blt-host-build.json",
+        "Contents/Helpers/host/blt-render-host",
+        "Contents/Helpers/host/blt-render-host.*"
+      ]
+    },
+    "cpython": {
+      "patterns": [
+        "Contents/Frameworks/Python.framework/**",
+        "Contents/Frameworks/python3__dot__12/**",
+        "Contents/Resources/base_library.zip"
+      ],
+      "extra_texts": [
+        {
+          "label": "Python LICENSE.txt (history and terms)",
+          "path": "{python}/lib/python3.12/LICENSE.txt"
+        }
+      ]
+    },
+    "openssl": {
+      "patterns": [
+        "Contents/Frameworks/libcrypto*.dylib"
+      ]
+    },
+    "pyside6": {
+      "patterns": [
+        "Contents/Frameworks/PySide6/*.so",
+        "Contents/Frameworks/PySide6/libpyside6*.dylib",
+        "Contents/Frameworks/shiboken6/*"
+      ]
+    },
+    "qt": {
+      "patterns": [
+        "Contents/Frameworks/PySide6/**"
+      ]
+    },
+    "numpy": {
+      "patterns": [
+        "Contents/Frameworks/numpy/**"
+      ]
+    },
+    "mido": {
+      "patterns": [
+        "Contents/Resources/mido-*/*"
+      ]
+    },
+    "dotnet-runtime": {
+      "version": "8.0.31 (Microsoft.NETCore.App.Runtime.osx-arm64 / osx-x64)",
+      "extra_texts": [
+        {
+          "label": ".NET runtime LICENSE.TXT",
+          "path": "{nuget}/microsoft.netcore.app.runtime.{rid}/8.0.31/LICENSE.TXT"
+        },
+        {
+          "label": ".NET runtime THIRD-PARTY-NOTICES.TXT",
+          "path": "{nuget}/microsoft.netcore.app.runtime.{rid}/8.0.31/THIRD-PARTY-NOTICES.TXT"
+        }
+      ]
+    },
+    "nuget-melanchall.drywetmidi": {
+      "patterns": [
+        "Contents/Helpers/host/Melanchall.DryWetMidi.dll"
+      ]
+    },
+    "onnxruntime-native": {
+      "package": "Microsoft.ML.OnnxRuntime",
+      "patterns": [
+        "Contents/Helpers/host/libonnxruntime.dylib"
+      ],
+      "extra_texts": [
+        {
+          "label": "ONNX Runtime LICENSE (MIT)",
+          "path": "{nuget}/microsoft.ml.onnxruntime/1.16.3/LICENSE"
+        },
+        {
+          "label": "ONNX Runtime third-party notices",
+          "path": "{nuget}/microsoft.ml.onnxruntime/1.16.3/ThirdPartyNotices.txt"
+        }
+      ]
+    },
+    "worldline": {
+      "patterns": [
+        "Contents/Helpers/host/libworldline.dylib"
+      ]
+    }
+  },
   "add": [],
-  "excluded": [],
+  "excluded": [
+    {
+      "name": "Windows-only parts of the render host: NAudio output code (NAudio.dll, .Asio, .Midi, .Wasapi, .WinMM), DirectML, Melanchall_DryWetMidi_Native64.dll",
+      "license": "MIT / Microsoft terms",
+      "why": "Not part of OpenUtau's macOS build (the NAudio and DirectML packages are Windows-only references), or a Windows library (the DryWetMidi native for Windows).",
+      "how": "dotnet publish for osx-arm64 / osx-x64 does not reference them; host/build.sh removes the DryWetMidi Windows native; host/prune.txt removes the macOS native, which the host never loads."
+    },
+    {
+      "name": "createdump (the .NET crash dump tool)",
+      "license": "MIT (.NET)",
+      "why": "Crash-dump tool, not needed to run.",
+      "how": "host/prune.txt"
+    },
+    {
+      "name": "Qt frameworks and plugins other than QtCore, QtGui, QtWidgets, libqcocoa, libqoffscreen, libqico and libqmacstyle",
+      "license": "LGPL-3.0 / GPL-3.0 / commercial per module",
+      "why": "Unused; keeps GPL-only and commercial-only Qt modules out.",
+      "how": "DROP_PATTERNS in packaging/blt.spec (macOS names)"
+    }
+  ],
   "external": [],
   "installer": []
 }
