@@ -28,7 +28,14 @@ from barbershop_tracks.core.rendering import (
 from barbershop_tracks.core.runtime import RuntimeLayout
 from barbershop_tracks.core.synthesis import SynthesisPlan, VoiceEngineRef
 from barbershop_tracks.models import VoiceRole
-from host_support import PINNED_COMMIT, host_environment, host_processes, require_host
+from host_support import (
+    NATIVE_LIBRARY,
+    PINNED_COMMIT,
+    host_cache_dir,
+    host_environment,
+    host_processes,
+    require_host,
+)
 from synth_builders import ROLES, full_lyrics, plan_of, sung
 from synthetic_voicebank import SINGER_ID, build_voicebank
 
@@ -164,11 +171,11 @@ def test_a_missing_phonemizer_is_a_configuration_error(shared: Rig, tmp_path: Pa
 
 def test_a_missing_native_library_is_a_configuration_error(rig: Rig, tmp_path: Path) -> None:
     rig.backend().render(make_plan(), tmp_path / "first")  # installs the runtime copy
-    (rig.runtime_dirs[0] / "worldline.dll").unlink()
+    (rig.runtime_dirs[0] / NATIVE_LIBRARY).unlink()
     with pytest.raises(RenderConfigurationError) as info:
         rig.backend().render(make_plan(), tmp_path / "second")
     assert info.value.code == "HOST_ENVIRONMENT"
-    assert "worldline.dll" in info.value.message
+    assert NATIVE_LIBRARY in info.value.message
     assert not (tmp_path / "second").exists()
 
 
@@ -263,7 +270,7 @@ def test_repeated_cold_and_warm_runs_are_stable(rig: Rig, tmp_path: Path) -> Non
         if cache is not None and tag.startswith("cold"):
             shutil.rmtree(cache)
         rig.backend().render(plan, tmp_path / tag)
-        cache = rig.runtime_dirs[0] / "Cache"
+        cache = host_cache_dir(rig.runtime_dirs[0] / "blt-render-host")
         results[tag] = tmp_path / tag
         if tag == "cold1":
             assert cache.is_dir()

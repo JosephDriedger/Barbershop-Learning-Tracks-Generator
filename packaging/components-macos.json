@@ -126,7 +126,7 @@
       "how": "host/prune.txt"
     },
     {
-      "name": "Qt frameworks and plugins other than QtCore, QtGui, QtWidgets, libqcocoa, libqoffscreen, libqico and libqmacstyle",
+      "name": "Qt frameworks and plugins other than QtCore, QtDBus, QtGui, QtWidgets, libqcocoa, libqoffscreen, libqico and libqmacstyle",
       "license": "LGPL-3.0 / GPL-3.0 / commercial per module",
       "why": "Unused; keeps GPL-only and commercial-only Qt modules out.",
       "how": "DROP_PATTERNS in packaging/blt.spec (macOS names)"

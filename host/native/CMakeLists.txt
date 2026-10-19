@@ -61,7 +61,19 @@ endif()
 if(WIN32)
   set_target_properties(worldline PROPERTIES PREFIX "" WINDOWS_EXPORT_ALL_SYMBOLS OFF)
 elseif(APPLE)
-  # libworldline.dylib, the name OpenUtau.Core's [DllImport("worldline")] finds on macOS; a link map for verify_dylib.py
+  # libworldline.dylib, the name OpenUtau.Core's [DllImport("worldline")] finds on macOS; a link map for verify_dylib.py.
+  # Exactly the functions OpenUtau.Core calls are exported (a Mac names them with a leading underscore): C++ runtime
+  # symbols that a compiler emits as weak definitions do not leave the library, on either architecture.
+  set(WORLDLINE_EXPORTS DecodeBap DecodeMgc F0 PhraseSynthAddRequest PhraseSynthDelete PhraseSynthNew
+      PhraseSynthSetCurves PhraseSynthSynth Resample WorldSynthesis ou_audio_device_start ou_audio_device_stop
+      ou_audio_get_error_message ou_free_audio_device ou_free_audio_device_infos ou_get_audio_device_infos
+      ou_init_audio_device)
+  set(EXPORT_LIST "")
+  foreach(name ${WORLDLINE_EXPORTS})
+    string(APPEND EXPORT_LIST "_${name}\n")
+  endforeach()
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/worldline.exports "${EXPORT_LIST}")
   target_compile_options(worldline PRIVATE -O2 -ffunction-sections -fdata-sections)
-  target_link_options(worldline PRIVATE -Wl,-dead_strip -Wl,-map,${CMAKE_CURRENT_BINARY_DIR}/worldline.map)
+  target_link_options(worldline PRIVATE -Wl,-dead_strip -Wl,-map,${CMAKE_CURRENT_BINARY_DIR}/worldline.map
+    -Wl,-exported_symbols_list,${CMAKE_CURRENT_BINARY_DIR}/worldline.exports)
 endif()

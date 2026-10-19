@@ -40,8 +40,9 @@ DROP_PATTERNS = (
 # The same on macOS, where Qt's modules are frameworks (QtNetwork, not Qt6Network.dll) and the plugins are
 # lib*.dylib. QtCore, QtGui and QtWidgets are not listed: they are the ones the program uses.
 if MAC:
+    # QtDBus stays: QtGui is linked against it on macOS
     DROP_PATTERNS += tuple(
-        "Qt" + name[3:] for name in DROP_PATTERNS if name.startswith("Qt6")
+        "Qt" + name[3:] for name in DROP_PATTERNS if name.startswith("Qt6") and name != "Qt6DBus"
     ) + (
         "qsecuretransportbackend", "cocoaprintersupport", "qtuiotouchplugin", "qgenericbearer",
         "qmacheif", "qmacjp2", "qpdf", "qiconengine", "qsvgicon",

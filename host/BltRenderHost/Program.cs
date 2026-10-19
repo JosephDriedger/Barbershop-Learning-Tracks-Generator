@@ -67,6 +67,16 @@ namespace Blt.RenderHost {
 
         static int Main(string[] args) {
             int code;
+            // OpenUtau.Core keeps its data, preferences, logs and render cache in the user's home folder on macOS
+            // (~/Library/OpenUtau, ~/Library/Caches/OpenUtau), shared with the OpenUtau application. Windows has the
+            // portable mode beside the executable. BLT's host gets a home of its own beside it, so that it never reads
+            // or deletes the user's OpenUtau data (it discards cached phrases) and stays as isolated as on Windows.
+            // This must happen before OpenUtau's PathManager is first used.
+            if (OperatingSystem.IsMacOS()) {
+                string home = Path.Combine(AppContext.BaseDirectory, "home");
+                Directory.CreateDirectory(home);
+                Environment.SetEnvironmentVariable("HOME", home);
+            }
             try {
                 code = Run(args);
             } catch (Exception e) {
@@ -409,9 +419,10 @@ namespace Blt.RenderHost {
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
             // 1. environment: the native resampler must sit beside the host
-            string native = Path.Combine(AppContext.BaseDirectory, "worldline.dll");
-            if (OperatingSystem.IsWindows() && !File.Exists(native)) {
-                return Finish(Exit.Environment, "native_library_missing", "worldline.dll is not beside the host: " + native);
+            string nativeName = OperatingSystem.IsWindows() ? "worldline.dll" : "libworldline.dylib";
+            string native = Path.Combine(AppContext.BaseDirectory, nativeName);
+            if ((OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) && !File.Exists(native)) {
+                return Finish(Exit.Environment, "native_library_missing", nativeName + " is not beside the host: " + native);
             }
             result["data_path"] = PathManager.Inst.DataPath;
             result["installed_mode"] = PathManager.Inst.IsInstalled;

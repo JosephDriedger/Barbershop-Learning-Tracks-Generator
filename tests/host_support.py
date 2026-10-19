@@ -31,6 +31,18 @@ def build_dir() -> Path | None:
     return candidate if (candidate / HOST_EXE).is_file() else None
 
 
+NATIVE_LIBRARY = "worldline.dll" if sys.platform == "win32" else "libworldline.dylib"
+
+
+def host_cache_dir(exe: Path) -> Path:
+    """Where OpenUtau keeps the phrases it rendered: beside the host's folder on Windows (portable
+    mode), in the home folder the host makes for itself on macOS."""
+    if sys.platform == "win32":
+        return exe.parent / "Cache"
+    else:
+        return exe.parent / "home" / "Library" / "Caches" / "OpenUtau"
+
+
 def host_processes(root: Path) -> int:
     """How many render hosts run from a copy of the host somewhere below ``root``."""
     if sys.platform == "win32":

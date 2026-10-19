@@ -49,7 +49,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # -I leaves the script
 import release_gate  # noqa: E402
 
 APP_NAME = "BLT Music Generator.app"
-KEPT_QT_FRAMEWORKS = ("QtCore.framework", "QtGui.framework", "QtWidgets.framework")
+KEPT_QT_FRAMEWORKS = (
+    "QtCore.framework",
+    "QtDBus.framework",  # QtGui is linked against it on macOS
+    "QtGui.framework",
+    "QtWidgets.framework",
+)
 VOLUME = "BLT Music Generator"
 README_FIRST = """\
 BLT Music Generator for macOS (unsigned)
@@ -317,7 +322,7 @@ def main() -> int:
     # the bundle's seal (PyInstaller signs the app ad hoc) no longer covers what was added: seal it again,
     # still ad hoc. This is not a Developer ID signature and says nothing about who made the app.
     step("Sealing the finished app ad hoc")
-    run(["codesign", "--force", "--deep", "--sign", "-", str(app)])
+    run(["codesign", "--force", "--sign", "-", str(app)])
 
     # 4. the audit -----------------------------------------------------------------------------------
     step(

@@ -171,6 +171,12 @@ jobs:
           ffmpeg -version | head -n 1
       - name: Host and rendering tests
         run: pytest -m integration tests/integration
+      - name: What the host logged (only when a test failed)
+        if: failure()
+        run: |
+          for log in $(find "$TMPDIR" /private/var/folders -path "*Library/OpenUtau/Logs/log.txt" 2>/dev/null | head -5); do
+            echo "=== $log"; tail -n 60 "$log"
+          done
       - name: Negative control - the checks must REFUSE a host built from the unpatched OpenUtau (Voicevox, plus dictionary, C+V)
         run: python host/negative_control.py
 
