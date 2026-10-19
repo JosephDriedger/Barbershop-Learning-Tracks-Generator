@@ -211,7 +211,7 @@ jobs:
           python -m pip install -r packaging/requirements-build-macos.txt
           python -m pip install -e . --no-deps
       - name: Build the app and the disk image (smoke tests included)
-        run: python packaging/build_macos.py --allow-audit-gaps
+        run: python packaging/build_macos.py
       - name: What is in the app (top levels)
         if: always()
         run: |

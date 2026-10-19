@@ -7,7 +7,7 @@ The counterpart of ``packaging/replaceability-test.ps1``. On a private copy of t
 1. the GUI starts (offscreen Qt, ``--smoke-test``): the baseline;
 2. the QtWidgets framework library is moved away: the GUI must fail, which shows the file is really
    loaded from disk and is not merged into the executable;
-3. it is put back as a *different* file (the original with bytes appended) that is signed again ad hoc,
+3. it is put back as a *different* file (the original signed again, ad hoc, under another identifier),
    the way anyone who replaces a library in an app has to on macOS (a changed file has lost its
    signature, and Apple silicon refuses to run unsigned code): the GUI must start again, which shows BLT
    neither checks nor pins the file.
@@ -91,15 +91,27 @@ def main() -> int:
 
         shutil.copyfile(original, library)
         library.chmod(0o755)
-        with library.open("ab") as handle:
-            handle.write(b"BLT\n")  # a different file with the same contents
-        different = library.read_bytes() != original.read_bytes()
-        check(different, "the replacement file differs from the original")
+        # a different file with the same contents: the original signed again, ad hoc, under another identifier
+        # (what anyone replacing a library must do on macOS: a changed file has lost its signature, and
+        # Apple silicon refuses to run unsigned code)
         signed = subprocess.run(
-            ["codesign", "--force", "--sign", "-", str(library)], capture_output=True, check=False
+            [
+                "codesign",
+                "--force",
+                "--sign",
+                "-",
+                "--identifier",
+                "org.blt.relink-test",
+                str(library),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
         )
+        check(signed.returncode == 0, f"the replacement is signed ad hoc ({signed.stderr.strip()})")
         check(
-            signed.returncode == 0, "the replacement is signed ad hoc, as anyone replacing it must"
+            library.read_bytes() != original.read_bytes(),
+            "the replacement file differs from the original",
         )
         check(
             start_gui(copy, base) == 0,
