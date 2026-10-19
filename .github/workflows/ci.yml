@@ -170,6 +170,8 @@ jobs:
           done
           ffmpeg -version | head -n 1
       - name: Host and rendering tests
+        env:
+          BLT_HOST_STACK: "1"
         run: pytest -m integration tests/integration
       - name: What the host logged (only when a test failed)
         if: failure()

@@ -53,7 +53,12 @@ namespace Blt.RenderHost {
         static string Describe(Exception x) {
             var inner = x is MessageCustomizableException m && m.SubstanceException != null
                 ? m.SubstanceException : x.InnerException;
-            return x.GetType().Name + ": " + x.Message + (inner != null ? " <- " + Describe(inner) : "");
+            string where = "";
+            if (inner == null && System.Environment.GetEnvironmentVariable("BLT_HOST_STACK") == "1" && x.StackTrace != null) {
+                // for diagnosing a failure on a machine nobody has: the first frames of the innermost exception
+                where = " @ " + string.Join(" / ", x.StackTrace.Split('\n').Take(8).Select(l => l.Trim()));
+            }
+            return x.GetType().Name + ": " + x.Message + where + (inner != null ? " <- " + Describe(inner) : "");
         }
 
         public void OnNext(UCommand cmd, bool isUndo) {
