@@ -2,7 +2,7 @@
   "schema": "blt.components-overlay/1",
   "about": "The differences of the macOS app (BLT Music Generator.app) from the Windows package described by components.json; packaging/inventory.py applies them (apply_overlay). Everything not named here is the same component with the same audited version and licence.",
   "rewrite_prefixes": {
-    "host/": "Contents/Helpers/host/"
+    "host/": "Contents/Resources/host/"
   },
   "remove": [
     "msvc-runtime",
@@ -26,9 +26,9 @@
         "Contents/Resources/NOTICES.txt",
         "Contents/Resources/blt.icns",
         "Contents/Resources/licenses/**",
-        "Contents/Helpers/host/blt-host-build.json",
-        "Contents/Helpers/host/blt-render-host",
-        "Contents/Helpers/host/blt-render-host.*"
+        "Contents/Resources/host/blt-host-build.json",
+        "Contents/Resources/host/blt-render-host",
+        "Contents/Resources/host/blt-render-host.*"
       ]
     },
     "cpython": {
@@ -86,13 +86,13 @@
     },
     "nuget-melanchall.drywetmidi": {
       "patterns": [
-        "Contents/Helpers/host/Melanchall.DryWetMidi.dll"
+        "Contents/Resources/host/Melanchall.DryWetMidi.dll"
       ]
     },
     "onnxruntime-native": {
       "package": "Microsoft.ML.OnnxRuntime",
       "patterns": [
-        "Contents/Helpers/host/libonnxruntime.dylib"
+        "Contents/Resources/host/libonnxruntime.dylib"
       ],
       "extra_texts": [
         {
@@ -107,7 +107,7 @@
     },
     "worldline": {
       "patterns": [
-        "Contents/Helpers/host/libworldline.dylib"
+        "Contents/Resources/host/libworldline.dylib"
       ]
     }
   },

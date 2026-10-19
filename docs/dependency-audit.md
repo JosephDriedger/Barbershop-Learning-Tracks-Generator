@@ -280,7 +280,7 @@ miniaudio, xxHash and Abseil inside `worldline.dll`.
 
 ### The macOS app
 
-`BLT Music Generator.app` ships 62 components (the Windows package: 70), **1 of them release blockers** (pyside6: the same open items as on Windows). Everything is audited exactly like the Windows package (`packaging/inventory.py --platform macos`: every file of the app must belong to a component), with the file names of the macOS layout: the program and its libraries in `Contents/Frameworks`, the render host in `Contents/Helpers/host`, the notices in `Contents/Resources`. The tables above apply to every component not named below. The app is unsigned and not notarised.
+`BLT Music Generator.app` ships 62 components (the Windows package: 70), **1 of them release blockers** (pyside6: the same open items as on Windows). Everything is audited exactly like the Windows package (`packaging/inventory.py --platform macos`: every file of the app must belong to a component), with the file names of the macOS layout: the program and its libraries in `Contents/Frameworks`, the render host in `Contents/Resources/host`, the notices in `Contents/Resources`. The tables above apply to every component not named below. The app is unsigned and not notarised.
 
 | Component | In the macOS app |
 |---|---|

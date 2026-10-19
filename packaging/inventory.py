@@ -31,7 +31,7 @@ COMPONENTS = Path(__file__).with_name("components.json")
 # the macOS package differs from the Windows one in file names and in a few components; the file holds only
 # the differences (see ``apply_overlay``)
 COMPONENTS_MACOS = Path(__file__).with_name("components-macos.json")
-HOST_PREFIX = {"windows": "host/", "macos": "Contents/Helpers/host/"}
+HOST_PREFIX = {"windows": "host/", "macos": "Contents/Resources/host/"}
 
 
 def glob_regex(pattern: str) -> re.Pattern[str]:
@@ -57,7 +57,7 @@ def glob_regex(pattern: str) -> re.Pattern[str]:
 def apply_overlay(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     """The component table of another platform: ``base`` with the overlay's differences applied.
 
-    ``rewrite_prefixes``: folders that moved (``host/`` is ``Contents/Helpers/host/`` in the app), applied to
+    ``rewrite_prefixes``: folders that moved (``host/`` is ``Contents/Resources/host/`` in the app), applied to
     the patterns of every component that does not override them. ``remove``: ids that do not exist there. ``override``: id -> the keys that differ (``patterns`` above
     all). ``add``: whole components that exist only there. ``excluded`` and ``external`` are appended to
     the base's lists; ``installer`` is replaced (the macOS disk image has no installer stub).

@@ -296,7 +296,7 @@ def macos_region(windows: dict[str, Any]) -> list[str]:
         "Everything is audited exactly like the Windows package (`packaging/inventory.py "
         "--platform macos`: every file of the app must belong to a component), with the file names of "
         "the macOS layout: the program and its libraries in `Contents/Frameworks`, the render host in "
-        "`Contents/Helpers/host`, the notices in `Contents/Resources`. The tables above apply to every "
+        "`Contents/Resources/host`, the notices in `Contents/Resources`. The tables above apply to every "
         "component not named below. The app is unsigned and not notarised."
     )
     out += ["", "| Component | In the macOS app |", "|---|---|"]

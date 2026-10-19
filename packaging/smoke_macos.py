@@ -196,7 +196,7 @@ def scenario(name: str, app: Path, profile: Path, data: Path) -> None:
         snapshot(app) == before,
         "the app is unchanged after running (no caches, settings or temp files in it)",
     )
-    helpers = app / "Contents" / "Helpers" / "host"
+    helpers = app / "Contents" / "Resources" / "host"
     check(
         not (helpers / "OpenUtau").exists() and not (helpers / "Logs").exists(),
         "no OpenUtau cache, prefs or logs were created beside the shipped host",

@@ -8,7 +8,7 @@
 #
 # On macOS the same spec builds 'BLT Music Generator.app' (the windowed program as the app's executable, the console
 # program 'blt' beside it in Contents/MacOS); packaging/build_macos.py completes it the same way
-# (render host in Contents/Helpers/host, notices in Contents/Resources) and audits it.
+# (render host in Contents/Resources/host, notices in Contents/Resources) and audits it.
 import os
 import re
 import sys

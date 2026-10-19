@@ -7,7 +7,7 @@ an arm64 app, an Intel Mac an x64 one): the native resampler and the .NET host a
 
 Steps: publish the self-contained render host (pinned OpenUtau, ``host/build.sh --publish``) and verify
 what it contains -> PyInstaller builds ``BLT Music Generator.app`` -> the host goes into
-``Contents/Helpers/host``, NOTICES.txt and licenses/ into ``Contents/Resources`` -> every file of the app is
+``Contents/Resources/host``, NOTICES.txt and licenses/ into ``Contents/Resources`` -> every file of the app is
 audited against ``packaging/components.json`` plus ``packaging/components-macos.json`` -> smoke tests in a
 stripped environment and the Qt replaceability test (LGPL) -> a ``.dmg`` -> SHA-256 and release metadata.
 Everything is written under ``--out-dir`` (default ``research-output/release-macos``, git-ignored). Nothing
@@ -279,7 +279,7 @@ def main() -> int:
 
     # 3. the host and the notices go in ---------------------------------------------------------
     step("Adding the render host")
-    helpers = contents / "Helpers"
+    helpers = contents / "Resources"
     helpers.mkdir(parents=True, exist_ok=True)
     run(["ditto", str(host_out), str(helpers / "host")])
     resources = contents / "Resources"

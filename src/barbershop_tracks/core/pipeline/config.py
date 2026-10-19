@@ -183,8 +183,8 @@ def _development_host() -> Path | None:
 
 def _installed_host() -> Path | None:
     program = Path(sys.executable).resolve().parent
-    # in BLT Music Generator.app the program is in Contents/MacOS, the host in Contents/Helpers
-    for candidate in (program / "host", program.parent / "Helpers" / "host"):
+    # in BLT Music Generator.app the program is in Contents/MacOS, the host in Contents/Resources
+    for candidate in (program / "host", program.parent / "Resources" / "host"):
         if candidate.is_dir():
             return candidate
     return None
