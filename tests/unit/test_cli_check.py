@@ -376,7 +376,7 @@ def test_lines_notes_that_a_score_has_errors(
     path.write_text(quartet_xml().replace("<note>", jump, 1), encoding="utf-8")
     code, out, _ = run(capsys, "lines", str(path))
     assert code == 0
-    assert "error(s)" in out
+    assert "error" in out  # "The score has 1 error; run `check`..."
 
 
 # --- machine-clean JSON: stdout is exactly one document, diagnostics stay on stderr ---

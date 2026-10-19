@@ -8,6 +8,9 @@ with entries the dictionary *has*, in this order, and joins their sounds:
    ``every``, ``heav'n`` is ``heaven``, ``o'er`` is ``over``), a final ``in`` is ``ing`` said short
    (``wond'rin`` is ``wondering`` with the final ``g`` not sung), and ``Oo`` is the dictionary's
    ``ooh``. The first such spelling the dictionary has is used.
+
+   In a chart ``Oo`` always means ``ooh``, however many o's it has (``Oo``, ``Ooo``, ``Oooh``): that
+   is read before anything else and does not depend on how the dictionary spells it.
 2. **Pieces.** Otherwise the word is cut into a few dictionary words: ``bid`` + ``dilly`` sings as
    the two sounds one after the other. A piece is at least three letters (or one of a few short
    everyday words), so that stray two-letter entries do not stand in for syllables; the fewest
@@ -63,6 +66,8 @@ MAX_PIECES = 4
 _NOT_LETTERS = re.compile(r"[^a-z]")
 _NOT_WORD = re.compile(r"[^a-z']")
 _LEFT_OUT = "eaoiuv"  # what an apostrophe may stand for, most likely first
+_VOCALISE = re.compile(r"^o{2,}h*$")  # "Oo", "Ooo", "Ooh", "Oooh": the sung "ooh"
+_OOH = ("uw",)  # ARPAbet of "ooh", for a dictionary that does not have the word
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,6 +191,15 @@ def _guessed(word: str) -> Composition | None:
     return Composition(word, (), symbols, how, guessed=True)
 
 
+def _vocalise(word: str, dictionary: Mapping[str, str | None]) -> Composition | None:
+    """ "Oo" (any number of o's, an optional h) is the sung "ooh", as a chart means it."""
+    if not _VOCALISE.match(letters_of(word)):
+        return None
+    sounds = dictionary.get("ooh")
+    symbols = _plain(sounds) if sounds else _OOH
+    return Composition(word, ("ooh",), symbols, "read as 'ooh', which is what Oo means in a chart")
+
+
 def compose(
     word: str, dictionary: Mapping[str, str | None], *, guess: bool = True
 ) -> Composition | None:
@@ -195,7 +209,8 @@ def compose(
     None when nothing can be made of the word.
     """
     return (
-        _spelled_out(word, dictionary)
+        _vocalise(word, dictionary)
+        or _spelled_out(word, dictionary)
         or _from_pieces(word, dictionary)
         or (_guessed(word) if guess else None)
     )

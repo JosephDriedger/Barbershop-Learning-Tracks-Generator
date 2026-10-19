@@ -21,6 +21,7 @@ from barbershop_tracks.core.readiness.findings import (
     ReadinessReport,
 )
 from barbershop_tracks.core.readiness.lines import LineInfo
+from barbershop_tracks.core.wording import agree, counted
 from barbershop_tracks.models import PerformanceLocation
 
 READINESS_SCHEMA = "barbershop-tracks.readiness/1"
@@ -153,7 +154,10 @@ def render_text(
             out.append(f"  {issue.severity.name} {issue.code}{_where(finding)}: {issue.message}")
     if hidden:
         out.append("")
-        out.append(f"({hidden} redundant finding(s) folded; they are explained by a stronger one)")
+        out.append(
+            f"({counted(hidden, 'redundant finding')} folded; "
+            f"{agree(hidden, 'it is', 'they are')} explained by a stronger one)"
+        )
     if report.lines:
         out.append("")
         out.append("Lines:")
@@ -217,5 +221,5 @@ def render_lines_text(infos: tuple[LineInfo, ...], *, error_count: int = 0) -> s
     if not infos:
         out.append("  (no lines)")
     if error_count:
-        out.append(f"The score has {error_count} error(s); run `check` for details.")
+        out.append(f"The score has {counted(error_count, 'error')}; run `check` for details.")
     return "\n".join(out) + "\n"

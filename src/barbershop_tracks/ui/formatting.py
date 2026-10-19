@@ -26,3 +26,8 @@ def duration_label(quarters: Fraction) -> str:
 def clock(seconds: float) -> str:
     total = int(seconds)
     return f"{total // 60}:{total % 60:02d}"
+
+
+def sentence(text: str) -> str:
+    """``the score has no tempo`` -> ``The score has no tempo`` (only a lower-case first letter)."""
+    return text[:1].upper() + text[1:] if text[:1].islower() else text

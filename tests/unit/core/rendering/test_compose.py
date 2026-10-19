@@ -63,6 +63,19 @@ def test_a_vowel_interjection_is_the_dictionarys_h_form() -> None:
     assert made.symbols == ("uw",)
 
 
+def test_oo_means_ooh_however_it_is_spelled_and_even_without_the_dictionary_word() -> None:
+    for spelling in ("Oo", "oo", "OO", "Ooo", "Oooh", "Ooh", "oo,"):
+        made = compose(spelling, DICTIONARY, guess=False)
+        assert made is not None, spelling
+        assert made.pieces == ("ooh",)
+        assert made.symbols == ("uw",)
+        assert not made.guessed
+    bare = compose("Oooh", {}, guess=False)  # a dictionary that lacks "ooh" too
+    assert bare is not None
+    assert bare.symbols == ("uw",)
+    assert compose("oops", DICTIONARY, guess=False) is None  # only o's and a final h
+
+
 def test_stress_marks_are_not_part_of_the_symbols() -> None:
     made = compose("ev'ry", DICTIONARY)
     assert made is not None

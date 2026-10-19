@@ -151,10 +151,10 @@ class MainWindow(QMainWindow):
         self.why.setWordWrap(True)
         self.why.setObjectName("hint")
         self.why.setAccessibleName("Why generating is not possible yet")
-        self.generate = QPushButton("&Generate learning tracks")
+        self.generate = QPushButton("&Generate Learning Tracks")
         self.generate.setObjectName("primary")
         self.generate.setDefault(True)
-        self.generate.setAccessibleName("Generate learning tracks")
+        self.generate.setAccessibleName("Generate Learning Tracks")
         self.generate.clicked.connect(self.on_generate_clicked)
         bottom = QHBoxLayout()
         bottom.addWidget(self.why, 1)
@@ -204,7 +204,7 @@ class MainWindow(QMainWindow):
 
     def _build_menu(self) -> None:
         file_menu = self.menuBar().addMenu("&File")
-        open_action = QAction("&Open score…", self)
+        open_action = QAction("&Open Score…", self)
         open_action.setShortcut(QKeySequence.StandardKey.Open)
         open_action.triggered.connect(self.choose_score)
         self.pronunciation_action = QAction("&Pronunciations…", self)
@@ -222,9 +222,9 @@ class MainWindow(QMainWindow):
         help_menu = self.menuBar().addMenu("&Help")
         about = QAction("&About", self)
         about.triggered.connect(self._about)
-        copy_diagnostics = QAction("&Copy diagnostics", self)
+        copy_diagnostics = QAction("&Copy Diagnostics", self)
         copy_diagnostics.triggered.connect(self._copy_diagnostics)
-        notices = QAction("&Third-party notices", self)
+        notices = QAction("&Third-Party Notices", self)
         notices.triggered.connect(self._open_notices)
         help_menu.addAction(copy_diagnostics)
         help_menu.addAction(notices)
@@ -289,7 +289,7 @@ class MainWindow(QMainWindow):
                 "under the wrong note. It can take several minutes.\n\nIf you go on, check every "
                 "part against the original before you generate: BLT does not check the "
                 "recognised music for you.",
-                "Recognise it",
+                "Recognise It",
             ):
                 return
             accept = True
@@ -641,7 +641,7 @@ class MainWindow(QMainWindow):
             self,
             "Stop generating?",
             "Tracks are still being made. Closing now cancels the work; nothing is saved.",
-            "Cancel generation and close",
+            "Cancel Generation and Close",
         )
         if self.controller.running and not stop_anyway:
             event.ignore()

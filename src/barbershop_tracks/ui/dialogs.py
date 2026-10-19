@@ -42,6 +42,7 @@ from barbershop_tracks.core.pipeline import (
     review_report,
 )
 from barbershop_tracks.core.synthesis import SynthesisPlan
+from barbershop_tracks.core.wording import agree, counted
 from barbershop_tracks.ui.lyric_review import LyricReviewState, RowState
 from barbershop_tracks.ui.preferences import Preferences
 from barbershop_tracks.ui.prompts import Prompts
@@ -175,7 +176,7 @@ class LyricReviewDialog(QDialog):
         self._baseline = baseline
         self._prompts = prompts
         self._saved = state.snapshot()
-        self.setWindowTitle("Lyric review")
+        self.setWindowTitle("Lyric Review")
         self.setModal(True)
         self.resize(1100, 620)
         self.setSizeGripEnabled(True)
@@ -214,10 +215,10 @@ class LyricReviewDialog(QDialog):
 
         self.voice_filter = QComboBox()
         self.voice_filter.setAccessibleName("Show notes of")
-        self.voice_filter.addItem("All voices", "")
+        self.voice_filter.addItem("All Voices", "")
         for role in sorted({r.role for r in state.rows}, key=lambda r: r.value):
             self.voice_filter.addItem(role.display_name, role.value)
-        self.open_only = QPushButton("Hide approved and followed")
+        self.open_only = QPushButton("Hide Approved and Followed Notes")
         self.open_only.setCheckable(True)
         self.voice_filter.currentIndexChanged.connect(self._refilter)
         self.open_only.toggled.connect(self._refilter)
@@ -233,34 +234,36 @@ class LyricReviewDialog(QDialog):
             return b
 
         self.approve_button = button(
-            "&Approve selected",
+            "&Approve Selected",
             self.approve_selected,
             "Approve the typed lyric of each selected note",
         )
         self.approve_all_button = button(
-            "Approve all &typed", self.approve_typed, "Approve every note that has a lyric typed in"
+            "Approve All &Typed Lyrics",
+            self.approve_typed,
+            "Approve every note that has a lyric typed in",
         )
         batch = [
             self.approve_button,
             self.approve_all_button,
-            button("&Un-approve selected", self.unapprove_selected),
-            button("Type one lyric for selected…", self.fill_selected),
+            button("&Un-Approve Selected", self.unapprove_selected),
+            button("Type One Lyric for the Selected Notes…", self.fill_selected),
             button(
-                "Use suggested lyrics",
+                "Use Suggested Lyrics",
                 self.use_proposals,
                 "Fill selected notes with BLT's suggestion",
             ),
             button(
-                "Copy the Lead's words…",
+                "Copy the Lead's Words…",
                 self.copy_lead,
                 "Copy what the Lead sings into the selected notes (you still approve them)",
             ),
-            button("Clear selected", self.clear_selected),
+            button("Clear Selected", self.clear_selected),
         ]
         files = [
-            button("&Load approvals…", self.load_file),
-            button("&Save approvals…", self.save_file),
-            button("Export &report…", self.export_report),
+            button("&Load Approvals…", self.load_file),
+            button("&Save Approvals…", self.save_file),
+            button("Export &Report…", self.export_report),
         ]
 
         top = QHBoxLayout()
@@ -325,7 +328,10 @@ class LyricReviewDialog(QDialog):
         total = len(self.state.rows) - self.state.following_count
         left = self.state.unresolved
         drafts = sum(1 for r in self.state.rows if r.state is RowState.DRAFT)
-        text = f"{self.state.approved_count} of {total} notes approved; {left} still need a lyric"
+        text = (
+            f"{self.state.approved_count} of {counted(total, 'note')} approved; "
+            f"{left} still {agree(left, 'needs', 'need')} a lyric"
+        )
         followed = self.state.following_count
         if followed:
             text += f"; {followed} follow the Lead"
@@ -378,8 +384,9 @@ class LyricReviewDialog(QDialog):
         if not self._prompts.confirm(
             self,
             "Copy the Lead's words?",
-            f"Copy what the Lead sings into {len(usable)} selected note(s)? You still have to "
-            "approve them, and harmony parts do not always sing the Lead's words.",
+            f"Copy what the Lead sings into {counted(len(usable), 'selected note')}? You still "
+            f"have to approve {agree(len(usable), 'it', 'them')}, and harmony parts do not "
+            "always sing the Lead's words.",
             "Copy",
         ):
             return
@@ -402,9 +409,12 @@ class LyricReviewDialog(QDialog):
             return
         self.model.changed_all()
         self._update_summary()
-        note = f"{applied} approval(s) applied."
+        note = f"{counted(applied, 'approval')} applied."
         if skipped:
-            note += f" {skipped} did not match any note that needs a lyric and were ignored."
+            note += (
+                f" {skipped} did not match any note that needs a lyric and "
+                f"{agree(skipped, 'was', 'were')} ignored."
+            )
         self._prompts.inform(self, "Approvals loaded", note)
 
     def save_file(self) -> None:
@@ -434,7 +444,7 @@ class AdvancedDialog(QDialog):
     def __init__(self, prefs: Preferences, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.prefs = prefs
-        self.setWindowTitle("Advanced settings")
+        self.setWindowTitle("Advanced Settings")
         self.pronunciation = QLineEdit(prefs.phonemizer)
         self.pronunciation.setPlaceholderText(DEFAULT_PHONEMIZER)
         self.pronunciation.setAccessibleName("Pronunciation engine")
@@ -459,7 +469,7 @@ class AdvancedDialog(QDialog):
         self.timeout.setValue(prefs.timeout_minutes)
         self.timeout.setAccessibleName("Time limit")
 
-        self.follow_lead = QCheckBox("Parts without lyrics of their own sing the &Lead's words")
+        self.follow_lead = QCheckBox("Parts Without Lyrics of Their Own Sing the &Lead's Words")
         self.follow_lead.setChecked(prefs.follow_lead)
         self.follow_lead.setToolTip(
             "The usual barbershop convention. Notes the score gives no lyric take what the Lead "
@@ -469,10 +479,10 @@ class AdvancedDialog(QDialog):
 
         form = QFormLayout()
         form.addRow("&Pronunciation:", self.pronunciation)
-        form.addRow("Voice &engine:", self.engine)
-        form.addRow("Singing engine &folder:", self.host)
-        form.addRow(".NET &runtime folder:", self.runtime)
-        form.addRow("Time &limit:", self.timeout)
+        form.addRow("Voice &Engine:", self.engine)
+        form.addRow("Singing Engine &Folder:", self.host)
+        form.addRow(".NET &Runtime Folder:", self.runtime)
+        form.addRow("Time &Limit:", self.timeout)
         form.addRow("Lyrics:", self.follow_lead)
         hint = QLabel(
             "Leave a field empty to use BLT's default. Changing these can stop generation from "
@@ -480,7 +490,7 @@ class AdvancedDialog(QDialog):
         )
         hint.setWordWrap(True)
         hint.setObjectName("hint")
-        restore = QPushButton("Restore defaults")
+        restore = QPushButton("Restore Defaults")
         restore.clicked.connect(self._restore)
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel

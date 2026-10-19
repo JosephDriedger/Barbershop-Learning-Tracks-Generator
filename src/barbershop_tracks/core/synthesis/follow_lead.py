@@ -24,10 +24,20 @@ Two rules, in this order, for a note of Tenor, Baritone or Bass starting at ``t`
      and sings the Lead's syllable again otherwise (a held vowel cannot cross a gap).
 
 The Lead itself is never changed. Each decision records whose words are followed (``follows_role``) and where.
+
+One more reading comes before the two rules, for a note that *does* count as a melisma continuation: an
+**untyped extender** (what MuseScore writes: ``<extend/>`` on the one note that has the lyric) says nothing about
+how far its line runs, and the analysis assumes it runs to the next lyric or rest. A part that writes "Oo" with a
+line and then moves note for note with the Lead (each of its notes starting and ending exactly with a Lead note)
+has not been holding "Oo" through the Lead's words; the line ended with the note it was drawn under. So such a
+note, and the notes after it that keep the Lead's rhythm, are treated as having no lyric of their own and
+follow the Lead. A note that is longer or shorter than the Lead's, or that starts elsewhere, stays a continuation
+(a real "Oo" held under quick words), and so does any extender that is typed or comes from a slur.
 """
 
 from bisect import bisect_right
 from dataclasses import replace
+from fractions import Fraction
 
 from barbershop_tracks.core.synthesis.plan import (
     LyricState,
@@ -36,10 +46,18 @@ from barbershop_tracks.core.synthesis.plan import (
     ReviewReason,
     VoicePlan,
 )
-from barbershop_tracks.models import VoiceRole
+from barbershop_tracks.models import MelismaBasis, VoiceRole
 
 _SYLLABLE_STATES = (LyricState.SCORE_LYRIC, LyricState.USER_APPROVED)
 _EXPLICIT = (LyricState.SCORE_LYRIC, LyricState.USER_APPROVED, LyricState.SCORE_CONTINUATION)
+
+
+def _lead_rhythm_match(note: PlannedNote, lead: VoicePlan, starts: list[Fraction]) -> int | None:
+    """The index of the Lead note that starts and ends exactly with ``note``, if there is one."""
+    at = bisect_right(starts, note.start) - 1
+    if at >= 0 and lead.notes[at].start == note.start and lead.notes[at].duration == note.duration:
+        return at
+    return None
 
 
 def _lead_syllable(lead: VoicePlan, index: int) -> tuple[PlannedNote, str] | None:
@@ -106,9 +124,8 @@ def follow_the_lead(voices: tuple[VoicePlan, ...]) -> tuple[VoicePlan, ...]:
             result.append(voice)
             continue
         notes = list(voice.notes)
+        ended: set[Fraction] = set()  # the notes whose untyped extender line is read as ended
         for i, note in enumerate(notes):
-            if note.lyric.review_reason is not ReviewReason.LYRIC_ABSENT:
-                continue
             previous = notes[i - 1] if i else None
             touching = (
                 previous is not None
@@ -116,6 +133,33 @@ def follow_the_lead(voices: tuple[VoicePlan, ...]) -> tuple[VoicePlan, ...]:
                 and previous.lyric.state is not LyricState.ABSENT
                 and previous.lyric.state is not LyricState.INFERRED_PROPOSAL
             )
+            origin_start = note.lyric.provenance.melisma_origin_start
+            if (
+                note.lyric.state is LyricState.SCORE_CONTINUATION
+                and note.lyric.provenance.melisma_basis == MelismaBasis.UNTYPED.value
+                and origin_start is not None
+            ):
+                match = _lead_rhythm_match(note, lead, starts)
+                found = None if match is None else _lead_syllable(lead, match)
+                # it ends the line where the Lead begins a syllable of its own, and keeps ending it
+                # for as long as the part keeps the Lead's rhythm
+                if (
+                    match is not None
+                    and found is not None
+                    and (origin_start in ended or found[0] is lead.notes[match])
+                ):
+                    ended.add(origin_start)
+                    notes[i] = _sing_with_lead(
+                        note,
+                        lead.notes[match],
+                        found,
+                        touching,
+                        f"; the score's extender line from {origin_start} is read as ended: this "
+                        "part keeps the Lead's rhythm",
+                    )
+                continue
+            if note.lyric.review_reason is not ReviewReason.LYRIC_ABSENT:
+                continue
             # rule 1: the same note, written once under another part
             twins = _same_note_elsewhere(voices, voice, note)
             if twins is not None and not any(o.role is VoiceRole.LEAD for o, _ in twins):
@@ -155,29 +199,41 @@ def follow_the_lead(voices: tuple[VoicePlan, ...]) -> tuple[VoicePlan, ...]:
             found = _lead_syllable(lead, at)
             if found is None:
                 continue
-            lead_origin, lead_text = found
-            together = lead.notes[at].start == note.start and lead.notes[at] is lead_origin
-            sustain = not together and touching
-            provenance = replace(
-                note.lyric.provenance,
-                syllabic=lead_origin.lyric.provenance.syllabic,  # keeps its place in the word
-                detail=(
-                    f"follows the Lead's syllable {lead_text!r} that starts at {lead_origin.start}"
-                    + (" (held)" if sustain else "")
-                ),
-                follows_start=lead_origin.start,
-                follows_role=VoiceRole.LEAD.value,
-            )
-            notes[i] = replace(
-                note,
-                lyric=NoteLyric(
-                    state=LyricState.LEAD_SUSTAIN if sustain else LyricState.LEAD_SYLLABLE,
-                    text=None if sustain else lead_text,
-                    provenance=provenance,
-                ),
-            )
+            notes[i] = _sing_with_lead(note, lead.notes[at], found, touching)
         result.append(replace(voice, notes=tuple(notes)))
     return tuple(result)
+
+
+def _sing_with_lead(
+    note: PlannedNote,
+    lead_note: PlannedNote,
+    found: tuple[PlannedNote, str],
+    touching: bool,
+    why: str = "",
+) -> PlannedNote:
+    """``note`` sings (or holds) the Lead's syllable ``found`` that sounds under ``lead_note``."""
+    lead_origin, lead_text = found
+    together = lead_note.start == note.start and lead_note is lead_origin
+    sustain = not together and touching
+    provenance = replace(
+        note.lyric.provenance,
+        syllabic=lead_origin.lyric.provenance.syllabic,  # keeps its place in the word
+        detail=(
+            f"follows the Lead's syllable {lead_text!r} that starts at {lead_origin.start}"
+            + (" (held)" if sustain else "")
+            + why
+        ),
+        follows_start=lead_origin.start,
+        follows_role=VoiceRole.LEAD.value,
+    )
+    return replace(
+        note,
+        lyric=NoteLyric(
+            state=LyricState.LEAD_SUSTAIN if sustain else LyricState.LEAD_SYLLABLE,
+            text=None if sustain else lead_text,
+            provenance=provenance,
+        ),
+    )
 
 
 __all__ = ["follow_the_lead"]

@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLayout,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
@@ -39,6 +40,7 @@ from PySide6.QtWidgets import (
 
 from barbershop_tracks.core.pipeline import STAGE_LABELS
 from barbershop_tracks.core.synthesis import VOICE_ORDER
+from barbershop_tracks.core.wording import counted
 from barbershop_tracks.models import VoiceRole
 from barbershop_tracks.ui.assignments import Choice, Ignore
 from barbershop_tracks.ui.controller import AppController
@@ -62,6 +64,14 @@ def hint(text: str) -> QLabel:
     return label
 
 
+def _add_row(form: QFormLayout, text: str, field: QLayout, buddy: QWidget) -> None:
+    """A form row whose field is a layout. A label shows its ``&`` literally unless it has a buddy,
+    and ``addRow`` can only give a buddy to a widget, so it is set here."""
+    label = QLabel(text)
+    label.setBuddy(buddy)
+    form.addRow(label, field)
+
+
 def _button(text: str, tip: str = "") -> QPushButton:
     button = QPushButton(text)
     if tip:
@@ -83,8 +93,8 @@ class ScoreSection(QGroupBox):
         self.problem = QLabel("")
         self.problem.setObjectName("error")
         self.problem.setWordWrap(True)
-        self.browse = _button("&Choose score…", "Open a MusicXML file (.musicxml, .xml, .mxl)")
-        self.browse.setAccessibleName("Choose score")
+        self.browse = _button("&Choose Score…", "Open a MusicXML file (.musicxml, .xml, .mxl)")
+        self.browse.setAccessibleName("Choose Score")
         self.browse.clicked.connect(self.browse_requested)
         drop = hint("You can also drag a MusicXML file onto this window.")
         layout = QVBoxLayout(self)
@@ -132,8 +142,8 @@ class AssignmentSection(QGroupBox):
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.suggest = _button("&Suggest voices", "Fill in likely voices from the part names")
-        self.confirm = _button("C&onfirm suggestions", "Accept the suggested voices as they are")
+        self.suggest = _button("&Suggest Voices", "Fill in likely voices from the part names")
+        self.confirm = _button("C&onfirm Suggestions", "Accept the suggested voices as they are")
         self.status = QLabel("")
         self.status.setWordWrap(True)
         self.empty = hint("Choose a score to see its parts.")
@@ -204,7 +214,7 @@ class AssignmentSection(QGroupBox):
             combo.addItem("— choose —", None)
             for role in VOICE_ORDER:
                 combo.addItem(ROLE_TEXT[role], role)
-            combo.addItem("Ignore this part", Ignore.IGNORE)
+            combo.addItem("Ignore This Part", Ignore.IGNORE)
             current = state.choices.get(info.line_id)
             index = combo.findData(current) if current is not None else 0
             combo.setCurrentIndex(max(index, 0))
@@ -272,12 +282,12 @@ class VoicesSection(QGroupBox):
         self.folder_button = _button("B&rowse…")
         self.open_button = _button("&Open", "Show the voices folder in Explorer, to add voices")
         self.refresh_button = _button("&Refresh", "Look for installed voices again")
-        self.add_button = _button("&Add voice…", "Add a voicebank you have to the voices folder")
+        self.add_button = _button("&Add Voice…", "Add a voicebank you have to the voices folder")
         add_menu = QMenu(self.add_button)
-        add_menu.addAction("From a .zip file…", self.add_zip_requested.emit)
-        add_menu.addAction("From a folder…", self.add_folder_requested.emit)
+        add_menu.addAction("From a .zip File…", self.add_zip_requested.emit)
+        add_menu.addAction("From a Folder…", self.add_folder_requested.emit)
         self.add_button.setMenu(add_menu)
-        self.same = _button("Same voice for &all parts", "Use the Tenor's voice for every part")
+        self.same = _button("Same Voice for &All Parts", "Use the Tenor's voice for every part")
         self.advanced = _button("Ad&vanced…", "Pronunciation and engine settings")
         self.status = QLabel("")
         self.status.setWordWrap(True)
@@ -304,7 +314,7 @@ class VoicesSection(QGroupBox):
         buttons.addStretch(1)
         buttons.addWidget(self.advanced)
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Voices folder:"))
+        layout.addWidget(QLabel("Voices Folder:"))
         layout.addLayout(folder_row)
         layout.addLayout(form)
         layout.addLayout(buttons)
@@ -312,7 +322,8 @@ class VoicesSection(QGroupBox):
         layout.addWidget(
             hint(
                 "BLT does not download or include voices. Put each voice's folder in the voices "
-                "folder (press Open); folders for kinds or languages inside it work too."
+                "folder (press Open); voices can also be grouped in subfolders, for example by "
+                "language."
             )
         )
         self.folder_button.clicked.connect(self.folder_requested)
@@ -360,7 +371,9 @@ class VoicesSection(QGroupBox):
             self.status.setText("No voices were found in this folder.")
         else:
             self.status.setText(
-                "\n".join(problems) if problems else f"✔ {len(installed)} voice(s) installed."
+                "\n".join(problems)
+                if problems
+                else f"✔ {counted(len(installed), 'voice')} installed."
             )
 
 
@@ -377,10 +390,10 @@ class ValidationSection(QGroupBox):
         self.list.setWordWrap(True)
         self.list.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.list.setMinimumHeight(120)
-        self.review = _button("Review &lyrics…", "Decide what the notes without lyrics are sung to")
+        self.review = _button("Review &Lyrics…", "Decide what the notes without lyrics are sung to")
         self.review.setEnabled(False)
         self.review.clicked.connect(self.review_requested)
-        self.details_button = _button("Show &technical details")
+        self.details_button = _button("Show &Technical Details")
         self.details_button.setCheckable(True)
         self.details = QPlainTextEdit()
         self.details.setReadOnly(True)
@@ -416,9 +429,9 @@ class ValidationSection(QGroupBox):
             self.list.addItem(item)
         self.review.setEnabled(review_count > 0)
         self.review.setText(
-            f"Review &lyrics ({review_count} note{'s' if review_count != 1 else ''})…"
+            f"Review &Lyrics ({review_count} note{'s' if review_count != 1 else ''})…"
             if review_count
-            else "Review &lyrics…"
+            else "Review &Lyrics…"
         )
         self.details.setPlainText(technical)
 
@@ -440,7 +453,7 @@ class OutputSection(QGroupBox):
         self.location = QLabel("")
         self.location.setWordWrap(True)
         self.location.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.wav = QRadioButton("&WAV (lossless)")
+        self.wav = QRadioButton("&WAV (Lossless)")
         self.mp3 = QRadioButton("&MP3")
         self.both = QRadioButton("Both WAV and MP&3")
         self.quality = QSpinBox()
@@ -472,9 +485,9 @@ class OutputSection(QGroupBox):
             box.setToolTip(tip)
         self.focus.setAccessibleName("Featured voice loudness")
         self.others.setAccessibleName("Other voices loudness")
-        self.keep_stems = QCheckBox("Keep the four separate voice recordings")
-        self.keep_project = QCheckBox("Keep the singing project file")
-        self.replace = QCheckBox("&Replace existing tracks with this name")
+        self.keep_stems = QCheckBox("Keep the Four Separate Voice Recordings")
+        self.keep_project = QCheckBox("Keep the Singing Project File")
+        self.replace = QCheckBox("&Replace Existing Tracks with This Name")
         self.status = QLabel("")
         self.status.setWordWrap(True)
 
@@ -482,8 +495,8 @@ class OutputSection(QGroupBox):
         folder_row = QHBoxLayout()
         folder_row.addWidget(self.folder, 1)
         folder_row.addWidget(self.browse)
-        form.addRow("Output &folder:", folder_row)
-        form.addRow("Package &name:", self.name)
+        _add_row(form, "Output &Folder:", folder_row, self.folder)
+        form.addRow("Package &Name:", self.name)
         formats = QHBoxLayout()
         for radio in (self.wav, self.mp3, self.both):
             formats.addWidget(radio)
@@ -493,16 +506,16 @@ class OutputSection(QGroupBox):
         quality.addWidget(self.quality)
         quality.addWidget(hint("0 = best"))
         quality.addStretch(1)
-        form.addRow("MP3 &quality:", quality)
+        _add_row(form, "MP3 &Quality:", quality, self.quality)
         ffmpeg_row = QHBoxLayout()
         ffmpeg_row.addWidget(self.ffmpeg, 1)
         ffmpeg_row.addWidget(self.ffmpeg_button)
         form.addRow("FFmpeg (for MP3):", ffmpeg_row)
-        form.addRow("Mix &balance:", self.preset)
+        form.addRow("Mix &Balance:", self.preset)
         gains = QHBoxLayout()
-        gains.addWidget(QLabel("Featured voice"))
+        gains.addWidget(QLabel("Featured Voice"))
         gains.addWidget(self.focus)
-        gains.addWidget(QLabel("Other voices"))
+        gains.addWidget(QLabel("Other Voices"))
         gains.addWidget(self.others)
         gains.addStretch(1)
         self.gain_row = QWidget()
@@ -633,10 +646,10 @@ class ProgressSection(QGroupBox):
         self.steps.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.steps.setMaximumHeight(190)
         self.steps.setVisible(False)
-        self.cancel = _button("Cancel generation")
+        self.cancel = _button("Cancel Generation")
         self.cancel.setEnabled(False)
         self.cancel.clicked.connect(self.cancel_requested)
-        self.log_button = _button("Show technical &log")
+        self.log_button = _button("Show Technical &Log")
         self.log_button.setCheckable(True)
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
@@ -651,13 +664,13 @@ class ProgressSection(QGroupBox):
         self.result_text = QLabel("")
         self.result_text.setWordWrap(True)
         self.result_text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.open_folder = _button("&Open output folder")
+        self.open_folder = _button("&Open Output Folder")
         self.open_folder.clicked.connect(self.open_folder_requested)
-        self.open_review = _button("Open lyric &review")
+        self.open_review = _button("Open Lyric &Review")
         self.open_review.clicked.connect(self.review_requested)
         self.open_pronunciation = _button("Open &Pronunciations")
         self.open_pronunciation.clicked.connect(self.pronunciation_requested)
-        self.technical_button = _button("Show technical &details")
+        self.technical_button = _button("Show Technical &Details")
         self.technical_button.setCheckable(True)
         self.technical = QPlainTextEdit()
         self.technical.setReadOnly(True)

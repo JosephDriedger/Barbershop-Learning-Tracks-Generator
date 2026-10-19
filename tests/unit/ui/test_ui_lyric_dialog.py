@@ -190,8 +190,8 @@ def test_approvals_can_be_saved_and_loaded_again(dlg: Dialog, tmp_path: Path) ->
     other.dialog = LyricReviewDialog(other.state, other.plan, other.prompts)
     other.dialog.load_file()
     assert other.state.approved_count == 2
-    assert other.prompts.informed == ["Approvals loaded", "2 approval(s) applied."] or any(
-        "2 approval(s) applied." in text for text in other.prompts.informed
+    assert other.prompts.informed == ["Approvals loaded", "2 approvals applied."] or any(
+        "2 approvals applied." in text for text in other.prompts.informed
     )
 
 

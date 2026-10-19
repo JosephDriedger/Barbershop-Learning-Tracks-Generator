@@ -3,7 +3,13 @@ from fractions import Fraction
 import pytest
 
 from barbershop_tracks.core.synthesis import MeterPoint
-from barbershop_tracks.ui.formatting import clock, duration_label, note_name, position_label
+from barbershop_tracks.ui.formatting import (
+    clock,
+    duration_label,
+    note_name,
+    position_label,
+    sentence,
+)
 
 FOUR_FOUR = [MeterPoint(position=Fraction(0), beats=4, beat_type=4)]
 
@@ -57,3 +63,20 @@ def test_durations_and_clock() -> None:
     assert clock(0) == "0:00"
     assert clock(75.9) == "1:15"
     assert clock(3600) == "60:00"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "the score has no tempo, and none is assumed.",
+            "The score has no tempo, and none is assumed.",
+        ),
+        ("3 notes lie outside the usual range", "3 notes lie outside the usual range"),
+        ("Already a sentence.", "Already a sentence."),
+        ("", ""),
+        ("'Oo' is read as 'ooh'", "'Oo' is read as 'ooh'"),
+    ],
+)
+def test_a_message_starts_with_a_capital_letter(text: str, expected: str) -> None:
+    assert sentence(text) == expected

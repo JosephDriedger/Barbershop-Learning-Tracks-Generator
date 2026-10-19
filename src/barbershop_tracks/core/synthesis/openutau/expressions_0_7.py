@@ -3,9 +3,25 @@
 Copied verbatim from a project saved by that release (expressions and the selector keys), kept as
 text so that serialization is exact and deterministic. It is the release's own default set; the
 writer does not edit it. A different OpenUtau release needs a different adapter, not an edit here.
+
+The one deliberate departure is the smoothing below: the attack default is lowered so that syllables
+start more softly. ``SMOOTH_NOTES = False`` writes the release's
+block unchanged.
 """
 
-STATIC_BLOCK = """\
+# Smoothing of note starts (unverified by ear: compare a render against the release defaults
+# before keeping it). OpenUtau 0.1.565 (UPhoneme.ValidateEnvelope): the attack ("atk") is the
+# volume at the end of a note's fade-in, as a percent of full volume, so 100 starts every note
+# at full level and a lower value gives a softer onset.
+# The velocity ("vel") is left at the release default on purpose: a value under 100 lengthens
+# the overlap with the previous note, but it also moves where notes start and end. With 90 the
+# Tenor stem of "San Francisco Bay Blues" (Bennett ENG) ended 4.5 ms past the score and the mix
+# refused it (MIX_STEM_TOO_LONG); with 100 the same score renders.
+SMOOTH_NOTES = True
+SMOOTH_ATTACK = 80  # release default 100
+SMOOTH_VELOCITY = 100  # the release default: lowering it moves note ends (see above)
+
+_RELEASE_BLOCK = """\
 expressions:
   dyn:
     name: dynamics (curve)
@@ -224,3 +240,23 @@ exp_primary: 0
 exp_secondary: 1
 key: 0
 """
+
+
+def _with_default(block: str, abbr: str, was: int, now: int) -> str:
+    """``block`` with the default of expression ``abbr`` changed from ``was`` to ``now``."""
+    start = block.index(f"    abbr: {abbr}\n")
+    marker = "    default_value: "
+    begin = block.index(marker, start) + len(marker)
+    end = block.index("\n", begin)
+    if block[begin:end] != str(was):
+        raise ValueError(f"the {abbr} default is {block[begin:end]}, not the release's {was}")
+    return block[:begin] + str(now) + block[end:]
+
+
+STATIC_BLOCK = (
+    _with_default(
+        _with_default(_RELEASE_BLOCK, "atk", 100, SMOOTH_ATTACK), "vel", 100, SMOOTH_VELOCITY
+    )
+    if SMOOTH_NOTES
+    else _RELEASE_BLOCK
+)
