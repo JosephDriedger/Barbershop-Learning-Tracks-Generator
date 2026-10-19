@@ -72,6 +72,7 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "C4", "PT", "PTH", "RUF"]
 "packaging/replaceability_macos.py" = ["E501"]  # docstring prose and messages
 "scripts/research/*.py" = ["E501"]  # docstring prose and symbol tables
 "host/patch_openutau.py" = ["E501"]  # docstring prose
+"host/patch_macos.py" = ["E501"]  # docstring prose and the C# line it writes
 "tests/gui_diagnostics.py" = ["E501"]  # docstring prose
 "tests/fake_converter.py" = ["E501"]  # docstring prose
 "tests/unit/core/synthesis/test_engine_text.py" = ["RUF001", "E501"]  # typographic quotes are the point

@@ -80,6 +80,8 @@ mkdir -p "$(dirname "$patched")"
 patch_args=("$openutau_src" "$patched")
 if [ "$include_g2p" = 0 ]; then patch_args+=(--exclude-g2p-model); fi
 "$python" "$here/patch_openutau.py" "${patch_args[@]}"
+# the one change that exists for macOS only (see the file): the same pitch-curve count on every processor
+"$python" "$here/patch_macos.py" "$patched"
 
 mkdir -p "$out"
 out="$(cd "$out" && pwd)"
