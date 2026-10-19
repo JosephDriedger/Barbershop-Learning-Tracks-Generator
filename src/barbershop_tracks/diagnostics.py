@@ -48,6 +48,16 @@ def _host_lines(config: ResolvedConfig) -> list[str]:
     return [*lines, f"runtime copy:  {copy}  [{state}]"]
 
 
+def _system_lines() -> list[str]:
+    if sys.platform == "win32":
+        return [
+            f"windows:       {platform.platform()}",
+            f"vc runtime:    Microsoft Visual C++ {runtime_status().text}",
+        ]
+    else:
+        return [f"system:        {platform.platform()} ({platform.machine()})"]
+
+
 def collect(config: ResolvedConfig) -> list[str]:
     """The report, one line per fact."""
     frozen = bool(getattr(sys, "frozen", False))
@@ -55,8 +65,7 @@ def collect(config: ResolvedConfig) -> list[str]:
         f"BLT Music Generator {__version__}",
         f"program:       {sys.executable}  [{'installed build' if frozen else 'source checkout'}]",
         f"python:        {platform.python_version()}",
-        f"windows:       {platform.platform()}",
-        f"vc runtime:    Microsoft Visual C++ {runtime_status().text}",
+        *_system_lines(),
         f"config file:   {config_path()}  [{'exists' if config_path().is_file() else 'none'}]",
         f"data folder:   {config.layout.data}  [{_where(config, 'data_dir')}]",
     ]

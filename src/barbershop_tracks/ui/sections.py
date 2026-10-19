@@ -4,6 +4,7 @@ Each section is a plain group box with a ``refresh`` that reads the controller a
 itself without emitting user-change signals, so refreshing can never change a choice.
 """
 
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -580,7 +581,9 @@ class OutputSection(QGroupBox):
         ffmpeg = controller.ffmpeg_path()
         self.ffmpeg.setText(str(ffmpeg) if ffmpeg else "")
         self.ffmpeg.setPlaceholderText(
-            "FFmpeg not found — choose ffmpeg.exe" if wants_mp3 else "Only needed for MP3"
+            f"FFmpeg not found — choose {'ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg'}"
+            if wants_mp3
+            else "Only needed for MP3"
         )
         self.gain_row.setVisible(options.gain_preset == "custom")
         location = controller.expected_location()

@@ -49,6 +49,37 @@ Things that are not done, not verified, or deliberately restricted. Nothing here
   background: [m12-verification.md](m12-verification.md)). Automated tests ran in a stripped
   environment on the development PC.
 
+## macOS (experimental)
+
+What is verified, and only by machines: on GitHub's Apple-silicon (`macos-latest`) and Intel (`macos-15-intel`) runners CI runs ruff, mypy
+and the unit tests; builds the render host with BLT's own `libworldline.dylib` (clang and CMake, no spline: checked by
+`host/native/verify_dylib.py`) and the same inventory, removed-data and negative-control checks as on Windows; runs the integration tests
+with the host and a generated synthetic voicebank; builds `BLT Music Generator.app` and the `.dmg`, audits every file of the app
+against the component tables, runs `blt selftest` in a stripped environment (no Python, no .NET, ASCII and non-ASCII paths), and checks
+that the Qt libraries are separate, replaceable files.
+
+What is **not** verified:
+
+* **No person has run it on a real Mac.** CI is a headless runner: nothing has been seen in a window, no sound was played, and a real
+  voicebank was not used (only a generated sine-wave one). The macOS version of the clean-machine and listening checks is open. The
+  [release gate](release-gate.md) has no item for it: it is the owner's call whether a draft release with the `.dmg` is published
+  before someone has tried it.
+* **Unsigned and not notarised.** Gatekeeper blocks the first start (see [INSTALL.md](INSTALL.md#installing-on-macos)); the signing and
+  notarisation steps in `packaging/build_macos.py` exist but are off and have never been run. The owner has not decided on an Apple
+  Developer account. Nothing about Gatekeeper's behaviour on a downloaded copy was tested (CI copies carry no quarantine flag).
+* Two separate disk images (Apple silicon, Intel), not one universal app. macOS 12 or later is what the build targets; older releases and
+  the oldest supported macOS (as opposed to the runners' current one) were not tried.
+* Process handling on macOS is the POSIX path (the render host leads its own process group and is ended with it); the Windows job
+  objects have no counterpart. Cancelling a render, a time-out and Ctrl+C are covered by the same integration tests as on Windows.
+* The kit for testers (`packaging/tester-kit`) and its output checker are Windows PowerShell; they are not part of the macOS build.
+* **Two differences of the macOS host from OpenUtau as it is.** (1) OpenUtau keeps its data, logs and render cache in the user's home folder on a Mac
+  (`~/Library/OpenUtau`, shared with the OpenUtau application); BLT's host is started with a home folder of its own inside its private runtime copy,
+  so it neither reads nor deletes the user's OpenUtau data. (2) The macOS build changes one line of OpenUtau (`host/patch_macos.py`): the length of a
+  pitch curve is computed as a `double` and converted to `int`, which OpenUtau does not guard; where the value is out of range x64 gives 0 (the note is
+  rendered without a pitch curve) while Apple silicon would stop the render with an out-of-memory error. The macOS build gives 0 on both, which is what
+  Windows has always done. The cause of the out-of-range value (seen only in the pronunciation tests with the synthetic voicebank) was not investigated.
+* A voicebank's file names that differ only in case, or in Unicode normalisation, behave as the Mac's file system does; not tested with real banks.
+
 ## Installation and trust
 
 * The installer and executables are **unsigned**: SmartScreen warns, the publisher shows as unverified, and some

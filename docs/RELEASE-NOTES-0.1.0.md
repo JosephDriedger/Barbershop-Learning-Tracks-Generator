@@ -1,10 +1,12 @@
 # BLT Music Generator 0.1.0
 
-**Pre-release, Windows 10/11 x64 only.** Not for public distribution until the open licensing blockers in
+**Pre-release: Windows 10/11 x64, and an experimental macOS build.** Not for public distribution until the open licensing blockers in
 [dependency-audit.md](dependency-audit.md) and the acceptance gates in [m12-acceptance.md](m12-acceptance.md)
 and [m12-verification.md](m12-verification.md) are cleared; it has not been through the licensing review, the
 English-voicebank listening test or a clean-PC install test, and the installer is unsigned (Windows SmartScreen will
-warn). There is no macOS version yet.
+warn). The macOS disk images (`...-macos-arm64.dmg` for Apple silicon, `...-macos-x64.dmg` for Intel Macs) are unsigned and not
+notarised, so macOS blocks the first start until you open them with right-click > Open ([INSTALL.md](INSTALL.md#installing-on-macos)); they
+were built and tested by automated runners only and have not been tried on a real Mac by a person.
 
 ## What it does
 
@@ -16,7 +18,7 @@ unmodified, run headless by BLT) with a voicebank you provide; the mix is determ
 
 ## In this build
 
-* A per-user Windows installer; no Python, .NET or administrator rights needed.
+* A per-user Windows installer; no Python, .NET or administrator rights needed. On macOS: a disk image with the app (drag to Applications).
 * GUI and command line (`blt.exe`: `generate`, `check`, `lines`, `export`, `selftest`, `diagnostics`).
 * Self-check (`blt selftest`) and diagnostics for support.
 * BLT's own voices folder, `Documents\BLT Music Generator\Voices`: *Add voice…* (or `barbershop-tracks voices add`) copies a
@@ -46,7 +48,7 @@ train AI). More in the README.
 ## Installing and troubleshooting
 
 [INSTALL.md](INSTALL.md), [TROUBLESHOOTING.md](TROUBLESHOOTING.md). Verify the download against `SHA256SUMS.txt`
-(`Get-FileHash <file> -Algorithm SHA256`).
+(`Get-FileHash <file> -Algorithm SHA256`; on a Mac `shasum -a 256 <file>` against `SHA256SUMS-macos-<arch>.txt`).
 
 ## Checksums
 

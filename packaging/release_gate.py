@@ -164,23 +164,15 @@ def git_head(repo: Path | None = None) -> str:
     return result.stdout.strip()
 
 
-def package_problems(package_dir: Path, repo: Path | None = None) -> list[str]:
-    """Checks on the build that is to be released (only with --release)."""
+def build_record_problems(info: dict[str, Any], repo: Path | None, library: str) -> list[str]:
+    """What a build's own record (release-info*.json) says that stops it from being released."""
     problems: list[str] = []
-    if not package_dir.is_dir():
-        return [f"{package_dir} is not a folder"]
-    if installer_hash(package_dir) is None:
-        problems.append("no installer with a checksum in SHA256SUMS.txt")
-    info_path = package_dir / "release-info.json"
-    if not info_path.is_file():
-        return [*problems, "release-info.json is missing"]
-    info = json.loads(info_path.read_text(encoding="utf-8"))
     if info.get("uncommitted_changes"):
         problems.append("the build was made from a working tree with uncommitted changes")
     if info.get("commit") != git_head(repo):
         problems.append("the build is not of the commit that is checked out")
     if info.get("worldline_spline_free") is not True:
-        problems.append("the build does not record that its worldline.dll has no spline in it")
+        problems.append(f"the build does not record that its {library} has no spline in it")
     if info.get("g2p_model") != "excluded":
         problems.append(
             "the build contains (or does not say it lacks) the g2p model of unknown provenance: "
@@ -189,6 +181,42 @@ def package_problems(package_dir: Path, repo: Path | None = None) -> list[str]:
     if info.get("release_blockers"):
         problems.append(f"the build lists licensing blockers: {info['release_blockers']}")
     return problems
+
+
+def macos_package_problems(package_dir: Path, repo: Path | None = None) -> list[str]:
+    """The same checks on every macOS build record (``release-info-macos-<arch>.json``) in a folder.
+
+    macOS builds are unsigned and have had no acceptance on a real Mac; what the gate can check is
+    that each is a clean build of the commit being released. The people-signed items above apply to
+    the release as a whole.
+    """
+    problems: list[str] = []
+    for info_path in sorted(package_dir.glob("release-info-macos-*.json")):
+        info = json.loads(info_path.read_text(encoding="utf-8"))
+        problems += [
+            f"{info_path.name}: {problem}"
+            for problem in build_record_problems(info, repo, "libworldline.dylib")
+        ]
+        dmg = info.get("disk_image")
+        sums = package_dir / f"SHA256SUMS-macos-{info.get('architecture')}.txt"
+        if not dmg or not sums.is_file() or f" *{dmg}" not in sums.read_text(encoding="utf-8"):
+            problems.append(f"{info_path.name}: its disk image has no checksum in {sums.name}")
+    return problems
+
+
+def package_problems(package_dir: Path, repo: Path | None = None) -> list[str]:
+    """Checks on the build that is to be released (only with --release)."""
+    problems: list[str] = []
+    if not package_dir.is_dir():
+        return [f"{package_dir} is not a folder"]
+    if installer_hash(package_dir) is None:
+        problems.append("no installer with a checksum in SHA256SUMS.txt")
+    problems += macos_package_problems(package_dir, repo)
+    info_path = package_dir / "release-info.json"
+    if not info_path.is_file():
+        return [*problems, "release-info.json is missing"]
+    info = json.loads(info_path.read_text(encoding="utf-8"))
+    return problems + build_record_problems(info, repo, "worldline.dll")
 
 
 def decision_problems(gate: dict[str, Any], package_dir: Path) -> list[str]:

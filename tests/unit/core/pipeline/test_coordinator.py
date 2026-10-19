@@ -38,6 +38,7 @@ from barbershop_tracks.core.rendering import (
     SynthesisError,
 )
 from barbershop_tracks.core.runtime import RuntimeLayout
+from barbershop_tracks.core.singer_names import SINGER_SEPARATOR as SEP
 from barbershop_tracks.core.synthesis import VOICE_ORDER, LyricApproval, SynthesisPlan
 from barbershop_tracks.models import VoiceRole
 from cli_scores import LINES, quartet_xml
@@ -416,14 +417,15 @@ def test_a_voicebank_inside_a_pack_folder_is_known_by_its_path(rig: Rig) -> None
     bank = rig.root / "singers" / "pack" / "inner"
     bank.mkdir(parents=True)
     (bank / "character.txt").write_text("name=y", encoding="utf-8")
-    engine = EngineChoice("pack\\inner", "OpenUtau.Core.DefaultPhonemizer", "WORLDLINE-R")
+    name = f"pack{SEP}inner"
+    engine = EngineChoice(name, "OpenUtau.Core.DefaultPhonemizer", "WORLDLINE-R")
     rig.run(rig.request(engine=engine))
-    assert rig.renderer.calls[0].engine_ref(VoiceRole.BASS).singer == "pack\\inner"
+    assert rig.renderer.calls[0].engine_ref(VoiceRole.BASS).singer == name
     error = error_of(
         rig, rig.request(engine=EngineChoice("inner", engine.phonemizer, "WORLDLINE-R"), name="b")
     )
     assert error.code == "SINGER_NOT_FOUND"
-    assert "its name is 'pack\\inner'" in error.message
+    assert f"its name is '{name}'" in error.message
 
 
 def test_a_voicebank_without_character_txt_is_explained(rig: Rig) -> None:

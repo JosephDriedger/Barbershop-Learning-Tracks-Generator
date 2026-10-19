@@ -137,6 +137,9 @@ def _candidates(environ: Mapping[str, str], variable: str, relative: Sequence[st
     return found
 
 
+_MACOS_MUSESCORE_APPS = ("MuseScore 4.app", "MuseScore Studio.app", "MuseScore 3.app")
+
+
 def find_musescore(environ: Mapping[str, str] | None = None) -> Path | None:
     """MuseScore's command-line program: ``BLT_MUSESCORE``, else the usual install folders, else the PATH."""
     env = os.environ if environ is None else environ
@@ -153,6 +156,12 @@ def find_musescore(environ: Mapping[str, str] | None = None) -> Path | None:
         located = shutil.which(name, path=env.get("PATH"))
         if located:
             return Path(located)
+    if sys.platform == "darwin":
+        for app in _MACOS_MUSESCORE_APPS:
+            for base in (Path("/Applications"), Path.home() / "Applications"):
+                program = base / app / "Contents" / "MacOS" / "mscore"
+                if program.is_file():
+                    return program
     return None
 
 

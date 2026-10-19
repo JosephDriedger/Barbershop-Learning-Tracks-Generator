@@ -1,6 +1,7 @@
 """MuseScore projects and PDFs: converted by an installed program; recognition needs consent."""
 
 import hashlib
+import os
 import sys
 import tempfile
 import threading
@@ -20,6 +21,7 @@ from barbershop_tracks.core.musicxml.convert import (
 )
 from barbershop_tracks.core.rendering import CancelToken
 from cli_scores import quartet_xml
+from shims import PROGRAM_SUFFIX, write_shim
 
 FAKE = Path(__file__).resolve().parents[3] / "fake_converter.py"
 SCORE = quartet_xml(all_lyrics=True)
@@ -31,11 +33,10 @@ class Rig:
         self.log = root / "converter.log"
         self.source = root / "exported.musicxml"
         self.source.write_text(SCORE, encoding="utf-8")
-        for name in ("musescore", "audiveris"):
-            wrapper = root / f"{name}.cmd"
-            wrapper.write_text(f'@"{sys.executable}" "{FAKE}" %*\r\n', encoding="ascii")
-        monkeypatch.setenv("BLT_MUSESCORE", str(root / "musescore.cmd"))
-        monkeypatch.setenv("BLT_AUDIVERIS", str(root / "audiveris.cmd"))
+        musescore = write_shim(root, "musescore", FAKE)
+        audiveris = write_shim(root, "audiveris", FAKE)
+        monkeypatch.setenv("BLT_MUSESCORE", str(musescore))
+        monkeypatch.setenv("BLT_AUDIVERIS", str(audiveris))
         monkeypatch.setenv("FAKE_CONVERTER_SOURCE", str(self.source))
         monkeypatch.setenv("FAKE_CONVERTER_LOG", str(self.log))
         self.monkeypatch = monkeypatch
@@ -100,7 +101,7 @@ def test_a_musescore_project_is_exported_by_musescore_and_keeps_its_own_identity
         assert note.kind == "export"
         assert note.recognised is False
         assert note.converted_sha256 == hashlib.sha256(SCORE.encode("utf-8")).hexdigest()
-        assert note.program == "musescore.cmd"
+        assert note.program == f"musescore{PROGRAM_SUFFIX}"
         assert "MuseScore" in note.note
     assert leftovers() == before  # the working copy is gone after the score was read
     args = rig.log.read_text(encoding="utf-8").split()
@@ -297,12 +298,12 @@ def test_the_converter_is_not_started_with_bltss_qt_or_python_settings(rig: Rig)
 
 def test_blts_own_folders_are_taken_out_of_the_path() -> None:
     ours = str(Path(sys.prefix) / "Lib" / "site-packages" / "PySide6")
-    elsewhere = r"C:\Program Files\MuseScore 4in"
+    elsewhere = str(Path("/Program Files") / "MuseScore 4" / "bin")
     env = clean_environment(
-        {"PATH": f"{ours};{elsewhere}", "QT_QPA_PLATFORM": "offscreen", "TEMP": "t"}
+        {"PATH": f"{ours}{os.pathsep}{elsewhere}", "QT_QPA_PLATFORM": "offscreen", "TEMP": "t"}
     )
     assert "QT_QPA_PLATFORM" not in env
     assert env["TEMP"] == "t"
-    parts = env["PATH"].split(";")
+    parts = env["PATH"].split(os.pathsep)
     assert elsewhere in parts
     assert ours not in parts

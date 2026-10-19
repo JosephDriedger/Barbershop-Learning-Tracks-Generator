@@ -17,6 +17,7 @@ from barbershop_tracks.core.pipeline import (
     resolve_config,
     voicebanks_without_character_file,
 )
+from barbershop_tracks.core.singer_names import SINGER_SEPARATOR as SEP
 
 
 def code_of(call: object) -> str:
@@ -115,7 +116,7 @@ def test_singers_are_found_by_their_folders_not_by_guessing(tmp_path: Path) -> N
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "readme.txt").write_text("not a voicebank", encoding="utf-8")
     # the host knows a voicebank in a pack folder by its path below the singers folder
-    assert discover_singers(tmp_path) == {"A", "pack\\B"}
+    assert discover_singers(tmp_path) == {"A", f"pack{SEP}B"}
     assert discover_singers(tmp_path / "missing") == set()
 
 
@@ -125,7 +126,7 @@ def test_a_folder_the_singing_engine_would_not_list_is_named_not_offered(tmp_pat
     (tmp_path / "pack" / "yaml-only").mkdir(parents=True)
     (tmp_path / "pack" / "yaml-only" / "character.yaml").write_text("name: x", encoding="utf-8")
     assert discover_singers(tmp_path) == set()
-    assert voicebanks_without_character_file(tmp_path) == {"bare", "pack\\yaml-only"}
+    assert voicebanks_without_character_file(tmp_path) == {"bare", f"pack{SEP}yaml-only"}
 
 
 def test_the_pitch_sets_of_a_multi_pitch_voicebank_are_not_listed_as_voices(tmp_path: Path) -> None:
@@ -165,7 +166,10 @@ def test_the_default_is_blts_folder_even_when_openutau_has_voices(
         bank = default_voices_dir() / kind / name
         bank.mkdir(parents=True)
         (bank / "character.txt").write_text("name=x", encoding="utf-8")
-    assert discover_singers(default_voices_dir()) == {r"English\bennett", r"Japanese\kira"}
+    assert discover_singers(default_voices_dir()) == {
+        f"English{SEP}bennett",
+        f"Japanese{SEP}kira",
+    }
 
 
 def test_a_folder_the_user_chose_is_never_created_for_them(

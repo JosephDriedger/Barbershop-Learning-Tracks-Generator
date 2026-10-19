@@ -23,8 +23,10 @@ import yaml
 
 from barbershop_tracks.cli import main
 from barbershop_tracks.core.rendering.wav import read_raw
+from barbershop_tracks.core.singer_names import SINGER_SEPARATOR as SEP
 from cli_scores import LINES, quartet_xml
-from host_support import host_environment, require_host
+from host_support import host_environment, host_processes, require_host
+from shims import write_shim
 from synthetic_voicebank import SINGER_ID, build_voicebank
 
 pytestmark = pytest.mark.integration
@@ -78,17 +80,7 @@ class Rig:
         return sorted(p.name for p in root.iterdir()) if root.is_dir() else []
 
     def hosts(self) -> int:
-        script = (
-            "(Get-Process blt-render-host -ErrorAction SilentlyContinue | "
-            f"Where-Object {{ $_.Path -like '{self.root}*' }} | Measure-Object).Count"
-        )
-        done = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", script],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return int(done.stdout.strip() or "0")
+        return host_processes(self.root)
 
 
 @pytest.fixture
@@ -144,7 +136,7 @@ def test_musicxml_to_the_thirteen_track_package(
 
 @pytest.mark.parametrize(
     "folder",
-    ["pack\\bank", "My Voice Bank (v2)", "テスト ボイス é"],
+    [f"pack{SEP}bank", "My Voice Bank (v2)", "テスト ボイス é"],
     ids=["inside-a-pack-folder", "spaces-and-brackets", "non-ascii"],
 )
 def test_voicebanks_are_found_wherever_and_however_they_are_named(rig: Rig, folder: str) -> None:
@@ -315,9 +307,7 @@ def test_a_timeout_exits_5_and_leaves_nothing(rig: Rig, capsys: pytest.CaptureFi
 
 
 def fake_ffmpeg(root: Path) -> Path:
-    shim = root / "ffmpeg.cmd"
-    shim.write_text(f'@"{sys.executable}" "{FAKE_FFMPEG}" %*\n', encoding="utf-8")
-    return shim
+    return write_shim(root, "ffmpeg", FAKE_FFMPEG)
 
 
 def test_an_mp3_failure_publishes_nothing_and_exits_4(
@@ -374,10 +364,9 @@ def test_concurrent_jobs_do_not_collide(rig: Rig) -> None:
     assert rig.staging() == []
 
 
-# --- Ctrl+Break reaches the host ---
+# --- Ctrl+Break (Windows) or Ctrl+C (elsewhere) reaches the host ---
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="uses Ctrl+Break and a console process group")
 def test_ctrl_break_cancels_cleanly(rig: Rig) -> None:
     code = "import sys; from barbershop_tracks.cli import main; sys.exit(main(sys.argv[1:]))"
     child = subprocess.Popen(
@@ -386,7 +375,11 @@ def test_ctrl_break_cancels_cleanly(rig: Rig) -> None:
         stderr=subprocess.PIPE,
         text=True,
         env=os.environ.copy(),
-        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+        **(
+            {"creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)}
+            if os.name == "nt"
+            else {"start_new_session": True}
+        ),
     )
     assert child.stdout is not None
     seen: list[dict[str, Any]] = []
@@ -398,7 +391,7 @@ def test_ctrl_break_cancels_cleanly(rig: Rig) -> None:
             break  # the host is up and rendering
         assert time.monotonic() < deadline
     try:
-        child.send_signal(signal.CTRL_BREAK_EVENT)
+        child.send_signal(getattr(signal, "CTRL_BREAK_EVENT", signal.SIGINT))
     except OSError:  # no console to deliver Ctrl+Break through (some CI sessions)
         child.kill()
         child.communicate(timeout=60)

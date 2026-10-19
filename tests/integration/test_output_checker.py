@@ -2,6 +2,7 @@
 
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -11,7 +12,11 @@ from cli_scores import LINES, quartet_xml
 from host_support import host_environment, require_host
 from synthetic_voicebank import SINGER_ID, build_voicebank
 
-pytestmark = pytest.mark.integration
+POWERSHELL = shutil.which("powershell") if sys.platform == "win32" else shutil.which("pwsh")
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(POWERSHELL is None, reason="the kit's checker is a PowerShell script"),
+]
 
 SCRIPT = Path(__file__).resolve().parents[2] / "packaging" / "tester-kit" / "Check-Outputs.ps1"
 
@@ -47,9 +52,10 @@ def package(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def check(folder: Path) -> subprocess.CompletedProcess[str]:
+    assert POWERSHELL is not None
     return subprocess.run(
         [
-            "powershell",
+            POWERSHELL,
             "-NoProfile",
             "-ExecutionPolicy",
             "Bypass",

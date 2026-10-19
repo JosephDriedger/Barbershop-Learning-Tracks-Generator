@@ -16,15 +16,17 @@ import contextlib
 import hashlib
 import json
 import shutil
+import sys
 import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-HOST_EXE = "blt-render-host.exe"
+HOST_EXE = "blt-render-host.exe" if sys.platform == "win32" else "blt-render-host"
 COMPLETE_MARKER = "blt-runtime-complete.json"
 RUNTIME_PREFIX = "host-"
-_FINGERPRINT_FILES = ("blt-render-host.dll", "OpenUtau.Core.dll", "worldline.dll")
+_NATIVE_RESAMPLER = "worldline.dll" if sys.platform == "win32" else "libworldline.dylib"
+_FINGERPRINT_FILES = ("blt-render-host.dll", "OpenUtau.Core.dll", _NATIVE_RESAMPLER)
 STALE_AFTER_SECONDS = 24 * 3600  # an older host copy this long idle is not in use by any run
 
 

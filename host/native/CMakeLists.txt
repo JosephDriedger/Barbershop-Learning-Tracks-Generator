@@ -7,6 +7,19 @@ project(blt_worldline C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+if(APPLE)
+  # the oldest macOS the .NET 8 host runs on
+  if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0")
+  endif()
+endif()
+if(NOT MSVC)
+  # only the functions marked DLL_API leave the library (Abseil and the rest are linked in, not exported)
+  set(CMAKE_C_VISIBILITY_PRESET hidden)
+  set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+  set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 set(ABSL_PROPAGATE_CXX_STD ON)
 set(ABSL_BUILD_TESTING OFF)
 add_subdirectory(wl/abseil absl EXCLUDE_FROM_ALL)
@@ -37,8 +50,30 @@ target_include_directories(worldline PRIVATE
   ${WL} wl wl/world/src wl/world/tools wl/libpyin wl/libgvps wl/libnpy/include wl/miniaudio wl/xxhash)
 target_compile_definitions(worldline PRIVATE FP_TYPE=double _CRT_SECURE_NO_WARNINGS $<$<COMPILE_LANGUAGE:CXX>:NOMINMAX>)
 target_link_libraries(worldline PRIVATE absl::strings)
+if(NOT MSVC)
+  # the patched effects.cpp includes "effects.h" from its original folder; MSVC finds it, clang does not
+  target_include_directories(worldline PRIVATE ${WL}/worldline/model)
+endif()
 if(MSVC)
   target_compile_options(worldline PRIVATE /O2 /Gy /Brepro)
   target_link_options(worldline PRIVATE /MAP /OPT:REF /OPT:ICF /Brepro)
 endif()
-set_target_properties(worldline PROPERTIES PREFIX "" WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+if(WIN32)
+  set_target_properties(worldline PROPERTIES PREFIX "" WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+elseif(APPLE)
+  # libworldline.dylib, the name OpenUtau.Core's [DllImport("worldline")] finds on macOS; a link map for verify_dylib.py.
+  # Exactly the functions OpenUtau.Core calls are exported (a Mac names them with a leading underscore): C++ runtime
+  # symbols that a compiler emits as weak definitions do not leave the library, on either architecture.
+  set(WORLDLINE_EXPORTS DecodeBap DecodeMgc F0 PhraseSynthAddRequest PhraseSynthDelete PhraseSynthNew
+      PhraseSynthSetCurves PhraseSynthSynth Resample WorldSynthesis ou_audio_device_start ou_audio_device_stop
+      ou_audio_get_error_message ou_free_audio_device ou_free_audio_device_infos ou_get_audio_device_infos
+      ou_init_audio_device)
+  set(EXPORT_LIST "")
+  foreach(name ${WORLDLINE_EXPORTS})
+    string(APPEND EXPORT_LIST "_${name}\n")
+  endforeach()
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/worldline.exports "${EXPORT_LIST}")
+  target_compile_options(worldline PRIVATE -O2 -ffunction-sections -fdata-sections)
+  target_link_options(worldline PRIVATE -Wl,-dead_strip -Wl,-map,${CMAKE_CURRENT_BINARY_DIR}/worldline.map
+    -Wl,-exported_symbols_list,${CMAKE_CURRENT_BINARY_DIR}/worldline.exports)
+endif()

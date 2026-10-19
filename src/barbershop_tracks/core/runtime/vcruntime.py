@@ -40,19 +40,26 @@ class RuntimeStatus:
 
 def runtime_status() -> RuntimeStatus:
     """The installed Visual C++ runtime (always "ok" off Windows, where it does not apply)."""
-    if sys.platform != "win32":
+    if sys.platform == "win32":
+        return _windows_runtime_status()
+    else:
         return RuntimeStatus(REQUIRED)
-    import winreg
 
-    try:
-        with winreg.OpenKey(
-            winreg.HKEY_LOCAL_MACHINE, _KEY, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY
-        ) as key:
-            if winreg.QueryValueEx(key, "Installed")[0] != 1:
-                return RuntimeStatus(None)
-            parts = tuple(
-                int(winreg.QueryValueEx(key, name)[0]) for name in ("Major", "Minor", "Bld")
-            )
-    except OSError:
-        return RuntimeStatus(None)
-    return RuntimeStatus((parts[0], parts[1], parts[2]))
+
+if sys.platform == "win32":
+
+    def _windows_runtime_status() -> RuntimeStatus:
+        import winreg
+
+        try:
+            with winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE, _KEY, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY
+            ) as key:
+                if winreg.QueryValueEx(key, "Installed")[0] != 1:
+                    return RuntimeStatus(None)
+                parts = tuple(
+                    int(winreg.QueryValueEx(key, name)[0]) for name in ("Major", "Minor", "Bld")
+                )
+        except OSError:
+            return RuntimeStatus(None)
+        return RuntimeStatus((parts[0], parts[1], parts[2]))

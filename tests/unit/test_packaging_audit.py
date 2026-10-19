@@ -132,3 +132,25 @@ def test_a_component_that_only_serves_the_g2p_model_must_be_absent_when_it_is_ex
     assert components["onnxruntime-native"]["absent_when_g2p_model_excluded"] is True
     others = [c["id"] for c in components.values() if c.get("absent_when_g2p_model_excluded")]
     assert others == ["onnxruntime-native"]
+
+
+def test_the_macos_table_is_the_windows_one_with_the_overlay_applied() -> None:
+    windows = inventory.load_components_data("windows")
+    macos = inventory.load_components_data("macos")
+    overlay = json.loads(inventory.COMPONENTS_MACOS.read_text(encoding="utf-8"))
+    ids = {str(c["id"]) for c in macos["components"]}
+    assert ids == (
+        {str(c["id"]) for c in windows["components"]} - set(overlay["remove"])
+        | {str(c["id"]) for c in overlay["add"]}
+    )
+    for name, changes in overlay["override"].items():
+        merged = next(c for c in macos["components"] if c["id"] == name)
+        assert all(merged[key] == value for key, value in changes.items())
+    assert len({str(c["id"]) for c in macos["components"]}) == len(macos["components"])
+
+
+def test_an_overlay_naming_an_unknown_component_is_refused() -> None:
+    base = inventory.load_components_data("windows")
+    bad = {"schema": "blt.components-overlay/1", "remove": ["no-such-component"]}
+    with pytest.raises(SystemExit):
+        inventory.apply_overlay(base, bad)

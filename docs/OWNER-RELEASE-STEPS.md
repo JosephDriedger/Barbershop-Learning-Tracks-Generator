@@ -46,6 +46,15 @@ in its `compliance` folder) to be attached to the same release as the installer.
 ## 4. Run the workflow
 
 Actions > **Publish release** > Run workflow, with the version (for example `0.1.0`). It runs the gate first and stops while
-anything is open; builds the Windows package (and the macOS one once it exists); runs the release check on the build it made; and then
-creates a **draft** GitHub release with the installers, `SHA256SUMS.txt`, `NOTICES.txt` and the source bundle. Nothing becomes
-public until you press *Publish* on the draft.
+anything is open; builds the Windows package and the two macOS disk images (Apple silicon and Intel); runs the release check on the builds
+it made; and then creates a **draft** GitHub release with the Windows installer, the `.dmg` files, their checksum files
+(`SHA256SUMS.txt`, `SHA256SUMS-macos-<arch>.txt`), the notices and the source bundle. Nothing becomes public until you press *Publish* on the draft.
+
+**The macOS disk images need your decision.** They are unsigned and not notarised (Gatekeeper makes people open them with right-click >
+Open), and nobody has run them on a real Mac. None of the gate items above covers macOS: the acceptance and clean-machine sign-offs name the
+Windows installer's checksum. Before you publish the draft, either have someone try a `.dmg` on a real Mac and keep their note, or delete the `.dmg`
+files from the draft; the release notes (`RELEASE-NOTES-<version>.md`) say what the macOS builds are. Signing and notarising them needs an Apple
+Developer account (not decided): `packaging/build_macos.py` has the steps, off by default and never run. The two `qt-*` review items and
+`native-dependencies-review` were prepared for the Windows package; the macOS package adds its own component table
+(`packaging/components-macos.json`, which the review packets do not yet include) and the Qt arrangement is restated for macOS in
+`packaging/qt-statement-macos.txt`: give your reviewer both.

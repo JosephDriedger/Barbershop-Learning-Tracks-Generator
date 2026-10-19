@@ -8,8 +8,9 @@ name: Publish release
 # later job `needs: gate`, and the job that creates the release runs `release_gate.py check --release` on the very
 # files it publishes. The release it creates is a draft: it becomes public only when the owner presses Publish.
 #
-# Windows is built here. A macOS job is added beside `windows` when the macOS port exists, and `publish` then lists it
-# in `needs:`.
+# Windows and macOS are built here, in parallel, each behind the gate. The macOS disk images (Apple silicon and Intel) are
+# unsigned, not notarised and not yet tried on a real Mac by a person (docs/KNOWN-LIMITATIONS.md); they are attached to the same
+# draft release, and the final release check also covers their build records.
 
 on:
   workflow_dispatch:
@@ -89,8 +90,49 @@ jobs:
             research-output/release/artifacts/inventory.json
             research-output/release/compliance/*-corresponding-source.zip
 
+  macos:
+    needs: gate
+    name: macos (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-latest
+          - arch: x64
+            runner: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install the pinned build environment
+        run: |
+          python -m pip install -r packaging/requirements-build-macos.txt
+          python -m pip install -e . --no-deps
+      - name: Build the app and the disk image (refuses unless the gate is open; unsigned, not notarised)
+        run: python packaging/build_macos.py --for-release
+      - name: Keep what is to be published
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release-${{ matrix.arch }}
+          if-no-files-found: error
+          path: |
+            research-output/release-macos/artifacts/BLT-Music-Generator-*-macos-*.dmg
+            research-output/release-macos/artifacts/SHA256SUMS-macos-*.txt
+            research-output/release-macos/artifacts/NOTICES-macos-*.txt
+            research-output/release-macos/artifacts/release-info-macos-*.json
+            research-output/release-macos/artifacts/inventory-macos-*.json
+
   publish:
-    needs: [gate, windows]
+    needs: [gate, windows, macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write

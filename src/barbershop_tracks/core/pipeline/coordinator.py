@@ -73,6 +73,7 @@ from barbershop_tracks.core.rendering.errors import (
 from barbershop_tracks.core.runtime import StagingArea, StagingError
 from barbershop_tracks.core.runtime.staging import cleanup_stale, remove_staging
 from barbershop_tracks.core.runtime.vcruntime import DOWNLOAD_PAGE, runtime_status
+from barbershop_tracks.core.singer_names import SINGER_SEPARATOR
 from barbershop_tracks.core.synthesis import (
     VOICE_ORDER,
     LyricApproval,
@@ -437,10 +438,10 @@ def _singer_hints(singers_dir: Path, absent: list[str], available: set[str]) -> 
             said.append(
                 f"'{name}' has no character.txt, so the singing engine does not list it as a "
                 "voicebank; add a text file named character.txt to that folder with one line, "
-                f"name={name.rsplit(chr(92), 1)[-1]}"
+                f"name={name.rsplit(SINGER_SEPARATOR, 1)[-1]}"
             )
             continue
-        nested = sorted(a for a in available if a.lower().endswith(chr(92) + name.lower()))
+        nested = sorted(a for a in available if a.lower().endswith(SINGER_SEPARATOR + name.lower()))
         if nested:
             said.append(f"'{name}' is inside a folder; its name is '{nested[0]}'")
     return "".join(f". {line}" for line in said)

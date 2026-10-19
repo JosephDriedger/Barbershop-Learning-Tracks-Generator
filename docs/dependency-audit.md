@@ -278,4 +278,36 @@ miniaudio, xxHash and Abseil inside `worldline.dll`.
 
 - **Inno Setup (compiled setup stub embedded in the installer)**: Inno Setup License (permissive; keep the copyright notice). Copyright (C) 1997-2026 Jordan Russell; portions Copyright (C) 2000-2026 Martijn Laan. The stub is embedded unmodified, which keeps its notices; the licence text is reproduced in NOTICES.txt.
 
+### The macOS app
+
+`BLT Music Generator.app` ships 62 components (the Windows package: 70), **1 of them release blockers** (pyside6: the same open items as on Windows). Everything is audited exactly like the Windows package (`packaging/inventory.py --platform macos`: every file of the app must belong to a component), with the file names of the macOS layout: the program and its libraries in `Contents/Frameworks`, the render host in `Contents/Resources/host`, the notices in `Contents/Resources`. The tables above apply to every component not named below. The app is unsigned and not notarised.
+
+| Component | In the macOS app |
+|---|---|
+| Microsoft Visual C++ runtime (VCRUNTIME140*.dll, MSVCP140*.dll): required of the user's PC, not shipped | not present (Windows-only, or provided by macOS) |
+| libffi (libffi-8.dll, from the Python distribution) | not present (Windows-only, or provided by macOS) |
+| OpenBLAS (numpy.libs/libscipy_openblas64_*.dll) and its runtime libraries | not present (Windows-only, or provided by macOS) |
+| NAudio (NuGet package) | not present (Windows-only, or provided by macOS) |
+| NAudio.Asio (NuGet package) | not present (Windows-only, or provided by macOS) |
+| NAudio.Midi (NuGet package) | not present (Windows-only, or provided by macOS) |
+| NAudio.Wasapi (NuGet package) | not present (Windows-only, or provided by macOS) |
+| NAudio.WinMM (NuGet package) | not present (Windows-only, or provided by macOS) |
+| BLT Music Generator (application code, launchers, icon, generated notices) | same component; different patterns |
+| CPython runtime and standard library | same component; different extra_texts, patterns |
+| OpenSSL libcrypto (libcrypto-3.dll, used by hashlib) | same component; different patterns |
+| PySide6 and shiboken6 (Qt for Python bindings) | same component; different patterns |
+| Qt libraries and plugins (Qt6Core, Qt6Gui, Qt6Widgets, platform and image plugins) | same component; different patterns |
+| NumPy (numpy package) | same component; different patterns |
+| mido | same component; different patterns |
+| .NET runtime and base class library (self-contained: coreclr, clrjit, hostfxr, hostpolicy, System.*.dll, msquic, ...) | same component; different extra_texts, version |
+| Melanchall.DryWetMidi (NuGet package) | same component; different patterns |
+| ONNX Runtime native library (onnxruntime.dll, DirectML build; Microsoft.ML.OnnxRuntime.DirectML NuGet package) | same component; different extra_texts, package, patterns |
+| worldline.dll (OpenUtau's native resampler/vocoder, prebuilt win-x64) | same component; different patterns |
+
+Not shipped on macOS either:
+
+- Windows-only parts of the render host: NAudio output code (NAudio.dll, .Asio, .Midi, .Wasapi, .WinMM), DirectML, Melanchall_DryWetMidi_Native64.dll: Not part of OpenUtau's macOS build (the NAudio and DirectML packages are Windows-only references), or a Windows library (the DryWetMidi native for Windows).
+- createdump (the .NET crash dump tool): Crash-dump tool, not needed to run.
+- Qt frameworks and plugins other than QtCore, QtDBus, QtGui, QtWidgets, libqcocoa, libqoffscreen, libqico and libqmacstyle: Unused; keeps GPL-only and commercial-only Qt modules out.
+
 <!-- END GENERATED -->

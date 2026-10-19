@@ -180,7 +180,7 @@ def build_parser() -> argparse.ArgumentParser:
             "about how real voices sound. Exit 0 passed, 1 failed."
         ),
     )
-    selftest.add_argument("--host-dir", metavar="DIR", help="the folder with blt-render-host.exe")
+    selftest.add_argument("--host-dir", metavar="DIR", help="the folder with the render host")
     selftest.add_argument("--data-dir", metavar="DIR", help="BLT's working data folder")
     selftest.add_argument("--keep", metavar="DIR", help="keep the generated files in DIR")
     voices = commands.add_parser(

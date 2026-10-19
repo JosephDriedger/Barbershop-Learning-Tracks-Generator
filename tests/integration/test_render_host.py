@@ -17,7 +17,16 @@ import pytest
 
 from barbershop_tracks.core.synthesis import VoiceEngineRef
 from barbershop_tracks.core.synthesis.openutau import write_ustx
-from host_support import PINNED_COMMIT, REPO, HostRun, host_environment, install_host, run_host
+from host_support import (
+    NATIVE_LIBRARY,
+    PINNED_COMMIT,
+    REPO,
+    HostRun,
+    host_cache_dir,
+    host_environment,
+    install_host,
+    run_host,
+)
 from synth_builders import ROLES, full_lyrics, plan_of
 from synthetic_voicebank import SINGER_ID, build_voicebank
 
@@ -110,7 +119,7 @@ def test_an_unknown_phonemizer_is_exit_4_not_a_silent_default(
 
 
 def test_a_missing_native_library_is_exit_8(exe: Path, singers: Path, tmp_path: Path) -> None:
-    (exe.parent / "worldline.dll").unlink()
+    (exe.parent / NATIVE_LIBRARY).unlink()
     run = run_host(exe, project(tmp_path), tmp_path / "out", singers_dir=singers)
     assert run.returncode == 8
     assert run.result["status"] == "native_library_missing"
@@ -180,7 +189,7 @@ def test_renders_are_reproducible_and_the_cache_changes_them_by_at_most_one_lsb(
     exe: Path, singers: Path, tmp_path: Path
 ) -> None:
     case = project(tmp_path, words=("la", "ba", "la", "ba"))
-    cache = exe.parent / "Cache"  # OpenUtau's render cache lives beside the runtime copy
+    cache = host_cache_dir(exe)  # OpenUtau's render cache lives with the runtime copy
     outputs = {}
     for tag, wipe in (("cold1", True), ("cold2", True), ("warm1", False), ("warm2", False)):
         if wipe:
@@ -340,7 +349,10 @@ def test_the_host_contains_exactly_what_the_reviewed_allow_list_names(exe: Path)
     import verify_host_inventory as vhi
     from barbershop_tracks.core.pipeline.config import ENGLISH_PHONEMIZERS, REMOVED_PHONEMIZERS
 
-    expected = json.loads(vhi.EXPECTED.read_text(encoding="utf-8"))
+    allow_list = vhi.EXPECTED
+    if sys.platform != "win32":  # the six embedded YAML templates have Unix line endings there
+        allow_list = REPO / "compliance" / "host-inventory-macos.json"
+    expected = json.loads(allow_list.read_text(encoding="utf-8"))
     actual = inventory_of(exe)
     found = vhi.compare(
         actual,

@@ -38,6 +38,7 @@ from barbershop_tracks.core.mixing.errors import MixConfigurationError
 from barbershop_tracks.core.pipeline.errors import ErrorCategory, PipelineError
 from barbershop_tracks.core.runtime import RuntimeLayout
 from barbershop_tracks.core.runtime.layout import APP_NAME
+from barbershop_tracks.core.singer_names import join_singer_name
 
 DEFAULT_PHONEMIZER = "OpenUtau.Core.DefaultPhonemizer"
 DEFAULT_RENDERER = "WORLDLINE-R"
@@ -181,8 +182,12 @@ def _development_host() -> Path | None:
 
 
 def _installed_host() -> Path | None:
-    candidate = Path(sys.executable).resolve().parent / "host"
-    return candidate if candidate.is_dir() else None
+    program = Path(sys.executable).resolve().parent
+    # in BLT Music Generator.app the program is in Contents/MacOS, the host in Contents/Resources
+    for candidate in (program / "host", program.parent / "Resources" / "host"):
+        if candidate.is_dir():
+            return candidate
+    return None
 
 
 def resolve_config(
@@ -271,11 +276,11 @@ def _scan_singers(singers_dir: Path, depth: int) -> tuple[set[str], set[str]]:
 
     The host (OpenUtau) lists a voicebank where it finds a ``character.txt``, at any depth below the
     singers folder, and knows it by its folder path relative to that folder (``Pack\\Bank`` for
-    ``Singers\\Pack\\Bank``); that is the name a track must store. A folder with a character file is
-    a voicebank *root*: what lies below it (the pitch sets A3, C4, ... or the breaths of a
-    multi-pitch bank, each with its own oto.ini) belongs to that one voicebank and is not listed as
-    further voices. A folder with an ``oto.ini`` or a ``character.yaml`` but no ``character.txt``
-    is a voicebank the host does not list.
+    ``Singers\\Pack\\Bank``, with a slash on macOS); that is the name a track must store. A folder
+    with a character file is a voicebank *root*: what lies below it (the pitch sets A3, C4, ... or
+    the breaths of a multi-pitch bank, each with its own oto.ini) belongs to that one voicebank and
+    is not listed as further voices. A folder with an ``oto.ini`` or a ``character.yaml`` but no
+    ``character.txt`` is a voicebank the host does not list.
     """
     found: set[str] = set()
     unseen: set[str] = set()
@@ -288,10 +293,10 @@ def _scan_singers(singers_dir: Path, depth: int) -> tuple[set[str], set[str]]:
         for child in children:
             here = (*parts, child.name)
             if (child / "character.txt").is_file():
-                found.add("\\".join(here))
+                found.add(join_singer_name(here))
                 continue  # a voicebank root: its subfolders are its own parts
             if (child / "oto.ini").is_file() or (child / "character.yaml").is_file():
-                unseen.add("\\".join(here))
+                unseen.add(join_singer_name(here))
             if remaining > 1:
                 walk(child, here, remaining - 1)
 

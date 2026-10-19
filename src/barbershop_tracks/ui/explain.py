@@ -5,6 +5,7 @@ kept separate, the technical detail (error code, underlying message, findings). 
 never names the singing engine's internals.
 """
 
+import sys
 from dataclasses import dataclass
 
 from barbershop_tracks.core.pipeline import ErrorCategory, PipelineError
@@ -299,7 +300,8 @@ def _configuration(error: PipelineError) -> Explanation:
             "MP3 needs FFmpeg",
             "BLT makes MP3 files with FFmpeg, which is not installed with BLT.",
             (
-                "Choose the location of ffmpeg.exe in the output settings, or",
+                f"Choose the location of {'ffmpeg.exe' if sys.platform == 'win32' else 'ffmpeg'} "
+                "in the output settings, or",
                 "choose WAV only, which needs nothing extra.",
             ),
             text,

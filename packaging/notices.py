@@ -12,14 +12,16 @@ a silent omission. ``audit`` regenerates the tables in ``docs/dependency-audit.m
 
 import argparse
 import importlib.metadata
+import json
 import os
+import platform
 import shutil
 import site
 import sys
 from pathlib import Path
 from typing import Any
 
-from inventory import load_components
+from inventory import COMPONENTS_MACOS, load_components, load_components_data
 
 REPO = Path(__file__).resolve().parents[1]
 LICENSES = Path(__file__).with_name("licenses")
@@ -32,6 +34,9 @@ PRODUCT = "BLT Music Generator"
 
 # the text sits in its own file so that a licence reviewer's sign-off can name its exact bytes
 QT_STATEMENT = (Path(__file__).with_name("qt-statement.txt")).read_text(encoding="utf-8")
+QT_STATEMENT_MACOS = (Path(__file__).with_name("qt-statement-macos.txt")).read_text(
+    encoding="utf-8"
+)
 
 OPENUTAU_STATEMENT = """\
 OpenUtau.Core (MIT; modified build)
@@ -54,6 +59,12 @@ without it also lacks the native onnxruntime.dll, which exists only to run it.
 Source:
   OpenUtau:         https://github.com/stakira/OpenUtau/tree/a60ca5830b9064556157245d4bf8f5920d93e5f8
   The changes:      the project source (host\\), included in the corresponding-source bundle.
+"""
+
+MACOS_PATCH_STATEMENT = """The macOS host has one further change, made by host/patch_macos.py: in OpenUtau.Classic.ResamplerItem the
+length of a pitch curve, computed as a double, is converted to an int so that a value that is not a number
+or does not fit gives 0 on Apple silicon as it always did on x64 (otherwise the conversion saturates there
+and the render stops with an out-of-memory error). No other line is changed.
 """
 
 PYINSTALLER_STATEMENT = """\
@@ -86,6 +97,8 @@ def roots(openutau_src: Path | None, nuget: Path | None) -> dict[str, Path]:
         "site": sites[0],
         "nuget": cache,
         "openutau": openutau,
+        # the .NET runtime pack of this Mac (a Path only so that the table of places stays one type)
+        "rid": Path({"arm64": "osx-arm64", "x86_64": "osx-x64"}.get(platform.machine(), "osx-x64")),
     }
 
 
@@ -100,10 +113,22 @@ def spdx_text(identifier: str) -> str:
     return (LICENSES / f"{identifier}.txt").read_text(encoding="utf-8").rstrip() + "\n"
 
 
-def bundle(out: Path, where: dict[str, Path]) -> list[str]:
+def for_macos(text: str) -> str:
+    """The Windows wording of a statement with macOS names (paths with slashes, the .dylib)."""
+    backslash = chr(92)
+    return (
+        text.replace(backslash * 2, "/")
+        .replace(backslash, "/")
+        .replace("worldline.dll", "libworldline.dylib")
+    )
+
+
+def bundle(out: Path, where: dict[str, Path], platform: str = "windows") -> list[str]:
     """Write NOTICES.txt and licenses/ into ``out``; returns the problems (missing texts)."""
-    data = load_components_full()
+    macos = platform == "macos"
+    data = load_components_full(platform)
     components = data["components"]
+    sep = "/" if macos else chr(92)
     problems: list[str] = []
     third = out / "licenses" / "third-party"
     spdx_used: list[str] = []
@@ -125,7 +150,7 @@ def bundle(out: Path, where: dict[str, Path]) -> list[str]:
                     shutil.copyfile(file, destination)
             else:
                 shutil.copyfile(source, target_dir / source.name)
-    inno = data["installer"][0]
+    inno = data["installer"][0] if data["installer"] else None
     spdx_dir = out / "licenses"
     spdx_dir.mkdir(parents=True, exist_ok=True)
     for identifier in ("LGPL-3.0-only", "GPL-3.0-only", *spdx_used):
@@ -142,14 +167,14 @@ def bundle(out: Path, where: dict[str, Path]) -> list[str]:
         "(LICENSE.txt; the NOTICE file is installed beside it).",
         "It includes the third-party software listed below, each under its own licence. The",
         "licence texts are in the 'licenses' folder next to this file; per-component texts that",
-        "were copied from the original packages are in licenses\\third-party\\<component>\\.",
+        f"were copied from the original packages are in licenses{sep}third-party{sep}<component>{sep}.",
         "",
         "No voicebank and no FFmpeg are included. Voicebanks are installed by the user under their",
         "own licences; MP3 output uses an FFmpeg the user installs.",
         "",
-        QT_STATEMENT,
-        OPENUTAU_STATEMENT,
-        PYINSTALLER_STATEMENT,
+        QT_STATEMENT_MACOS if macos else QT_STATEMENT,
+        (for_macos(OPENUTAU_STATEMENT) + MACOS_PATCH_STATEMENT) if macos else OPENUTAU_STATEMENT,
+        for_macos(PYINSTALLER_STATEMENT) if macos else PYINSTALLER_STATEMENT,
         RULE,
         "Components",
         RULE,
@@ -162,45 +187,41 @@ def bundle(out: Path, where: dict[str, Path]) -> list[str]:
         lines.append(f"    Source:    {component['source']}")
         folder = third / component["id"]
         if component["extra_texts"] and folder.is_dir():
-            lines.append(f"    Texts:     licenses\\third-party\\{component['id']}\\")
+            lines.append(f"    Texts:     licenses{sep}third-party{sep}{component['id']}{sep}")
         if component["texts"]:
             lines.append(
-                "    See:       " + ", ".join(f"licenses\\{t}.txt" for t in component["texts"])
+                "    See:       " + ", ".join(f"licenses{sep}{t}.txt" for t in component["texts"])
             )
         lines.append("")
-    lines += [
-        f"{inno['name']}  (installer only)",
-        f"    Licence:   {inno['license']}",
-        f"    Copyright: {inno['copyright']}",
-        "",
-        RULE,
-        "Licence texts",
-        RULE,
-    ]
+    if inno is not None:
+        lines += [
+            f"{inno['name']}  (installer only)",
+            f"    Licence:   {inno['license']}",
+            f"    Copyright: {inno['copyright']}",
+            "",
+        ]
+    lines += [RULE, "Licence texts", RULE]
     for identifier in spdx_used:
         lines += ["", f"--- {identifier} ---", "", spdx_text(identifier)]
-    lines += [
-        "",
-        "--- Inno Setup License ---",
-        "",
-        (REPO / inno["text"]).read_text(encoding="utf-8").rstrip(),
-        "",
-    ]
+    if inno is not None:
+        lines += [
+            "",
+            "--- Inno Setup License ---",
+            "",
+            (REPO / inno["text"]).read_text(encoding="utf-8").rstrip(),
+            "",
+        ]
     (out / "NOTICES.txt").write_text("\n".join(lines), encoding="utf-8")
     shutil.copyfile(LICENSES / "Apache-2.0.txt", out / "licenses" / "Apache-2.0.txt")
     shutil.copyfile(REPO / "LICENSE", out / "LICENSE.txt")
     shutil.copyfile(REPO / "NOTICE", out / "NOTICE")
-    shutil.copyfile(LICENSES / "upstream_InnoSetup.txt", out / "licenses" / "InnoSetup.txt")
+    if inno is not None:
+        shutil.copyfile(LICENSES / "upstream_InnoSetup.txt", out / "licenses" / "InnoSetup.txt")
     return problems
 
 
-def load_components_full() -> dict[str, Any]:
-    import json
-
-    data: dict[str, Any] = json.loads(
-        Path(__file__).with_name("components.json").read_text(encoding="utf-8")
-    )
-    return data
+def load_components_full(platform: str = "windows") -> dict[str, Any]:
+    return load_components_data(platform)
 
 
 def md_cell(text: str) -> str:
@@ -262,8 +283,42 @@ def audit_region() -> str:
     out += ["", "### Inside the installer only", ""]
     for e in data["installer"]:
         out.append(f"- **{e['name']}**: {e['license']}. {e['copyright']}. {e['obligation']}")
+    out += macos_region(data)
     out += ["", END]
     return "\n".join(out)
+
+
+def macos_region(windows: dict[str, Any]) -> list[str]:
+    """The macOS app's differences from the tables above (``packaging/components-macos.json``)."""
+    overlay = json.loads(COMPONENTS_MACOS.read_text(encoding="utf-8"))
+    mac = load_components_data("macos")
+    names = {c["id"]: c["name"] for c in windows["components"]}
+    blockers = [c for c in mac["components"] if c["status"] == "blocker"]
+    out = ["", "### The macOS app", ""]
+    out.append(
+        f"`BLT Music Generator.app` ships {len(mac['components'])} components (the Windows package: "
+        f"{len(windows['components'])}), **{len(blockers)} of them release blockers** "
+        f"({', '.join(c['id'] for c in blockers)}: the same open items as on Windows). "
+        "Everything is audited exactly like the Windows package (`packaging/inventory.py "
+        "--platform macos`: every file of the app must belong to a component), with the file names of "
+        "the macOS layout: the program and its libraries in `Contents/Frameworks`, the render host in "
+        "`Contents/Resources/host`, the notices in `Contents/Resources`. The tables above apply to every "
+        "component not named below. The app is unsigned and not notarised."
+    )
+    out += ["", "| Component | In the macOS app |", "|---|---|"]
+    for component_id in overlay["remove"]:
+        out.append(
+            f"| {md_cell(names[component_id])} | not present (Windows-only, or provided by macOS) |"
+        )
+    for component_id, changes in overlay["override"].items():
+        what = ", ".join(sorted(changes))
+        out.append(f"| {md_cell(names[component_id])} | same component; different {what} |")
+    for component in overlay["add"]:
+        out.append(f"| {md_cell(component['name'])} | added |")
+    out += ["", "Not shipped on macOS either:", ""]
+    for e in overlay["excluded"]:
+        out.append(f"- {e['name']}: {e['why']}")
+    return out
 
 
 def update_audit(check: bool) -> int:
@@ -295,6 +350,7 @@ def main(argv: list[str] | None = None) -> int:
         "bundle", help="write NOTICES.txt and licenses/ into a package folder"
     )
     bundle_cmd.add_argument("--out", type=Path, required=True)
+    bundle_cmd.add_argument("--platform", choices=("windows", "macos"), default="windows")
     bundle_cmd.add_argument("--openutau-src", type=Path)
     bundle_cmd.add_argument("--nuget", type=Path)
     audit_cmd = commands.add_parser(
@@ -304,7 +360,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "audit":
         return update_audit(args.check)
-    problems = bundle(args.out, roots(args.openutau_src, args.nuget))
+    problems = bundle(args.out, roots(args.openutau_src, args.nuget), args.platform)
     for problem in problems:
         print("error:", problem, file=sys.stderr)
     return 1 if problems else 0

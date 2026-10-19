@@ -69,6 +69,46 @@ if sys.platform == "win32":
     _k32.CloseHandle.argtypes = [wintypes.HANDLE]
     _k32.CloseHandle.restype = wintypes.BOOL
 
+    def _assign_job(pid: int) -> int | None:
+        """A new job object (kills its members when closed) holding ``pid``; None if not made."""
+        job = _k32.CreateJobObjectW(None, None)
+        if not job:
+            return None
+        limits = _ExtendedLimits()
+        limits.BasicLimitInformation.LimitFlags = _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        _k32.SetInformationJobObject(
+            job,
+            _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
+            ctypes.byref(limits),
+            ctypes.sizeof(limits),
+        )
+        handle = _k32.OpenProcess(_PROCESS_SET_QUOTA | _PROCESS_TERMINATE, False, pid)
+        if handle:
+            assigned = _k32.AssignProcessToJobObject(job, handle)
+            _k32.CloseHandle(handle)
+            if assigned:
+                return int(job)
+        _k32.CloseHandle(job)
+        return None
+
+    def _terminate_job(job: int) -> None:
+        _k32.TerminateJobObject(job, 1)
+
+    def _close_job(job: int) -> None:
+        _k32.TerminateJobObject(job, 1)
+        _k32.CloseHandle(job)
+
+else:
+    # elsewhere the child leads its own process group (see OwnedProcess.terminate_tree)
+    def _assign_job(pid: int) -> int | None:
+        return None
+
+    def _terminate_job(job: int) -> None:
+        pass
+
+    def _close_job(job: int) -> None:
+        pass
+
 
 class OwnedProcess:
     """A started child plus the means to end its whole tree; stdout and stderr are drained."""
@@ -112,27 +152,7 @@ class OwnedProcess:
         return self.process.pid
 
     def _attach_job(self) -> None:
-        if sys.platform != "win32":
-            return
-        job = _k32.CreateJobObjectW(None, None)
-        if not job:
-            return
-        limits = _ExtendedLimits()
-        limits.BasicLimitInformation.LimitFlags = _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-        _k32.SetInformationJobObject(
-            job,
-            _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
-            ctypes.byref(limits),
-            ctypes.sizeof(limits),
-        )
-        handle = _k32.OpenProcess(_PROCESS_SET_QUOTA | _PROCESS_TERMINATE, False, self.pid)
-        if handle:
-            assigned = _k32.AssignProcessToJobObject(job, handle)
-            _k32.CloseHandle(handle)
-            if assigned:
-                self._job = int(job)
-                return
-        _k32.CloseHandle(job)
+        self._job = _assign_job(self.pid)
 
     def _drain_stdout(self) -> None:
         assert self.process.stdout is not None
@@ -153,7 +173,7 @@ class OwnedProcess:
     def terminate_tree(self) -> None:
         """End the child and every descendant it started; safe to call repeatedly."""
         if self._job is not None:
-            _k32.TerminateJobObject(self._job, 1)
+            _terminate_job(self._job)
         elif sys.platform != "win32":
             with contextlib.suppress(ProcessLookupError, PermissionError):
                 os.killpg(os.getpgid(self.pid), signal.SIGKILL)
@@ -175,6 +195,5 @@ class OwnedProcess:
     def close(self) -> None:
         """Release the job handle; with kill-on-close this also ends leftover descendants."""
         if self._job is not None:
-            _k32.TerminateJobObject(self._job, 1)
-            _k32.CloseHandle(self._job)
+            _close_job(self._job)
             self._job = None

@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ from typing import Any
 import pytest
 
 from barbershop_tracks.core.runtime import ensure_host_runtime
+from barbershop_tracks.core.runtime.host_install import HOST_EXE
 
 REPO = Path(__file__).resolve().parents[1]
 # OpenUtau 0.1.565; the host is built from a patched copy and says so (host/build.ps1)
@@ -26,7 +28,46 @@ LOCAL_SDK = REPO / "research-output" / "spike" / "dotnet"
 def build_dir() -> Path | None:
     configured = os.environ.get("BLT_HOST_DIR")
     candidate = Path(configured) if configured else DEFAULT_BUILD
-    return candidate if (candidate / "blt-render-host.exe").is_file() else None
+    return candidate if (candidate / HOST_EXE).is_file() else None
+
+
+NATIVE_LIBRARY = "worldline.dll" if sys.platform == "win32" else "libworldline.dylib"
+
+
+def host_cache_dir(exe: Path) -> Path:
+    """Where OpenUtau keeps the phrases it rendered: beside the host's folder on Windows (portable
+    mode), in the home folder the host makes for itself on macOS."""
+    if sys.platform == "win32":
+        return exe.parent / "Cache"
+    else:
+        return exe.parent / "home" / "Library" / "Caches" / "OpenUtau"
+
+
+def host_processes(root: Path) -> int:
+    """How many render hosts run from a copy of the host somewhere below ``root``."""
+    if sys.platform == "win32":
+        script = (
+            "(Get-Process blt-render-host -ErrorAction SilentlyContinue | "
+            f"Where-Object {{ $_.Path -like '{root}*' }} | Measure-Object).Count"
+        )
+        done = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", script],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return int(done.stdout.strip() or "0")
+    else:
+        # macOS reports the real path of a temporary folder (/private/var/... for /var/...)
+        prefixes = {str(root), str(root.resolve())}
+        listing = subprocess.run(
+            ["ps", "-axo", "command="], capture_output=True, text=True, check=True
+        )
+        return sum(
+            1
+            for line in listing.stdout.splitlines()
+            if HOST_EXE in line and any(line.startswith(prefix) for prefix in prefixes)
+        )
 
 
 def host_environment() -> dict[str, str]:

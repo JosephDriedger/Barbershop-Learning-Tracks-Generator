@@ -17,6 +17,7 @@ from typing import Any
 import pytest
 
 from barbershop_tracks.cli import main
+from barbershop_tracks.core.runtime.host_install import HOST_EXE
 from host_support import host_environment, require_host
 from synthetic_voicebank import SINGER_ID, build_voicebank
 
@@ -31,7 +32,7 @@ ASSIGN = ["TENOR=P1/s1/v1", "LEAD=P2/s1/v1", "BARITONE=P3/s1/v1", "BASS=P4/s1/v1
 
 def host_json(*arguments: str) -> dict[str, Any]:
     done = subprocess.run(
-        [str(require_host() / "blt-render-host.exe"), *arguments],
+        [str(require_host() / HOST_EXE), *arguments],
         capture_output=True,
         text=True,
         encoding="utf-8",

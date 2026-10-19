@@ -45,13 +45,11 @@ def restore(internal: Path, system_dir: Path) -> list[str]:
 
 def restore_for_frozen_app() -> list[str]:
     """In the frozen program only: ``restore`` for its own folder and this PC's System32."""
-    if not getattr(sys, "frozen", False):
-        return []
     internal = getattr(sys, "_MEIPASS", None)
-    if not internal:
-        return []
-    system = Path(os.environ.get("SYSTEMROOT", "C:/Windows")) / "System32"
-    try:
-        return restore(Path(internal), system)
-    except Exception:  # never stop the program from starting because of this
-        return []
+    if sys.platform == "win32" and getattr(sys, "frozen", False) and internal:
+        system = Path(os.environ.get("SYSTEMROOT", "C:/Windows")) / "System32"
+        try:
+            return restore(Path(internal), system)
+        except Exception:  # never stop the program from starting because of this
+            return []
+    return []
