@@ -148,7 +148,16 @@
    "who": "the owner",
    "packet": "docs/release-gate.md",
    "subjects": [],
-   "signoff": null
+   "signoff": {
+    "by": "Joseph Driedger",
+    "role": "project owner (decision stated in the session of 2026-10-19)",
+    "date": "2026-10-19",
+    "conclusion": "approved",
+    "subjects": {},
+    "evidence": [
+     "docs/review/evidence/code-signing-decision.md"
+    ]
+   }
   },
   {
    "id": "owner-release-approval",
