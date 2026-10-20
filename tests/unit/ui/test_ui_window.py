@@ -399,6 +399,23 @@ def test_a_label_with_a_shortcut_letter_has_its_field_so_no_ampersand_shows(rig:
     ]
 
 
+def test_the_major_and_minor_choice_is_for_the_tune_up_note_and_leaves_the_format_alone(
+    rig: Rig,
+) -> None:
+    section = rig.window.output_section
+    assert not section.tune_major.isEnabled()  # no tune-up note, so nothing to choose
+    assert not section.tune_minor.isEnabled()
+    section.tune_up.setChecked(True)
+    assert section.tune_major.isEnabled()
+    assert section.tune_major.isChecked()  # major is the default
+    section.tune_minor.setChecked(True)
+    assert rig.window.controller.options.tune_up_minor
+    assert not section.tune_major.isChecked()
+    assert section.wav.isChecked()  # the radio buttons of the format are not touched
+    section.tune_major.setChecked(True)
+    assert not rig.window.controller.options.tune_up_minor
+
+
 def test_format_choice_controls_the_mp3_widgets(rig: Rig) -> None:
     section = rig.window.output_section
     assert section.wav.isChecked()

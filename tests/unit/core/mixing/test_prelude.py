@@ -6,7 +6,7 @@ from fractions import Fraction
 import numpy as np
 import pytest
 
-from barbershop_tracks.core.mixing import MixConfigurationError, PreludeOptions, tonic_midi
+from barbershop_tracks.core.mixing import PreludeOptions, tonic_midi
 from barbershop_tracks.core.mixing.audio import SAMPLE_RATE
 from barbershop_tracks.core.mixing.prelude import (
     CLICK_SECONDS,
@@ -56,10 +56,42 @@ def test_the_tune_up_note_is_in_the_octave_nearest_the_leads_first_note() -> Non
     assert tonic_midi(D_MAJOR, None) == 62  # no Lead note: around middle C
 
 
-@pytest.mark.parametrize("key", [None, KeySignature(fifths=0, mode="none")])
-def test_a_score_without_a_tonic_cannot_have_a_tune_up_note(key: KeySignature | None) -> None:
-    with pytest.raises(MixConfigurationError, match="tune-up"):
-        tonic_midi(key, 60)
+def test_a_score_without_a_key_signature_is_in_c_and_says_so() -> None:
+    assert tonic_midi(None, 62) == 60  # C4 is nearest D4
+    assert tonic_midi(None, None) == 60
+    prelude = make(PreludeOptions(tune_up=True), key=None)
+    assert prelude is not None
+    assert prelude.info["tune_up"]["note"] == "C4"
+    assert prelude.info["tune_up"]["key"] == {"fifths": 0, "mode": "major", "assumed": True}
+
+
+def test_a_key_that_was_read_is_not_marked_as_assumed() -> None:
+    prelude = make(PreludeOptions(tune_up=True))
+    assert prelude is not None
+    assert prelude.info["tune_up"]["key"]["assumed"] is False
+
+
+def test_the_person_chooses_between_the_major_key_and_its_relative_minor() -> None:
+    g_major = KeySignature(fifths=1)  # one sharp: G major or E minor
+    assert tonic_midi(g_major, 67) == 67  # G4
+    assert tonic_midi(g_major, 67, minor=True) == 64  # E4, nearest to G4
+    assert tonic_midi(KeySignature(fifths=-3), 60, minor=True) == 60  # C minor, not E-flat major
+    assert tonic_midi(KeySignature(fifths=-3), 60) == 63  # E-flat major
+
+
+def test_the_choice_overrides_the_mode_the_file_writes() -> None:
+    # the file says minor, the person chose major: the person's choice is what is played
+    a_minor_file = KeySignature(fifths=0, mode="minor")
+    assert tonic_midi(a_minor_file, 60) == 60  # C
+    assert tonic_midi(a_minor_file, 60, minor=True) == 57  # A3, nearest to C4
+
+
+def test_a_score_without_a_key_signature_is_c_major_or_a_minor() -> None:
+    assert tonic_midi(None, 62, minor=True) == 57  # A3 is nearer D4 than A4
+    prelude = make(PreludeOptions(tune_up=True, minor=True), key=None, reference_midi=60)
+    assert prelude is not None
+    assert prelude.info["tune_up"]["note"] == "A3"
+    assert prelude.info["tune_up"]["key"] == {"fifths": 0, "mode": "minor", "assumed": True}
 
 
 def make(options: PreludeOptions, key: KeySignature | None = D_MAJOR, **extra: object):  # type: ignore[no-untyped-def]
@@ -122,7 +154,7 @@ def test_the_count_in_follows_the_meter_and_the_tempo() -> None:
 
 
 def test_both_come_one_after_the_other() -> None:
-    prelude = make(PreludeOptions(tune_up=True, count_in=True), key=A_MINOR)
+    prelude = make(PreludeOptions(tune_up=True, count_in=True, minor=True), key=A_MINOR)
     assert prelude is not None
     tune = round(TUNE_SECONDS * SAMPLE_RATE) + round(SILENCE_AFTER_TUNE_SECONDS * SAMPLE_RATE)
     assert prelude.frames == tune + 4 * (SAMPLE_RATE // 2)

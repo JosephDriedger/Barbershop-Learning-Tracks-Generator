@@ -118,6 +118,7 @@ class OutputOptions:
     keep_project: bool = False
     tune_up: bool = False  # a note to tune to before the music
     count_in: bool = False  # a bar of metronome clicks before the music
+    tune_up_minor: bool = False  # the tune-up note is the minor key's tonic, not the major's
     replace: bool = False
 
 
@@ -183,6 +184,7 @@ class AppController(QObject):
             keep_project=prefs.keep_project,
             tune_up=prefs.tune_up,
             count_in=prefs.count_in,
+            tune_up_minor=prefs.tune_up_minor,
         )
         self.output_dir = prefs.output_dir
         self._debounce = QTimer(self)
@@ -420,6 +422,7 @@ class AppController(QObject):
         prefs.keep_project = options.keep_project
         prefs.tune_up = options.tune_up
         prefs.count_in = options.count_in
+        prefs.tune_up_minor = options.tune_up_minor
         self.state_changed.emit()
 
     def set_output_dir(self, folder: str) -> None:
@@ -706,6 +709,7 @@ class AppController(QObject):
             keep_project=options.keep_project,
             tune_up=options.tune_up,
             count_in=options.count_in,
+            tune_up_minor=options.tune_up_minor,
             timeout_seconds=float(self.prefs.timeout_minutes * 60),
             mp3_quality=options.mp3_quality,
             follow_lead=self.follow_lead(),

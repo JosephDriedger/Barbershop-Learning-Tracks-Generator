@@ -569,11 +569,18 @@ def test_without_the_option_the_package_is_as_it_was(rig: Rig) -> None:
     assert result.manifest["audio"]["music_starts_at_frame"] == 0
 
 
-def test_a_tune_up_note_needs_a_key_signature(rig: Rig) -> None:
+def test_a_tune_up_note_without_a_key_signature_is_c(rig: Rig) -> None:
     settings = rig.settings(prelude=PreludeOptions(tune_up=True))
-    with pytest.raises(MixConfigurationError, match="key signature"):
-        build_learning_tracks(SOURCE, rig.stems, rig.destination, settings)
-    assert not rig.destination.exists()
+    unkeyed = PackageSource(
+        SOURCE.identity,
+        SOURCE.tempo,
+        SOURCE.length,
+        reference_midi=62,
+    )
+    result = build_learning_tracks(unkeyed, rig.stems, rig.destination, settings)
+    prelude = result.manifest["audio"]["prelude"]["tune_up"]
+    assert prelude["note"] == "C4"
+    assert prelude["key"]["assumed"] is True
 
 
 def test_a_count_in_needs_a_time_signature(rig: Rig) -> None:

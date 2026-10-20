@@ -191,7 +191,14 @@ def add_parsers(commands: Any) -> None:
         "--tune-up",
         action="store_true",
         help="start every track with a three-second note to tune to: the tonic of the score's "
-        "first key signature (refused when the score has none)",
+        "first key signature (C or A when the score has no key signature)",
+    )
+    gen.add_argument(
+        "--tune-up-key",
+        choices=("major", "minor"),
+        default="major",
+        help="with --tune-up: the tonic of the major key (the default) or of the relative "
+        "minor of the first key signature (G major and E minor share one sharp)",
     )
     gen.add_argument(
         "--count-in",
@@ -406,6 +413,7 @@ def _generate(args: argparse.Namespace, json_mode: bool) -> int:
         keep_project=args.keep_project,
         tune_up=args.tune_up,
         count_in=args.count_in,
+        tune_up_minor=args.tune_up_key == "minor",
         timeout_seconds=args.timeout,
         mp3_quality=args.mp3_quality,
         follow_lead=False if args.no_follow_lead else None,

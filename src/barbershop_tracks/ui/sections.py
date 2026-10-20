@@ -489,9 +489,24 @@ class OutputSection(QGroupBox):
         self.keep_project = QCheckBox("Keep the Singing Project File")
         self.tune_up = QCheckBox("Add a &Tune-Up Note Before the Music")
         self.tune_up.setToolTip(
-            "Plays the key note of the song (the tonic of its first key signature) for three "
-            "seconds at the start of every track"
+            "Plays the key note of the song (the tonic of its first key signature; C when it has "
+            "none) for three seconds at the start of every track"
         )
+        # the two have a parent of their own: radio buttons of one parent exclude each other, and
+        # these must not switch the WAV / MP3 choice
+        self.tune_choice = QWidget()
+        self.tune_major = QRadioButton("Major Key", self.tune_choice)
+        self.tune_minor = QRadioButton("Minor Key", self.tune_choice)
+        choice_row = QHBoxLayout(self.tune_choice)
+        choice_row.setContentsMargins(0, 0, 0, 0)
+        choice_row.addWidget(self.tune_major)
+        choice_row.addWidget(self.tune_minor)
+        for radio in (self.tune_major, self.tune_minor):
+            radio.setToolTip(
+                "A key signature fits a major key and its relative minor (G major and E minor "
+                "both have one sharp). Choose the key the song is in; a score with no key "
+                "signature is C major or A minor."
+            )
         self.count_in = QCheckBox("Add a Metronome &Count-In Before the Music")
         self.count_in.setToolTip(
             "One bar of metronome clicks at the song's tempo before the music starts"
@@ -535,7 +550,12 @@ class OutputSection(QGroupBox):
         layout.addLayout(form)
         layout.addWidget(self.keep_stems)
         layout.addWidget(self.keep_project)
-        layout.addWidget(self.tune_up)
+        tune_row = QHBoxLayout()
+        tune_row.addWidget(self.tune_up)
+        tune_row.addSpacing(12)
+        tune_row.addWidget(self.tune_choice)
+        tune_row.addStretch(1)
+        layout.addLayout(tune_row)
         layout.addWidget(self.count_in)
         layout.addWidget(self.replace)
         layout.addWidget(QLabel("The tracks will be saved in:"))
@@ -556,6 +576,7 @@ class OutputSection(QGroupBox):
         self.keep_stems.toggled.connect(lambda v: controller.set_options(keep_stems=v))
         self.keep_project.toggled.connect(lambda v: controller.set_options(keep_project=v))
         self.tune_up.toggled.connect(lambda v: controller.set_options(tune_up=v))
+        self.tune_minor.toggled.connect(lambda v: controller.set_options(tune_up_minor=v))
         self.count_in.toggled.connect(lambda v: controller.set_options(count_in=v))
         self.replace.toggled.connect(lambda v: controller.set_options(replace=v))
 
@@ -576,6 +597,8 @@ class OutputSection(QGroupBox):
             self.keep_stems,
             self.keep_project,
             self.tune_up,
+            self.tune_major,
+            self.tune_minor,
             self.count_in,
             self.replace,
             self.name,
@@ -600,6 +623,10 @@ class OutputSection(QGroupBox):
             self.keep_stems.setChecked(options.keep_stems)
             self.keep_project.setChecked(options.keep_project)
             self.tune_up.setChecked(options.tune_up)
+            self.tune_minor.setChecked(options.tune_up_minor)
+            self.tune_major.setChecked(not options.tune_up_minor)
+            self.tune_major.setEnabled(options.tune_up)  # the choice matters only with the note
+            self.tune_minor.setEnabled(options.tune_up)
             self.count_in.setChecked(options.count_in)
             self.replace.setChecked(options.replace)
         finally:

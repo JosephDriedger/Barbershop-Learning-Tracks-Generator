@@ -200,6 +200,7 @@ class GenerateRequest:
     # signature) and a bar of metronome clicks
     tune_up: bool = False
     count_in: bool = False
+    tune_up_minor: bool = False  # the tune-up note is the relative minor's tonic, not the major's
 
 
 @dataclass(frozen=True, slots=True)
@@ -593,7 +594,8 @@ def _generate(
     if request.tune_up or request.count_in:  # refused now, not after the voices are sung
         try:
             prelude_for(
-                PackageSource.from_plan(plan), PreludeOptions(request.tune_up, request.count_in)
+                PackageSource.from_plan(plan),
+                PreludeOptions(request.tune_up, request.count_in, request.tune_up_minor),
             )
         except MixConfigurationError as error:
             raise PipelineError(ErrorCategory.CONFIGURATION, error.code, error.message) from error
@@ -749,7 +751,7 @@ def _render_and_mix(
             formats=request.formats,
             profile=config.gain_profile,
             mp3=mp3,
-            prelude=PreludeOptions(request.tune_up, request.count_in),
+            prelude=PreludeOptions(request.tune_up, request.count_in, request.tune_up_minor),
         ),
         cancel=run.cancel,
         on_progress=on_package_event,

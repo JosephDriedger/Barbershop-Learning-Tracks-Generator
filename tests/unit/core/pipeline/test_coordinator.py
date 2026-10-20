@@ -483,14 +483,25 @@ def test_mp3_without_ffmpeg_is_refused_before_any_work(rig: Rig) -> None:
     assert rig.renderer.calls == []
 
 
-def test_a_tune_up_note_without_a_key_signature_is_refused_before_any_work(rig: Rig) -> None:
-    error = error_of(rig, rig.request(tune_up=True))  # the test score has no key signature
-    assert error.code == "MIX_TUNE_NO_KEY"
-    assert error.category is ErrorCategory.CONFIGURATION
-    assert rig.renderer.calls == []
+def test_a_tune_up_note_without_a_key_signature_is_c(rig: Rig) -> None:
+    result = rig.run(rig.request(tune_up=True))  # the test score has no key signature
+    tune_up = result.package.manifest["audio"]["prelude"]["tune_up"]
+    assert tune_up["note"].startswith("C")
+    assert tune_up["key"]["assumed"] is True
 
 
-def test_a_count_in_alone_needs_no_key_signature(rig: Rig) -> None:
+def test_the_tune_up_note_can_be_the_relative_minor(rig: Rig) -> None:
+    major = rig.run(rig.request(tune_up=True))
+    tune_up = major.package.manifest["audio"]["prelude"]["tune_up"]
+    assert tune_up["key"]["mode"] == "major"
+    rig.config = replace(rig.config)  # the same configuration; a second package name
+    minor = rig.run(rig.request(tune_up=True, tune_up_minor=True, name="second"))
+    tune_up = minor.package.manifest["audio"]["prelude"]["tune_up"]
+    assert tune_up["key"]["mode"] == "minor"
+    assert tune_up["note"].startswith("A")  # no key signature: C major or A minor
+
+
+def test_a_count_in_alone_adds_no_tune_up_note(rig: Rig) -> None:
     result = rig.run(rig.request(count_in=True))
     prelude = result.package.manifest["audio"]["prelude"]
     assert prelude["tune_up"] is None

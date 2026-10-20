@@ -167,10 +167,11 @@ off by default, and the music itself is never changed: it only starts later, and
 (`audio.music_starts_at_frame`, with the details in `audio.prelude`). `audio.frames` is the whole file;
 `audio.duration_exact_seconds` is still the music's own length.
 
-* **Tune-up note**: three seconds of a plain sine tone at the tonic of the score's **first** key signature (major keys,
-  minor keys and the church modes are understood; the mode defaults to major), in the octave nearest the Lead's first note,
-  followed by one second of silence. A score with no key signature (or one in a mode with no tonic) is refused before any
-  singing is rendered: BLT does not guess a key.
+* **Tune-up note**: three seconds of a plain sine tone at the tonic of the score's **first** key signature, in the octave nearest
+  the Lead's first note, followed by one second of silence. A key signature fits a major key and its relative minor (G major and
+  E minor both have one sharp), so the person chooses which one the song is in (`--tune-up-key major|minor`, or *Major Key* /
+  *Minor Key* beside the checkbox; major by default); the choice overrides a `<mode>` the file may write. A score with no key
+  signature is C major or A minor, and the manifest records `assumed: true` (`audio.prelude.tune_up.key`).
 * **Count-in**: one bar of metronome clicks (not spoken numbers), the first one higher, at the score's first tempo and
   time signature, one click per notated beat (6/8 gives six clicks). The music starts one beat after the last click. It is
   not repeated during the song.

@@ -4,9 +4,10 @@ Both are optional and are the same on all 13 tracks. The music itself is never t
 starts later, ``Prelude.frames`` frames into each file, and the manifest says where.
 
 * **Tune-up note**: the tonic of the score's first key signature, as a plain sine tone (a pitch
-  pipe), in the octave nearest the Lead's first note so that it is comfortable to sing. A score
-  without a key signature, or in a mode that has no tonic, has nothing to play and is refused
-  (never guessed).
+  pipe), in the octave nearest the Lead's first note so that it is comfortable to sing. A key
+  signature fits a major key and its relative minor (G major and E minor both have one sharp), so
+  the person chooses which one the song is in; major is the default. A score without a key
+  signature is C major or A minor, and the manifest says that the key was assumed.
 * **Count-in**: one bar of clicks at the score's first tempo and meter, the first click accented.
   The music starts exactly one beat after the last click, as if it were the next beat of the count.
 
@@ -47,6 +48,7 @@ _FLAT_NAMES = ("C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B")
 class PreludeOptions:
     tune_up: bool = False  # a note to tune to: the tonic of the first key signature
     count_in: bool = False  # a bar of metronome clicks
+    minor: bool = False  # the tune-up note is the tonic of the relative minor, not of the major
 
     @property
     def enabled(self) -> bool:
@@ -63,15 +65,18 @@ class Prelude:
         return int(self.samples.shape[0])
 
 
-def tonic_midi(key: KeySignature | None, reference_midi: int | None) -> int:
-    """The MIDI note of the key's tonic, in the octave nearest ``reference_midi``."""
-    pitch_class = None if key is None else key.tonic_pitch_class
-    if key is None or pitch_class is None:
-        raise MixConfigurationError(
-            "MIX_TUNE_NO_KEY",
-            "the score has no key signature with a tonic, so there is no tune-up note to play; "
-            "turn the tune-up note off or add a key signature to the score",
-        )
+def chosen_key(key: KeySignature | None, minor: bool) -> KeySignature:
+    """The key the tune-up note is in: the key signature's major or its relative minor.
+
+    ``key`` is ``None`` for a score without a key signature, which is C major or A minor.
+    """
+    return KeySignature(fifths=0 if key is None else key.fifths, mode="minor" if minor else "major")
+
+
+def tonic_midi(key: KeySignature | None, reference_midi: int | None, minor: bool = False) -> int:
+    """The MIDI note of the tonic, in the octave nearest ``reference_midi``."""
+    pitch_class = chosen_key(key, minor).tonic_pitch_class
+    assert pitch_class is not None  # major and minor always have a tonic
     reference = DEFAULT_REFERENCE_MIDI if reference_midi is None else reference_midi
     candidates = [
         pitch_class + 12 * octave
@@ -128,16 +133,16 @@ def build_prelude(
     parts: list[npt.NDArray[np.float64]] = []
     info: dict[str, Any] = {"tune_up": None, "count_in": None}
     if options.tune_up:
-        midi = tonic_midi(key, reference_midi)
-        assert key is not None
+        midi = tonic_midi(key, reference_midi, options.minor)
+        shown = chosen_key(key, options.minor)
         parts.append(_tune(midi))
         parts.append(np.zeros(round(SILENCE_AFTER_TUNE_SECONDS * SAMPLE_RATE)))
         info["tune_up"] = {
-            "note": _name(midi, key.fifths < 0),
+            "note": _name(midi, shown.fifths < 0),
             "midi": midi,
             "frequency_hz": round(440.0 * 2.0 ** ((midi - 69) / 12), 3),
             "seconds": TUNE_SECONDS,
-            "key": {"fifths": key.fifths, "mode": key.mode or "major"},
+            "key": {"fifths": shown.fifths, "mode": shown.mode, "assumed": key is None},
         }
     if options.count_in:
         if bpm <= 0 or beats <= 0 or beat_type <= 0:

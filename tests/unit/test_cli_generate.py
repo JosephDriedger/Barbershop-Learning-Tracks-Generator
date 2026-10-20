@@ -64,6 +64,7 @@ def test_help_lists_the_command_and_its_options(capsys: pytest.CaptureFixture[st
         "--gain-profile",
         "--keep-stems",
         "--tune-up",
+        "--tune-up-key",
         "--count-in",
     ):
         assert option in text

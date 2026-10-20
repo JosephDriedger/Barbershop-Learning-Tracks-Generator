@@ -73,6 +73,7 @@ class Preferences:
     keep_project = _Pref("output/keep_project", False, bool)
     tune_up = _Pref("output/tune_up", False, bool)
     count_in = _Pref("output/count_in", False, bool)
+    tune_up_minor = _Pref("output/tune_up_minor", False, bool)
     follow_lead = _Pref("lyrics/follow_lead", True, bool)
     phonemizer = _Pref("engine/phonemizer", "", str)
     renderer = _Pref("engine/renderer", "", str)
