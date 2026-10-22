@@ -1,4 +1,4 @@
-# BLT Music Generator 0.1.0
+# BLT Music Generator 1.0.0
 
 **Pre-release: Windows 10/11 x64, and an experimental macOS build.** Not for public distribution until the open licensing blockers in
 [dependency-audit.md](dependency-audit.md) and the acceptance gates in [m12-acceptance.md](m12-acceptance.md)

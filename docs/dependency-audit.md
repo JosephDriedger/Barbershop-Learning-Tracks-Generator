@@ -104,7 +104,7 @@ miniaudio, xxHash and Abseil inside `worldline.dll`.
 
 | Component | Version | Licence | Copyright holder | Status |
 |---|---|---|---|---|
-| BLT Music Generator (application code, launchers, icon, generated notices) | 0.1.0 | Apache-2.0 | Copyright 2026 Joseph Driedger | ok |
+| BLT Music Generator (application code, launchers, icon, generated notices) | 1.0.0 | Apache-2.0 | Copyright 2026 Joseph Driedger | ok |
 | CPython runtime and standard library | 3.12.10 | PSF-2.0 | Python Software Foundation and contributors | ok |
 | Third-party code inside CPython's extension modules (expat in pyexpat, libmpdec in _decimal, bzip2 in _bz2, liblzma in _lzma) | as built into Python 3.12.10 | MIT (expat) AND BSD-2-Clause (libmpdec) AND bzip2-1.0.6 AND public domain (liblzma) | expat: Expat maintainers, Thai Open Source Software Center, Clark Cooper; libmpdec: Stefan Krah; bzip2: Julian R Seward; liblzma: Lasse Collin and contributors | ok |
 | libffi (libffi-8.dll, from the Python distribution) | bundled with Python 3.12.10 | MIT | Anthony Green, Red Hat and contributors | ok |

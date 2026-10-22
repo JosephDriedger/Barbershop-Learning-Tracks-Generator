@@ -83,7 +83,7 @@ a7a5bd00d932d881f4e8ab7c125cc6e88534b99e7381be463ecb3ed0d457691e *NOTICES.txt
 e9cec4f9b2f83e7c10b95852d1cff5cea97adb49a808ff2498e3506688f2da84 *inventory.json
 ```
 
-plus `release-info.json` (version, commit, OpenUtau commit, runtime, tool versions, blockers, `signed: false`), `RELEASE-STATUS.txt` ("NOT FOR RELEASE: 5 open licensing blocker(s) ...") and `inventory.json` (SHA-256 of all 454 files). The installer is not bit-for-bit reproducible, so this checksum identifies one build; compare `inventory.json` when checking a rebuild. The docs for users are [INSTALL.md](INSTALL.md), [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [KNOWN-LIMITATIONS.md](KNOWN-LIMITATIONS.md) and the draft [RELEASE-NOTES-0.1.0.md](RELEASE-NOTES-0.1.0.md).
+plus `release-info.json` (version, commit, OpenUtau commit, runtime, tool versions, blockers, `signed: false`), `RELEASE-STATUS.txt` ("NOT FOR RELEASE: 5 open licensing blocker(s) ...") and `inventory.json` (SHA-256 of all 454 files). The installer is not bit-for-bit reproducible, so this checksum identifies one build; compare `inventory.json` when checking a rebuild. The docs for users are [INSTALL.md](INSTALL.md), [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [KNOWN-LIMITATIONS.md](KNOWN-LIMITATIONS.md) and the draft [RELEASE-NOTES-1.0.0.md](RELEASE-NOTES-1.0.0.md).
 
 ## 9. Outstanding risks
 

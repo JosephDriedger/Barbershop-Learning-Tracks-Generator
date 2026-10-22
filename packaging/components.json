@@ -4,7 +4,7 @@
   {
    "id": "blt",
    "name": "BLT Music Generator (application code, launchers, icon, generated notices)",
-   "version": "0.1.0",
+   "version": "1.0.0",
    "license": "Apache-2.0",
    "copyright": "Copyright 2026 Joseph Driedger",
    "source": "this repository",

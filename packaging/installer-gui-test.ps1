@@ -227,10 +227,10 @@ try {
     $renamed = @(& $python (Join-Path $root "packaging/runtime_copies.py") $App)
     function Build-Variant($url, $name) {
         $outDir = Join-Path $base $name
-        $defs = @("/DAppVersion=0.1.0", "/DSourceDir=$App", "/DOutputDir=$outDir", "/DVcRedistUrlOverride=$url")
+        $defs = @("/DAppVersion=1.0.0", "/DSourceDir=$App", "/DOutputDir=$outDir", "/DVcRedistUrlOverride=$url")
         if ($renamed.Count -eq 1) { $defs += "/DNumpyMsvcp=$($renamed[0])" }
         & $iscc /Qp @defs (Join-Path $root "packaging/installer.iss") | Out-Null
-        return (Join-Path $outDir "BLT-Music-Generator-0.1.0-Setup.exe")
+        return (Join-Path $outDir "BLT-Music-Generator-1.0.0-Setup.exe")
     }
 
     # ---------------------------------------------------------------- scenario 4: download of an unsigned file

@@ -3,7 +3,7 @@
 Desktop app that generates four-part barbershop learning tracks (Tenor, Lead, Baritone,
 Bass) from a MusicXML file exported from MuseScore.
 
-Status: **pre-release (0.1.0), not cleared for public release.** The whole pipeline works: score loading,
+Status: **version 1.0.0, not cleared for public release.** The whole pipeline works: score loading,
 readiness checks, quartet MIDI, headless OpenUtau rendering, deterministic mixing into the 13 tracks, a
 command line and a GUI, and a per-user Windows installer. Open before any release: licensing blockers in
 [docs/dependency-audit.md](docs/dependency-audit.md) and musical acceptance with a real English voicebank

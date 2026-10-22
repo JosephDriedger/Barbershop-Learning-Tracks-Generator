@@ -1,6 +1,6 @@
 ; Inno Setup script for BLT Music Generator.
 ;
-;   ISCC.exe /DAppVersion=0.1.0 /DSourceDir=<built package folder> /DOutputDir=<folder> packaging\installer.iss
+;   ISCC.exe /DAppVersion=1.0.0 /DSourceDir=<built package folder> /DOutputDir=<folder> packaging\installer.iss
 ;
 ; Per-user by default (no administrator rights, installs under %LOCALAPPDATA%\Programs); the user
 ; can choose "for all users" in the first dialog. The installer never touches the user's voicebanks,
