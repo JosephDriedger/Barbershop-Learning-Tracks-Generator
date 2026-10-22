@@ -136,6 +136,9 @@ def run_selftest(
                 }
             ),
             engine=EngineChoice(SINGER_ID, config.phonemizer, config.renderer),
+            # the check is of the renderer against stored hashes of the evenly mixed tracks; the
+            # melody-following Full Quartet is the mixer's own business and is tested there
+            follow_melody=False,
         )
         try:
             result = generate(request, config)

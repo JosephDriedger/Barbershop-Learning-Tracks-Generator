@@ -95,6 +95,9 @@ class OpenedScore:
     original: Path
     sha256: str  # of the original file: what approvals and pronunciations are bound to
     conversion: Conversion | None
+    # MuseScore's own MIDI export of the project: what it plays, tempo changes included (a
+    # ritardando, a fermata, "a tempo"); None for any other kind of score or if it could not be made
+    playback_midi: Path | None = None
 
     @property
     def display_name(self) -> str:
@@ -323,6 +326,29 @@ def _convert_with_audiveris(
     return produced[0]
 
 
+def _export_playback_midi(
+    source: Path, program: Path, work: Path, cancel: "CancelToken | None", timeout: float
+) -> Path | None:
+    """MuseScore's MIDI export of ``source``, or None. It only refines the score, so a failure
+    here is never a reason to refuse it (cancelling still cancels)."""
+    target = work / (source.stem + ".mid")
+    try:
+        code, _said = _run(
+            [str(program), "-o", str(target), str(source)],
+            cwd=work,
+            timeout=timeout,
+            cancel=cancel,
+            tool="MuseScore",
+        )
+    except ScoreConversionError as error:
+        if error.code == "CONVERSION_CANCELLED":
+            raise
+        return None
+    if code != 0 or not target.is_file() or target.stat().st_size == 0:
+        return None
+    return target
+
+
 # --- the cache ---------------------------------------------------------------------------------
 
 
@@ -350,6 +376,22 @@ def _cached(cache: Path | None, key: str) -> Path | None:
         if entry.suffix.lower() in _MUSICXML_OUTPUT and entry.stat().st_size > 0:
             return entry
     return None
+
+
+def _cached_midi(cache: Path | None, key: str) -> Path | None:
+    if cache is None:
+        return None
+    entry = cache / f"{key}.mid"
+    return entry if entry.is_file() and entry.stat().st_size > 0 else None
+
+
+def _store_midi(cache: Path, key: str, produced: Path) -> Path:
+    cache.mkdir(parents=True, exist_ok=True)
+    target = cache / f"{key}.mid"
+    temporary = target.with_name(target.name + ".part")
+    shutil.copyfile(produced, temporary)
+    temporary.replace(target)
+    return target
 
 
 def _store(cache: Path, key: str, produced: Path, digest: str, tool: str, program: Path) -> Path:
@@ -434,6 +476,17 @@ def opened_score(
             shutil.rmtree(scratch, ignore_errors=True)
             raise
     try:
+        playback_midi: Path | None = None
+        if not recognition:
+            playback_midi = _cached_midi(cache, key)
+            if playback_midi is None:
+                if scratch is None:
+                    scratch = Path(tempfile.mkdtemp(prefix="blt-convert-"))
+                playback_midi = _export_playback_midi(
+                    original, program, scratch, cancel, MUSESCORE_TIMEOUT_SECONDS
+                )
+                if playback_midi is not None and cache is not None:
+                    playback_midi = _store_midi(cache, key, playback_midi)
         conversion = Conversion(
             tool=tool,
             program=program.name,
@@ -447,7 +500,7 @@ def opened_score(
                 else "exported to MusicXML by MuseScore, the program that wrote the project"
             ),
         )
-        yield OpenedScore(converted, original, digest, conversion)
+        yield OpenedScore(converted, original, digest, conversion, playback_midi)
     finally:
         if scratch is not None:
             shutil.rmtree(scratch, ignore_errors=True)

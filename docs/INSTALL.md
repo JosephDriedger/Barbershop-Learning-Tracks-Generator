@@ -56,7 +56,8 @@ Installing a newer version over the old one upgrades it and keeps everything of 
    never needs OpenUtau, and *Browse…* can still point BLT at another folder). OpenUtau itself is not needed.
 3. **Score.** Press *Choose score…* (or drop the file on the window).
 4. **Parts.** Tell BLT which line of the score is Tenor, Lead, Baritone and Bass (*Suggest voices* fills in
-   likely ones from the part names; you confirm them).
+   likely ones from the part names, or from the usual layout of the staves: upper voice Tenor/Baritone, lower voice
+   Lead/Bass; you confirm them). If the score has errors, *Open Score to Fix* opens it in MuseScore to correct.
 5. **Singer.** Choose the voicebank for the parts (the same one for all, or one per part).
 6. **Lyrics.** As is usual in barbershop scores, a part with no lyrics of its own sings what the Lead sings (it
    holds the vowel when it moves under a held word). *Review lyrics…* lists those notes as "Follows the Lead" and

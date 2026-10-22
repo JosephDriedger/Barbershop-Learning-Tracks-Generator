@@ -14,6 +14,7 @@ from barbershop_tracks.core.singer_names import SINGER_SEPARATOR as SEP
 from barbershop_tracks.core.synthesis import (
     LyricProvenance,
     LyricState,
+    MeasureMark,
     MeterPoint,
     NoteLyric,
     PlannedNote,
@@ -431,6 +432,70 @@ def test_a_first_meter_after_position_zero_is_a_blocking_error() -> None:
 def test_a_meter_change_off_the_bar_grid_is_a_blocking_error_not_dropped() -> None:
     # 5 is not a 4/4 bar line (a pickup or an irregular measure, say)
     assert code_of(lambda: write_ustx(meters((0, 4, 4), (5, 3, 4)))) == "USTX_METER_UNSUPPORTED"
+
+
+def with_measures(plan: SynthesisPlan, *lengths: Fraction) -> SynthesisPlan:
+    """The plan with performed measures of these lengths (the first is bar 0, a pickup if short)."""
+    marks = []
+    start = Fraction(0)
+    for number, length in enumerate(lengths):
+        marks.append(MeasureMark(start=start, length=length, number=number))
+        start += length
+    return replace(plan, measures=tuple(marks))
+
+
+def test_a_pickup_bar_followed_by_a_meter_change_is_written_as_a_bar_of_its_own_length() -> None:
+    # What Child is This: an eighth-note pickup, 6/8 bars of three quarter notes, 9/8 from bar 52.
+    plan = replace(
+        plan_of(),
+        meter=(
+            MeterPoint(position=Fraction(0), beats=6, beat_type=8),
+            MeterPoint(position=Fraction(307, 2), beats=9, beat_type=8),
+        ),
+    )
+    plan = with_measures(plan, Fraction(1, 2), Fraction(3))
+    assert parsed(plan)["time_signatures"] == [
+        {"bar_position": 0, "beat_per_bar": 1, "beat_unit": 8},  # the pickup bar
+        {"bar_position": 1, "beat_per_bar": 6, "beat_unit": 8},
+        {"bar_position": 52, "beat_per_bar": 9, "beat_unit": 8},  # 1/2 + 51 * 3 = 307/2
+    ]
+    assert doc(plan).warnings == ()
+
+
+def test_a_pickup_of_other_lengths_gets_the_matching_time_signature() -> None:
+    meter = (
+        MeterPoint(position=Fraction(0), beats=4, beat_type=4),
+        MeterPoint(position=Fraction(9), beats=3, beat_type=4),  # 1 + 2 * 4
+    )
+    for length, expected in (
+        (Fraction(1), (1, 4)),
+        (Fraction(3, 2), (3, 8)),
+        (Fraction(2), (1, 2)),
+    ):
+        plan = with_measures(replace(plan_of(), meter=meter), length, Fraction(4))
+        if length == 1:
+            first = parsed(plan)["time_signatures"][0]
+            assert (first["beat_per_bar"], first["beat_unit"]) == expected
+        else:
+            plan = replace(
+                plan, meter=(meter[0], MeterPoint(position=length + 8, beats=3, beat_type=4))
+            )
+            first = parsed(plan)["time_signatures"][0]
+            assert (first["beat_per_bar"], first["beat_unit"]) == expected
+
+
+def test_a_pickup_without_a_meter_change_is_written_as_before() -> None:
+    plan = with_measures(meters((0, 4, 4)), Fraction(1), Fraction(4))
+    assert parsed(plan)["time_signatures"] == [
+        {"bar_position": 0, "beat_per_bar": 4, "beat_unit": 4}
+    ]
+
+
+def test_a_change_that_misses_the_bar_lines_even_after_the_pickup_is_still_refused() -> None:
+    plan = with_measures(
+        meters((0, 4, 4), (6, 3, 4)), Fraction(1), Fraction(4)
+    )  # bar lines: 1, 5, 9
+    assert code_of(lambda: write_ustx(plan)) == "USTX_METER_UNSUPPORTED"
 
 
 def test_a_beat_unit_that_is_not_a_power_of_two_is_a_blocking_error() -> None:

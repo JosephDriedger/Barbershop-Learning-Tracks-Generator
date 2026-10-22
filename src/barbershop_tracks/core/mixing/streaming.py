@@ -23,6 +23,7 @@ from barbershop_tracks.core.mixing.audio import (
     Int16,
     TailPolicy,
     clipping_error,
+    gain_block,
     quantize_block,
     wav_header,
 )
@@ -128,9 +129,11 @@ def write_mix(
     full scale; the partial file is the caller's to discard.
     """
     needed = [
-        (role, gain) for role, gain in zip(VOICE_ORDER, spec.gains, strict=True) if gain != 0.0
+        (index, role)
+        for index, (role, gain) in enumerate(zip(VOICE_ORDER, spec.gains, strict=True))
+        if gain != 0.0
     ]
-    for role, _ in needed:
+    for _, role in needed:
         if role not in stems:
             raise MixInputError(
                 "MIX_STEM_MISSING", f"{spec.identifier} needs the {role.value} stem"
@@ -148,8 +151,8 @@ def write_mix(
                 return peak
             stop = min(frames, start + block_frames)
             mixed = np.zeros(stop - start, dtype=np.float64)
-            for role, gain in needed:
-                mixed += gain * stems[role].block(start, stop)
+            for index, role in needed:
+                mixed += gain_block(spec, index, start, stop) * stems[role].block(start, stop)
             quantized = quantize_block(mixed)
             peak = max(peak, quantized.peak)
             if quantized.samples is None:

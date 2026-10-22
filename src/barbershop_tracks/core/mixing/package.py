@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from barbershop_tracks import __version__
+from barbershop_tracks.core.melody import MelodySection
 from barbershop_tracks.core.mixing.audio import SAMPLE_RATE, TailPolicy
 from barbershop_tracks.core.mixing.errors import (
     MixCancelledError,
@@ -35,8 +36,10 @@ from barbershop_tracks.core.mixing.errors import (
 from barbershop_tracks.core.mixing.prelude import Prelude, PreludeOptions, build_prelude
 from barbershop_tracks.core.mixing.specs import (
     DEFAULT_PROFILE,
+    RAMP_SECONDS,
     GainProfile,
     MixSpec,
+    following_melody,
     standard_mix_specs,
     validate_spec_set,
 )
@@ -90,10 +93,15 @@ class PackageSource:
     pronunciations: tuple[Mapping[str, Any], ...] = ()
     meter: tuple[MeterPoint, ...] = ()  # for the count-in
     reference_midi: int | None = None  # the Lead's first note: the tune-up note sits near it
+    melody: tuple[MelodySection, ...] = ()  # who has the melody when: the Full Quartet follows it
 
     @classmethod
     def from_plan(
-        cls, plan: SynthesisPlan, *, pronunciations: Sequence[Mapping[str, Any]] = ()
+        cls,
+        plan: SynthesisPlan,
+        *,
+        pronunciations: Sequence[Mapping[str, Any]] = (),
+        melody: Sequence[MelodySection] = (),
     ) -> "PackageSource":
         lead = next((v for v in plan.voices if v.role is VoiceRole.LEAD), None)
         reference = lead.notes[0].midi_pitch if lead is not None and lead.notes else None
@@ -104,6 +112,7 @@ class PackageSource:
             tuple(pronunciations),
             plan.meter,
             reference,
+            tuple(melody),
         )
 
     @property
@@ -120,6 +129,7 @@ class PackageSettings:
     tail: TailPolicy = field(default_factory=TailPolicy)
     mp3: Mp3Encoder | None = None
     prelude: PreludeOptions = field(default_factory=PreludeOptions)  # tune-up note, count-in
+    follow_melody: bool = True  # the Full Quartet makes the voice with the melody louder
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,8 +217,6 @@ def build_learning_tracks(
     """
     token = cancel or CancelToken()
     wanted = _check_extras(extras or {})
-    specs = standard_mix_specs(settings.profile)
-    validate_spec_set(specs)
     if not settings.formats:
         raise MixConfigurationError("MIX_NO_FORMAT", "choose WAV, MP3 or both")
     if AudioFormat.MP3 in settings.formats and settings.mp3 is None:
@@ -224,6 +232,8 @@ def build_learning_tracks(
             f"{destination} exists and is not a learning-track package; it will not be replaced",
         )
     frames = duration_frames(source.tempo, source.length, SAMPLE_RATE)
+    specs = _with_melody(standard_mix_specs(settings.profile), source, settings, frames)
+    validate_spec_set(specs)
     prelude = prelude_for(source, settings.prelude)
     _check_cancel(token)
 
@@ -272,6 +282,26 @@ def build_learning_tracks(
         return PackageResult(destination, published, manifest, total, job)
     finally:
         _discard(area.path)
+
+
+def _with_melody(
+    specs: tuple[MixSpec, ...], source: PackageSource, settings: PackageSettings, frames: int
+) -> tuple[MixSpec, ...]:
+    """The Full Quartet made to follow the melody, when it is wanted and the melody is known."""
+    if not settings.follow_melody or not source.melody:
+        return specs
+    changes: list[tuple[int, VoiceRole]] = []
+    for section in source.melody:
+        frame = (
+            0 if not changes else round(exact_seconds(source.tempo, section.start) * SAMPLE_RATE)
+        )
+        if changes and not 0 < frame < frames:
+            continue  # at the very end, or on the frame of the one before
+        if changes and frame <= changes[-1][0]:
+            continue
+        changes.append((frame, section.role))
+    full = following_melody(specs[0], changes, settings.profile, round(RAMP_SECONDS * SAMPLE_RATE))
+    return (full, *specs[1:])
 
 
 def _produce(
@@ -365,6 +395,7 @@ def _produce(
                 "focus": spec.focus.value if spec.focus else None,
                 "voices": [r.value for r in spec.voices],
                 "gains": {r.value: spec.gain(r) for r in VOICE_ORDER},
+                **_schedule_record(spec),
                 "worst_case_gain_sum": spec.worst_case_sum,
                 "peak": round(peak, 6),
                 "files": entry_files,
@@ -375,6 +406,23 @@ def _produce(
                 {"event": "mix", "number": spec.number, "of": len(specs), "id": spec.identifier}
             )
     return entries, files
+
+
+def _schedule_record(spec: MixSpec) -> dict[str, Any]:
+    """How the gains of a mix change over time (nothing for a mix with one balance throughout)."""
+    if not spec.schedule:
+        return {}
+    return {
+        "gains_are": "the most each voice reaches; they change as the gain_schedule says",
+        "gain_schedule": [
+            {
+                "start_frame": step.frame,
+                "gains": {r.value: g for r, g in zip(VOICE_ORDER, step.gains, strict=True)},
+            }
+            for step in spec.schedule
+        ],
+        "crossfade_frames": spec.ramp_frames,
+    }
 
 
 def _manifest(
@@ -418,6 +466,8 @@ def _manifest(
             "gain_profile": {
                 "name": profile.name,
                 "full_quartet": profile.full_quartet,
+                "melody_focus": profile.melody_focus,
+                "melody_others": profile.melody_others,
                 "predominant_focus": profile.predominant_focus,
                 "predominant_others": profile.predominant_others,
                 "solo": profile.solo,
@@ -440,6 +490,12 @@ def _manifest(
         "pronunciation": {
             "dictionary": "CMUdict 0.7b; no pronunciation model; a word it lacks stops the run",
             "overrides": [dict(entry) for entry in source.pronunciations],
+        },
+        # who has the melody when (read from the lyrics, or marked by a person) and whether the Full
+        # Quartet follows it; sections are in quarter notes of the performance
+        "melody": {
+            "followed": bool(source.melody) and settings.follow_melody,
+            "sections": [section.as_record() for section in source.melody],
         },
         "stems": [
             {

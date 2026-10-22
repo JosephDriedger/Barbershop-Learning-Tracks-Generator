@@ -76,8 +76,13 @@ The meter is evidence, not a default. `USTX_METER_MISSING`: the plan has no mete
 zero (so no 4/4 is ever assumed). `USTX_METER_UNSUPPORTED`: a beat unit that is not a power of two,
 or a change that is not on a bar line of the preceding meter (pickup, irregular measure). Neither
 is warned about and carried on; the write fails. Meter does not change the audio, but a score whose
-barlines cannot be represented faithfully is not written at all. Consequently a score with a
-pickup bar followed by a meter change is refused until the plan can express it. The test builders
+barlines cannot be represented faithfully is not written at all. A **pickup bar followed by a meter
+change** is written faithfully as a bar of its own length: the plan's performed measures give the
+pickup's length, and the project starts with that time signature (an eighth-note pickup is `1/8`),
+then the first meter from bar 1, so every later change lands on the score's own bar line (a 6/8 piece
+with an eighth pickup that changes to 9/8 at its bar 52 writes `1/8` at bar 0, `6/8` at bar 1 and
+`9/8` at bar 52). Without a meter change the project is written as before, and a change that misses
+the bar lines even after the pickup is still `USTX_METER_UNSUPPORTED`. The test builders
 state 4/4 explicitly because their hand-built scores carry no meter event; the plan builder itself
 never invents one.
 

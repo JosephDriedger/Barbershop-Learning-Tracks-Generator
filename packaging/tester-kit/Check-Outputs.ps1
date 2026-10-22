@@ -6,11 +6,14 @@
 #   * the 13 files and manifest.json are there, with the names BLT promises;
 #   * every file is 16-bit mono PCM at 44.1 kHz and ALL have exactly the same length (nothing drifts);
 #   * none is silent and none is clipped (flat tops);
-#   * the mixes agree with each other, sample by sample, under the gains the manifest records. The full quartet is
-#     (gF * all four voices), a solo is (gS * one voice), "Without X" is (gW * the other three), and "X Predominant" is
-#     (gP * X + gO * the others). So for every voice X:  Full / gF  =  Solo / gS + Without / gW   and
-#     Predominant = gO * (Full / gF) + (gP - gO) * (Solo / gS).  If a voice were misplaced in time, missing from a mix,
-#     or in the wrong mix, one of these would fail. They hold to a few quantisation steps of 16-bit audio.
+#   * the mixes agree with each other, sample by sample, under the gains the manifest records. A solo is (gS * one
+#     voice), "Without X" is (gW * the other three), and "X Predominant" is (gP * X + gO * the others). So for every
+#     voice X:  Solo / gS + Without / gW  is the same four voices added up for every X, and
+#     Predominant = (gP / gS) * Solo + (gO / gW) * Without.  The full quartet is each voice at the gain the manifest
+#     records for it (all four evenly, or, when it follows the melody, the voice that has it louder, with the
+#     crossfades the manifest gives), applied to the four voices as the solos give them. If a voice were misplaced in
+#     time, missing from a mix, or in the wrong mix, one of these would fail. They hold to a few quantisation steps
+#     of 16-bit audio.
 # It reads files and writes nothing (unless you name a -Report file).
 param(
     [Parameter(Mandatory = $true)][string]$Folder,
@@ -74,6 +77,59 @@ public static class BltWav {
         }
         return worst;
     }
+
+    // largest |a * ka + b * kb - c * kc - d * kd| in 16-bit steps
+    public static double MaxDifference4(short[] a, double ka, short[] b, double kb, short[] c, double kc, short[] d, double kd) {
+        double worst = 0;
+        for (int i = 0; i < a.Length; i++) {
+            double e = Math.Abs(a[i] * ka + b[i] * kb - c[i] * kc - d[i] * kd);
+            if (e > worst) worst = e;
+        }
+        return worst;
+    }
+
+    // The gain of one voice over the mix is a piecewise-linear curve: the gain of one step, then a crossfade of
+    // ramp frames centred on the start of the next step (shortened if the steps are closer together), and so on.
+    static void Knots(int voice, int[] frames, double[][] gains, int ramp, out double[] xs, out double[] ys) {
+        var x = new System.Collections.Generic.List<double>();
+        var y = new System.Collections.Generic.List<double>();
+        x.Add(0); y.Add(gains[0][voice]);
+        for (int i = 1; i < frames.Length; i++) {
+            int at = frames[i];
+            int before = at - frames[i - 1];
+            int after = i + 1 < frames.Length ? frames[i + 1] - at : ramp;
+            int half = Math.Min(ramp / 2, Math.Min(before / 2, after / 2));
+            if (half == 0) { x.Add(at - 1.0); x.Add(at); } else { x.Add(at - half); x.Add(at + half); }
+            y.Add(gains[i - 1][voice]); y.Add(gains[i][voice]);
+        }
+        xs = x.ToArray(); ys = y.ToArray();
+    }
+
+    static double Curve(double[] xs, double[] ys, double t, ref int k) {
+        if (t <= xs[0]) return ys[0];
+        if (t >= xs[xs.Length - 1]) return ys[ys.Length - 1];
+        while (k + 1 < xs.Length && xs[k + 1] <= t) k++;
+        double span = xs[k + 1] - xs[k];
+        if (span <= 0) return ys[k + 1];
+        return ys[k] + (ys[k + 1] - ys[k]) * (t - xs[k]) / span;
+    }
+
+    // largest |sum over voices of gain(t) * solo / soloGain - full| in 16-bit steps
+    public static double MaxScheduleDifference(short[] full, short[][] solos, double soloGain, int[] frames, double[][] gains, int ramp) {
+        int voices = solos.Length;
+        var xs = new double[voices][];
+        var ys = new double[voices][];
+        var ks = new int[voices];
+        for (int v = 0; v < voices; v++) Knots(v, frames, gains, ramp, out xs[v], out ys[v]);
+        double worst = 0;
+        for (int i = 0; i < full.Length; i++) {
+            double sum = 0;
+            for (int v = 0; v < voices; v++) sum += Curve(xs[v], ys[v], i, ref ks[v]) * solos[v][i] / soloGain;
+            double e = Math.Abs(sum - full[i]);
+            if (e > worst) worst = e;
+        }
+        return worst;
+    }
 }
 "@
 
@@ -125,18 +181,45 @@ $frames = $audio["Full"].Samples.Length
 Check (@($audio.Values | Where-Object { $_.Samples.Length -ne $frames }).Count -eq 0) "all 13 files have exactly the same length ($frames samples)"
 Check ($manifest.audio.frames -eq $frames) "the length matches the manifest ($($manifest.audio.frames) samples)"
 $tolerance = 12.0   # 16-bit steps; each file is quantised once and the gains scale that error
+$reference = $voices[0]
 foreach ($voice in $voices) {
-    $full = $audio["Full"].Samples
     $solo = $audio["Solo $voice"].Samples
     $without = $audio["Without $voice"].Samples
     $predominant = $audio["Predominant $voice"].Samples
-    # Full / gF  =  Solo / gS + Without / gW   (compare in the scale of Full: multiply by gF)
-    $d1 = [BltWav]::MaxDifference($solo, $gain.full_quartet / $gain.solo, $without, $gain.full_quartet / $gain.without_each, $full)
-    Check ($d1 -le $tolerance) ("{0}: Solo and Without {0} add up to the Full Quartet (largest difference {1:N1} steps of 16-bit audio)" -f $voice, $d1)
-    # Predominant = gO * (Full / gF) + (gP - gO) * (Solo / gS)
-    $d2 = [BltWav]::MaxDifference($full, $gain.predominant_others / $gain.full_quartet, $solo, ($gain.predominant_focus - $gain.predominant_others) / $gain.solo, $predominant)
-    Check ($d2 -le $tolerance) ("{0}: {0} Predominant is the Full Quartet and the solo mixed as the manifest says (largest difference {1:N1} steps)" -f $voice, $d2)
+    # Solo / gS + Without / gW is the four voices added up, the same for every voice X
+    if ($voice -ne $reference) {
+        $d1 = [BltWav]::MaxDifference4($solo, 1 / $gain.solo, $without, 1 / $gain.without_each, $audio["Solo $reference"].Samples, 1 / $gain.solo, $audio["Without $reference"].Samples, 1 / $gain.without_each)
+        Check ($d1 -le $tolerance) ("{0}: Solo and Without {0} add up to the same four voices as for {2} (largest difference {1:N1} steps of 16-bit audio)" -f $voice, $d1, $reference)
+    }
+    # Predominant = gP * (Solo / gS) + gO * (Without / gW)
+    $d2 = [BltWav]::MaxDifference($solo, $gain.predominant_focus / $gain.solo, $without, $gain.predominant_others / $gain.without_each, $predominant)
+    Check ($d2 -le $tolerance) ("{0}: {0} Predominant is the solo and the other three mixed as the manifest says (largest difference {1:N1} steps)" -f $voice, $d2)
 }
+# The Full Quartet: each voice at the gain the manifest records for it (evenly, or following the melody)
+$fq = @($manifest.tracks | Where-Object { $_.id -eq "full_quartet" })[0]
+$roles = "tenor", "lead", "baritone", "bass"
+$frameList = New-Object System.Collections.Generic.List[int]
+$gainRows = New-Object System.Collections.Generic.List[double[]]
+$ramp = 0
+if ($fq.gain_schedule) {
+    foreach ($step in $fq.gain_schedule) {
+        $frameList.Add([int]$step.start_frame)
+        $row = New-Object double[] 4
+        for ($i = 0; $i -lt 4; $i++) { $row[$i] = [double]$step.gains.($roles[$i]) }
+        $gainRows.Add($row)
+    }
+    $ramp = [int]$fq.crossfade_frames
+} else {
+    $frameList.Add(0)
+    $row = New-Object double[] 4
+    for ($i = 0; $i -lt 4; $i++) { $row[$i] = [double]$fq.gains.($roles[$i]) }
+    $gainRows.Add($row)
+}
+$solos = New-Object 'System.Int16[][]' 4
+for ($i = 0; $i -lt 4; $i++) { $solos[$i] = $audio["Solo $($voices[$i])"].Samples }
+$d3 = [BltWav]::MaxScheduleDifference($audio["Full"].Samples, $solos, $gain.solo, $frameList.ToArray(), $gainRows.ToArray(), $ramp)
+$how = if ($fq.gain_schedule) { "following the melody ($($frameList.Count) balances, crossfaded)" } else { "at the constant gains the manifest records" }
+Check ($d3 -le $tolerance) ("The Full Quartet is the four voices mixed $how (largest difference {0:N1} steps)" -f $d3)
 if ($failures.Count) {
     Say "`nRESULT: $($failures.Count) check(s) FAILED:"
     $failures | ForEach-Object { Say "  - $_" }

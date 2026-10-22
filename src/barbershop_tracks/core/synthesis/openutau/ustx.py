@@ -28,6 +28,7 @@ Output is deterministic: fixed key order, LF line endings, no timestamps, no pat
 
 import math
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from fractions import Fraction
@@ -36,7 +37,16 @@ from typing import Any
 from barbershop_tracks.core.singer_names import SINGER_SEPARATOR, split_singer_name
 from barbershop_tracks.core.synthesis.errors import PlanNotReadyError
 from barbershop_tracks.core.synthesis.openutau.expressions_0_7 import STATIC_BLOCK
-from barbershop_tracks.core.synthesis.openutau.overrides import NO_OVERRIDES, ResolvedOverrides
+from barbershop_tracks.core.synthesis.openutau.overrides import (
+    ARPASING,
+    NO_OVERRIDES,
+    ResolvedOverrides,
+)
+from barbershop_tracks.core.synthesis.openutau.tails import (
+    glide_ms,
+    needs_shift,
+    overrides_for,
+)
 from barbershop_tracks.core.synthesis.openutau.target import (
     TARGET_0_1_565,
     TARGETS,
@@ -53,8 +63,10 @@ from barbershop_tracks.core.synthesis.openutau.yaml_emit import Flow, Quoted, em
 from barbershop_tracks.core.synthesis.plan import (
     VOICE_ORDER,
     LyricState,
+    MeterPoint,
     SynthesisPlan,
     VoiceEngineRef,
+    VoicePlan,
 )
 
 # Shorter notes were lengthened on import in A06 (a 7.5-tick duration became 10); the real rule was
@@ -68,6 +80,9 @@ _SINGER = re.compile(f"^{_SINGER_PART}({re.escape(SINGER_SEPARATOR)}{_SINGER_PAR
 _PHONEMIZER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$")
 _RESERVED_LYRICS = frozenset({"+", "+~", "-"})
 _BEAT_UNITS = frozenset({1, 2, 4, 8, 16, 32})
+# a note that holds the vowel of the syllable before it, so that a dictionary phonemizer does not
+# count it as a syllable of its own (PhonemeBasedPhonemizer / SyllableBasedPhonemizer: "+~", "+*")
+HOLD_TOKEN = "+~"
 
 # Total allowed difference between the plan's exact timeline and the timeline the stored doubles
 # give, summed over every tempo segment of the performed score. A double has a relative error of
@@ -206,6 +221,26 @@ def _tempo(
     return entries, records, warnings, drift
 
 
+def _pickup_bar(plan: SynthesisPlan) -> MeterPoint | None:
+    """The short first bar (a pickup), as a time signature of its own length, if the meter changes.
+
+    The bar lines of the score start after the pickup. Counted from position zero with the first
+    meter they would miss every later change of meter, so a score with a pickup and a change of
+    meter could not be written. Writing the pickup as a bar of its own length (an eighth note is
+    1/8) puts every bar line of the project where the score has it. Without a change of meter
+    nothing needs it and the project is written as before.
+    """
+    if len(plan.meter) < 2 or not plan.measures:
+        return None
+    first = plan.measures[0]
+    if first.start != 0 or not 0 < first.length < plan.meter[0].measure_length:
+        return None
+    ratio = first.length / 4  # beats / beat unit
+    if ratio.denominator not in _BEAT_UNITS:
+        return None
+    return MeterPoint(position=Fraction(0), beats=ratio.numerator, beat_type=ratio.denominator)
+
+
 def _meter(plan: SynthesisPlan) -> list[dict[str, Any]]:
     """Time signatures by bar index. Anything that cannot be placed exactly is an error."""
     if not plan.meter or plan.meter[0].position != 0:
@@ -218,6 +253,13 @@ def _meter(plan: SynthesisPlan) -> list[dict[str, Any]]:
     bar = Fraction(0)
     segment_start = Fraction(0)
     length = plan.meter[0].measure_length
+    pickup = _pickup_bar(plan)
+    if pickup is not None:
+        entries.append(
+            {"bar_position": 0, "beat_per_bar": pickup.beats, "beat_unit": pickup.beat_type}
+        )
+        bar = Fraction(1)
+        segment_start = pickup.measure_length
     for index, point in enumerate(plan.meter):
         if point.beat_type not in _BEAT_UNITS:
             raise UstxError(
@@ -258,7 +300,7 @@ def _track(role_name: str, ref: VoiceEngineRef) -> dict[str, Any]:
     }
 
 
-def _note(position: int, duration: int, tone: int, lyric: str) -> dict[str, Any]:
+def _note(position: int, duration: int, tone: int, lyric: str, glide: int = 40) -> dict[str, Any]:
     return {
         "position": position,
         "duration": duration,
@@ -266,8 +308,8 @@ def _note(position: int, duration: int, tone: int, lyric: str) -> dict[str, Any]
         "lyric": Quoted(lyric),
         "pitch": {
             "data": [
-                Flow([("x", -40), ("y", 0), ("shape", "io")]),
-                Flow([("x", 40), ("y", 0), ("shape", "io")]),
+                Flow([("x", -glide), ("y", 0), ("shape", "io")]),
+                Flow([("x", glide), ("y", 0), ("shape", "io")]),
             ],
             "snap_first": True,
         },
@@ -288,6 +330,76 @@ def _note(position: int, duration: int, tone: int, lyric: str) -> dict[str, Any]
     }
 
 
+@dataclass(frozen=True, slots=True)
+class _HeldWord:
+    """A word sung over several notes: its first note and what decides its closing consonants."""
+
+    note_index: int
+    word: str  # as the engine receives it
+    notes: int  # how many notes it is held over
+    last_ticks: int  # the length of the last of them
+    followed: bool  # the next note of the voice starts exactly where the word ends
+
+
+def _held_words(
+    plan: SynthesisPlan, voice: VoicePlan, joined: WordJoin, resolution: int
+) -> list[_HeldWord]:
+    """Every word of ``voice`` held over more than one note (read as the writer reads it)."""
+    found: list[_HeldWord] = []
+    notes = voice.notes
+    index = 0
+    while index < len(notes):
+        head = notes[index]
+        if head.lyric.text is None or head.lyric.state in (
+            LyricState.SCORE_CONTINUATION,
+            LyricState.LEAD_SUSTAIN,
+        ):
+            index += 1
+            continue
+        last = index
+        while last + 1 < len(notes):
+            after = notes[last + 1]
+            continues = (
+                after.lyric.state in (LyricState.SCORE_CONTINUATION, LyricState.LEAD_SUSTAIN)
+                or after.index in joined.follow
+            )
+            if not continues or after.start != notes[last].end:
+                break
+            last += 1
+        if last > index:
+            ending = notes[last]
+            followed = last + 1 < len(notes) and notes[last + 1].start == ending.end
+            found.append(
+                _HeldWord(
+                    head.index,
+                    engine_text(joined.whole.get(head.index, head.lyric.text)),
+                    last - index + 1,
+                    _ticks(ending.duration, resolution, f"{voice.role.display_name} note {last}"),
+                    followed,
+                )
+            )
+        index = last + 1
+    return found
+
+
+def short_tail_words(
+    plan: SynthesisPlan, overrides: ResolvedOverrides = NO_OVERRIDES
+) -> tuple[str, ...]:
+    """The words whose closing consonants may need moving: what the dictionary is asked for."""
+    wanted: set[str] = set()
+    for voice in plan.voices:
+        ref = plan.engine_ref(voice.role)
+        if ref.phonemizer != ARPASING:
+            continue
+        joined = assemble_words(plan, voice)
+        for held in _held_words(plan, voice, joined, TARGET_0_1_565.resolution):
+            if needs_shift(held.last_ticks, held.notes, held.followed) and (
+                overrides.for_note(voice.role, held.note_index) is None
+            ):
+                wanted.add(held.word.lower())
+    return tuple(sorted(wanted))
+
+
 def write_ustx(
     plan: SynthesisPlan,
     *,
@@ -295,8 +407,14 @@ def write_ustx(
     continuation: ContinuationToken = ContinuationToken.PLUS,
     tempo_tolerance_seconds: Fraction = MAX_TEMPO_DRIFT_SECONDS,
     overrides: ResolvedOverrides = NO_OVERRIDES,
+    phonemes: Mapping[str, Sequence[str]] | None = None,
 ) -> UstxDocument:
-    """The plan as USTX text for ``target``; raises ``PlanNotReadyError`` or ``UstxError``."""
+    """The plan as USTX text for ``target``; raises ``PlanNotReadyError`` or ``UstxError``.
+
+    ``phonemes`` maps a word (lower case) to the ARPAbet phonemes of the engine's dictionary. With
+    it, a word held over several notes whose last note is short has its closing consonants moved
+    a little later (``tails.py``); without it (or for a word it lacks) the engine places them.
+    """
     if TARGETS.get(target.openutau_version) != target:
         raise UstxError(
             "USTX_TARGET_UNSUPPORTED", f"{target.openutau_version} is not a tested target"
@@ -354,7 +472,9 @@ def write_ustx(
                         f"{where} starts at tick {start} but the previous note ends at "
                         f"{previous_end}; a continuation must touch the note it continues",
                     )
-                text = continuation.value
+                # inside an assembled word a note that only continues the syllable before it holds
+                # that vowel (``+~``); a note that starts the next syllable is the plain extender
+                text = HOLD_TOKEN if note.index in joined.hold else continuation.value
             elif lyric.text is not None:
                 text = engine_text(joined.whole.get(note.index, lyric.text))
                 validate_lyric_text(text)
@@ -371,8 +491,23 @@ def write_ustx(
                     applied += 1
             else:  # unreachable for a ready plan; kept so that nothing silently gets a default
                 raise UstxError("USTX_LYRIC_MISSING", f"{where} has no lyric decision")
-            notes.append(_note(start, duration, note.midi_pitch, text))
+            holds = text in (continuation.value, HOLD_TOKEN)
+            glide = glide_ms(holds, duration, resolution)
+            notes.append(_note(start, duration, note.midi_pitch, text, glide))
             previous_end = start + duration
+        if phonemes and ref.phonemizer == ARPASING:
+            for held in _held_words(plan, voice, joined, resolution):
+                if not needs_shift(held.last_ticks, held.notes, held.followed):
+                    continue
+                chosen = overrides.for_note(voice.role, held.note_index)
+                symbols = (
+                    chosen.override.hint.split()
+                    if chosen is not None
+                    else phonemes.get(held.word.lower(), ())
+                )
+                moves = overrides_for(symbols, resolution)
+                if moves:
+                    notes[held.note_index]["phoneme_overrides"] = moves
         note_count += len(notes)
         parts.append(
             {

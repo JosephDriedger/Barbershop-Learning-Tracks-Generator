@@ -120,6 +120,19 @@ def _parts_do_not_follow_the_lead_unless_a_test_says_so(monkeypatch: pytest.Monk
 
 
 @pytest.fixture(autouse=True)
+def _every_test_has_its_own_cache_folder(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Never the person's real cache: converted scores (and their playback) are kept there, so a
+    test would find what an earlier test left (the same bytes make the same key) and the installed
+    app would be handed the stand-in programs' conversions."""
+    import platformdirs
+
+    folder = str(tmp_path_factory.mktemp("cache"))
+    monkeypatch.setattr(platformdirs, "user_cache_dir", lambda *args, **kwargs: folder)
+
+
+@pytest.fixture(autouse=True)
 def _no_garbage_collection_inside_a_gui_test(request: pytest.FixtureRequest) -> Iterator[None]:
     """Collect garbage only between GUI tests, never inside a test's Qt event loop.
 

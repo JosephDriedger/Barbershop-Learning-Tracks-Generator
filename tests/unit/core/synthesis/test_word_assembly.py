@@ -85,7 +85,8 @@ def test_a_melisma_inside_a_word_keeps_its_extenders() -> None:
         held_note(2),
         syllable(3, "er", END),
     ]
-    assert lead_lyrics(lead) == ["together", "+", "+", "+"]
+    # "geth" holds over note 2, so "er", the last syllable, keeps the last note: note 2 is "+~"
+    assert lead_lyrics(lead) == ["together", "+", "+~", "+"]
 
 
 def test_apostrophes_and_single_syllable_words_are_left_alone() -> None:
@@ -140,3 +141,59 @@ def test_a_part_that_sings_only_some_syllables_of_the_leads_word_is_not_joined()
     skipping = [note(0, 1, PITCHES[VoiceRole.TENOR]), note(2, 1, PITCHES[VoiceRole.TENOR])]
     voices = quartet(lead, tenor=skipping)
     assert voice_lyrics("Tenor", voices, follow=True) == ["to", "er"]
+
+
+# --- where each syllable falls: a note that only holds the syllable before is "+~" ----------------
+
+
+def test_the_last_syllable_is_on_the_last_note_when_the_first_is_held() -> None:
+    lead = [syllable(0, "Ma", BEGIN, held=True), held_note(1), syllable(2, "ry", END)]
+    assert lead_lyrics(lead) == ["Mary", "+~", "+"]
+
+
+def test_however_long_the_held_run_the_last_syllable_keeps_the_last_note() -> None:
+    lead = [
+        syllable(0, "Ma", BEGIN, held=True),
+        held_note(1),
+        held_note(2),
+        held_note(3),
+        syllable(4, "ry", END),
+    ]
+    assert lead_lyrics(lead) == ["Mary", "+~", "+~", "+~", "+"]
+
+
+def test_every_dictionary_phonemizer_gets_the_hold_token() -> None:
+    lead = [syllable(0, "Ma", BEGIN, held=True), held_note(1), syllable(2, "ry", END)]
+    for phonemizer in DICTIONARY_PHONEMIZERS:
+        assert lead_lyrics(lead, phonemizer) == ["Mary", "+~", "+"]
+
+
+def test_notes_held_after_the_last_syllable_stay_plain_extenders() -> None:
+    lead = [
+        syllable(0, "Ma", BEGIN),
+        syllable(1, "ry", END, held=True),
+        held_note(2),
+    ]
+    assert lead_lyrics(lead) == ["Mary", "+", "+"]
+
+
+def test_a_part_that_follows_the_lead_holds_where_the_lead_holds() -> None:
+    lead = [
+        syllable(0, "to", BEGIN, held=True),
+        held_note(1),
+        syllable(2, "geth", MIDDLE),
+        syllable(3, "er", END),
+    ]
+    tenor = [note(i, 1, PITCHES[VoiceRole.TENOR]) for i in range(4)]
+    assert lead_lyrics(lead) == ["together", "+~", "+", "+"]
+    assert voice_lyrics("Tenor", quartet(lead, tenor=tenor), follow=True) == [
+        "together",
+        "+~",
+        "+",
+        "+",
+    ]
+
+
+def test_the_default_phonemizer_never_gets_the_hold_token() -> None:
+    lead = [syllable(0, "Ma", BEGIN, held=True), held_note(1), syllable(2, "ry", END)]
+    assert lead_lyrics(lead, DEFAULT) == ["Ma", "+", "ry"]

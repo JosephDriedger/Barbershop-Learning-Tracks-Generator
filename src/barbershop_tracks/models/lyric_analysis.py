@@ -34,6 +34,10 @@ class MelismaBasis(Enum):
     TYPED = "typed"  # explicit <extend type="start|continue|stop"> state
     UNTYPED = "untyped"  # inferred from an untyped <extend/> (MuseScore style)
     SLUR = "slur"  # inferred: a slur over a note that has no lyric of its own
+    # inferred (our reading): a lyric-less sixteenth straight after a dotted eighth with a syllable
+    DOTTED_RHYTHM = "dotted_rhythm"
+    # an untyped <extend/> whose length is known from the score's project: held exactly that far
+    LINE = "line"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

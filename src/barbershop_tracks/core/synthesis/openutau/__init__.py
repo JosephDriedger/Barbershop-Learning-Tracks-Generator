@@ -29,6 +29,7 @@ from barbershop_tracks.core.synthesis.openutau.ustx import (
     TempoRecord,
     UstxDocument,
     UstxWarning,
+    short_tail_words,
     validate_lyric_text,
     write_ustx,
 )
@@ -57,6 +58,7 @@ __all__ = [
     "require_ustx_version",
     "resolve_overrides",
     "score_lyrics_of",
+    "short_tail_words",
     "target_for",
     "validate_lyric_text",
     "write_ustx",

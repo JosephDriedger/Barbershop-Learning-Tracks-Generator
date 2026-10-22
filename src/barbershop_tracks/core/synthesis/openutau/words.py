@@ -7,6 +7,14 @@ syllables. Sending the syllables as three words would look up ``geth`` (not a wo
 ``er`` as words of their own. A voicebank that sings syllables directly (the default phonemizer, UTAU-style
 banks) wants the syllables, so this applies only to the phonemizers named in ``DICTIONARY_PHONEMIZERS``.
 
+**Where each syllable falls.** The engines put one vowel of the word on each note that does not hold, in order
+(``PhonemeBasedPhonemizer`` for Arpasing, ``SyllableBasedPhonemizer`` for English VCCV and X-SAMPA, in the pinned
+OpenUtau). A note whose lyric is ``+`` starts the next syllable; a note whose lyric is ``+~`` holds the vowel of the
+syllable before it. So a note that carries a syllable of the score is written ``+`` and a note that only
+continues the syllable before it (a melisma, a slur) is written ``+~``. With ``+`` on every later note, the last
+syllable of ``to-geth-er`` sung over four notes (``to``, ``geth`` held over two notes, ``er``) landed on the held
+note instead of on its own, the last one.
+
 A word is assembled only when it is certain to be the same word on every note: the syllables begin / middle /
 end must follow each other, every note of the word must touch the next (``+`` is an extender only across no
 gap), and a part that follows the Lead must sing consecutive syllables of the Lead's word. In every other case
@@ -63,6 +71,7 @@ class WordJoin:
 
     whole: dict[int, str] = field(default_factory=dict)  # first syllable's note index -> the word
     follow: frozenset[int] = frozenset()  # later syllables' note indices: written as the extender
+    hold: frozenset[int] = frozenset()  # notes that only hold the syllable before: written ``+~``
 
 
 def _has_text(note: PlannedNote) -> bool:
@@ -140,6 +149,7 @@ def assemble_words(plan: SynthesisPlan, voice: VoicePlan) -> WordJoin:
     notes = voice.notes
     whole: dict[int, str] = {}
     follow: set[int] = set()
+    hold: set[int] = set()
     i = 0
     while i < len(notes):
         if _has_text(notes[i]) and _syllabic(notes[i]) == "begin":
@@ -149,7 +159,8 @@ def assemble_words(plan: SynthesisPlan, voice: VoicePlan) -> WordJoin:
                     "".join(notes[k].lyric.text or "" for k in chain if _has_text(notes[k]))
                 )
                 follow.update(k for k in chain[1:] if _has_text(notes[k]))
+                hold.update(k for k in chain[1:] if not _has_text(notes[k]))
                 i = chain[-1] + 1
                 continue
         i += 1
-    return WordJoin(whole=whole, follow=frozenset(follow))
+    return WordJoin(whole=whole, follow=frozenset(follow), hold=frozenset(hold))

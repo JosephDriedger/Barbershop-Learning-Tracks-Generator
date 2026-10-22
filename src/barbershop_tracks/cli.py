@@ -37,6 +37,7 @@ from barbershop_tracks.core.handoff import (
 from barbershop_tracks.core.handoff.render import render_export_json, render_export_text
 from barbershop_tracks.core.midi import DEFAULT_PPQ, MidiExportError, validate_ppq
 from barbershop_tracks.core.musicxml import ParseResult, opened_score, parse_musicxml
+from barbershop_tracks.core.musicxml.opened import parse_opened
 from barbershop_tracks.core.readiness import CAPABILITIES, RoleAssignments, assess_readiness
 from barbershop_tracks.core.readiness.lines import describe_lines
 from barbershop_tracks.core.readiness.render import (
@@ -216,7 +217,7 @@ def _load(path: str, *, accept_recognition: bool = False) -> ParseResult | None:
     try:
         # a MuseScore project or a PDF is converted first (core/musicxml/convert.py)
         with opened_score(path, accept_recognition=accept_recognition) as opened:
-            return parse_musicxml(opened.parse_path)
+            return parse_opened(opened, parse_musicxml)[0]
     except ScoreLoadError as exc:
         print(f"error: {exc}", file=sys.stderr)
     except OSError as exc:

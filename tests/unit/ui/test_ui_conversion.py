@@ -12,6 +12,7 @@ from barbershop_tracks.core.pipeline import ErrorCategory, PipelineError
 from barbershop_tracks.ui.explain import explain
 from cli_scores import quartet_xml
 from shims import write_shim
+from smf_builders import ritardando_from
 
 pytestmark = pytest.mark.gui
 
@@ -138,3 +139,110 @@ def test_each_conversion_failure_has_a_plain_explanation() -> None:
         PipelineError(ErrorCategory.SOURCE, "CONVERSION_AMBIGUOUS", "two", {"tool": "Audiveris"})
     )
     assert "Split the PDF" in ambiguous.steps[0]
+
+
+# --- errors let you open the score to fix it ---------------------------------------------------
+
+
+def test_open_to_fix_is_off_until_a_score_was_chosen(rig: Rig) -> None:
+    assert not rig.window.score_section.fix.isEnabled()
+    assert not rig.window.validation_section.fix.isEnabled()
+    rig.window.open_to_fix()
+    assert rig.prompts.informed == ["Choose a score first."]
+    assert rig.notated == []
+    assert rig.opened == []
+
+
+def test_a_musicxml_score_opens_as_it_is_in_the_notation_program(rig: Rig) -> None:
+    score = rig.load()
+    assert rig.window.score_section.fix.isEnabled()
+    assert rig.window.validation_section.fix.isEnabled()
+    rig.window.validation_section.fix.click()
+    assert rig.notated == [score]
+    assert rig.opened == []  # no picture to compare with
+    assert rig.prompts.informed == []
+
+
+def test_a_recognised_pdf_opens_as_a_named_copy_next_to_the_pdf_with_the_pdf_to_compare(
+    rig: Rig,
+) -> None:
+    pdf = project(rig, "Hymn.pdf")
+    with rig.qtbot.waitSignal(rig.controller.score_loaded, timeout=30000):
+        rig.window.open_score(pdf)
+    rig.window.score_section.fix.click()
+    (copy,) = rig.notated
+    assert copy.parent == pdf.parent
+    assert copy.name.startswith("Hymn (recognised)")
+    assert "<score-partwise" in copy.read_text(encoding="utf-8")  # what BLT read, not the PDF
+    assert rig.opened == [pdf]  # the PDF is opened too, to check the music against
+    assert "bar by bar against the PDF" in rig.prompts.informed[-1]
+    rig.window.score_section.fix.click()  # again: the same copy, not a second one
+    assert rig.notated == [copy, copy]
+    assert len(list(pdf.parent.glob("Hymn (recognised)*"))) == 1
+
+
+def test_without_a_notation_program_the_score_opens_in_the_default_program(rig: Rig) -> None:
+    rig.notation_available = False
+    score = rig.load()
+    rig.window.score_section.fix.click()
+    assert rig.notated == [score]  # tried first
+    assert rig.opened == [score]  # then whatever the system opens .musicxml with
+    assert rig.prompts.warnings == []
+
+
+def test_when_nothing_can_open_it_the_person_is_told_where_the_file_is(rig: Rig) -> None:
+    rig.notation_available = False
+    rig.window.opener = lambda path: False
+    score = rig.load()
+    rig.window.open_to_fix()
+    assert len(rig.prompts.warnings) == 1
+    assert str(score) in rig.prompts.warnings[0]
+    assert "MuseScore" in rig.prompts.warnings[0]
+
+
+def test_a_score_that_could_not_be_read_can_still_be_opened(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_CONVERTER_MODE", "fail")
+    path = project(rig, "Broken.mscz")
+    with rig.qtbot.waitSignal(rig.controller.score_failed, timeout=30000):
+        rig.window.open_score(path)
+    assert rig.controller.score is None
+    assert rig.window.score_section.fix.isEnabled()
+    rig.window.score_section.fix.click()
+    assert rig.notated == [path]
+
+
+def test_a_pdf_that_could_not_be_read_opens_as_a_picture_not_in_the_notation_program(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_CONVERTER_MODE", "fail")
+    pdf = project(rig, "Broken.pdf")
+    with rig.qtbot.waitSignal(rig.controller.score_failed, timeout=30000):
+        rig.window.open_score(pdf)
+    rig.window.score_section.fix.click()
+    assert rig.opened == [pdf]
+    assert rig.notated == []
+
+
+def test_the_window_says_the_tempo_follows_musescores_playback(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    playback = rig.tmp / "playback.mid"
+    playback.write_bytes(ritardando_from(100))  # the stand-in score is at 100 beats a minute
+    monkeypatch.setenv("FAKE_CONVERTER_MIDI", str(playback))
+    with rig.qtbot.waitSignal(rig.controller.score_loaded, timeout=30000):
+        rig.window.open_score(project(rig, "Hymn.mscz"))
+    rig.qtbot.waitUntil(lambda: not rig.controller.validating, timeout=20000)
+    assert any("The tempo follows MuseScore's playback" in m for m in shown_messages(rig))
+    score = rig.controller.score
+    assert score is not None
+    assert score.conversion is not None
+    assert score.conversion["playback_tempo"]["applied"] is True
+
+
+def test_the_window_says_nothing_about_tempo_when_there_is_no_playback(rig: Rig) -> None:
+    with rig.qtbot.waitSignal(rig.controller.score_loaded, timeout=30000):
+        rig.window.open_score(project(rig, "Hymn.mscz"))
+    rig.qtbot.waitUntil(lambda: not rig.controller.validating, timeout=20000)
+    assert not any("playback" in m for m in shown_messages(rig)), shown_messages(rig)

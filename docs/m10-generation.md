@@ -194,3 +194,34 @@ Mixing is chunked (see `m9-mixing.md`): memory is bounded by the block size, not
 * Per-note lyric silence is detected after rendering, not before: an unsupported alias costs a render.
 * The package name is derived from the score's file name unless `--name` is given.
 * Not distribution-ready: the dependency licensing audit (`dependency-audit.md`) is incomplete.
+
+## Where the syllables of a long word fall
+
+The English dictionary engines (Arpasing, English VCCV, X-SAMPA) take the whole word on its first note and put
+one vowel on each following note that **starts a syllable**, in order. A note whose lyric is `+` starts the next
+syllable; a note whose lyric is `+~` only **holds the vowel** of the syllable before it (this is how the pinned
+OpenUtau decides: `PhonemeBasedPhonemizer` and `SyllableBasedPhonemizer` skip the notes starting with `+~` or `+*`
+when they hand out vowels). BLT writes the notes of an assembled word accordingly: a note that carries a syllable of
+the score is `+`, and a note that only continues the syllable before it (a melisma or a slur) is `+~`. So the last
+syllable of a word sung over several notes sounds on **the note the score gives it**, normally the last, and the
+notes between hold the syllable before. Written `+` on every note, as it was before, the last syllable of
+`to-geth-er` with `geth` held over two notes sounded on the second of them, one note early.
+
+### A held word's closing consonant and a short last note
+
+Arpasing puts a word's closing consonants at the very end of the whole group of notes the word is sung over (60 ticks each
+before the end, at 480 per quarter). Over a word held on several notes whose last note is short, such as the dotted eighth and
+sixteenth of "babe", the closing "b" (its quiet lip closure comes first) then takes about half of the sixteenth, and the new
+pitch is hardly heard: measured on a render, the sixteenth was sung at its own pitch for 10 to 50 ms of its 238 ms. For such a
+word (Arpasing only, held over two or more notes, last note no longer than a dotted eighth minus a sixteenth, ie 180 ticks,
+and followed without a gap) BLT moves the closing consonants 50 ticks later with OpenUtau's per-phoneme `offset`
+(`phoneme_overrides`, `tails.py`), as late as the engine allows, and gives a held note of a sixteenth or less a 15 ms pitch
+transition instead of 40 ms each side of its start, so a semitone step is a step. This needs the word's phonemes, which the
+render backend asks the host's dictionary for (only for those words); a word the dictionary lacks, any other engine, a word
+on one note and the last word of a voice are left exactly as the engine places them. Measured the same way the sixteenth is
+now sung at its own pitch for 80 to 90 ms. That is the most these controls give: the voicebank's own closure for the "b"
+takes about 0.1 s however late the consonant is put.
+
+Not covered: a whole word typed on one note and slurred over several (no hyphens in the score). The score does not
+say where its later syllables go, and BLT would need the word's syllable count from the dictionary to choose; such a
+word is still written `word`, `+`, `+`, with the syllables falling on the first notes.

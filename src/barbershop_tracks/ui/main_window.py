@@ -36,7 +36,11 @@ from PySide6.QtWidgets import (
 )
 
 from barbershop_tracks import __version__
-from barbershop_tracks.core.musicxml.convert import CONVERTED_SUFFIXES, needs_recognition
+from barbershop_tracks.core.musicxml.convert import (
+    CONVERTED_SUFFIXES,
+    RECOGNITION_SUFFIXES,
+    needs_recognition,
+)
 from barbershop_tracks.core.musicxml.source import wrong_file_advice
 from barbershop_tracks.core.pipeline import (
     STAGES,
@@ -50,8 +54,14 @@ from barbershop_tracks.ui.dialogs import AdvancedDialog, LyricReviewDialog
 from barbershop_tracks.ui.explain import explain
 from barbershop_tracks.ui.formatting import clock
 from barbershop_tracks.ui.lyric_review import LyricReviewState
+from barbershop_tracks.ui.melody_dialog import MelodyDialog
 from barbershop_tracks.ui.preferences import Preferences
-from barbershop_tracks.ui.prompts import Opener, Prompts, open_in_explorer
+from barbershop_tracks.ui.prompts import (
+    Opener,
+    Prompts,
+    open_in_explorer,
+    open_in_notation_program,
+)
 from barbershop_tracks.ui.pronunciation_dialog import PronunciationDialog
 from barbershop_tracks.ui.sections import (
     AssignmentSection,
@@ -100,6 +110,7 @@ class MainWindow(QMainWindow):
         controller: AppController | None = None,
         prompts: Prompts | None = None,
         opener: Opener = open_in_explorer,
+        notation: Opener = open_in_notation_program,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -107,6 +118,7 @@ class MainWindow(QMainWindow):
         self.controller = controller or AppController(self.prefs)
         self.prompts = prompts or Prompts()
         self.opener = opener
+        self.notation = notation
         self.setWindowTitle(TITLE)
         self.setAcceptDrops(True)
         minimum, self._first_size = fitted_sizes(self._available_size())
@@ -173,6 +185,8 @@ class MainWindow(QMainWindow):
 
         # wiring
         self.score_section.browse_requested.connect(self.choose_score)
+        self.score_section.fix_requested.connect(self.open_to_fix)
+        self.validation_section.fix_requested.connect(self.open_to_fix)
         self.voices_section.folder_requested.connect(self.choose_voices_folder)
         self.voices_section.open_folder_requested.connect(self.open_voices_folder)
         self.voices_section.add_zip_requested.connect(self.add_voice_from_zip)
@@ -182,6 +196,7 @@ class MainWindow(QMainWindow):
         self.voices_section.advanced_requested.connect(self.open_advanced)
         self.output_section.browse_requested.connect(self.choose_output_folder)
         self.output_section.ffmpeg_requested.connect(self.choose_ffmpeg)
+        self.output_section.melody_requested.connect(self.open_melody)
         self.validation_section.review_requested.connect(self.open_review)
         self.progress_section.review_requested.connect(self.open_review)
         self.progress_section.pronunciation_requested.connect(self.open_pronunciations)
@@ -295,6 +310,55 @@ class MainWindow(QMainWindow):
             accept = True
         self.score_section.show_loading(path.name)
         self.controller.load_score(path, accept_recognition=accept)
+
+    def create_melody_dialog(self) -> MelodyDialog | None:
+        plan = self.controller.melody_plan()
+        if plan is None:
+            return None
+        return MelodyDialog(plan, self.controller.melody_marks, self)
+
+    def open_melody(self) -> None:
+        """Show who has the melody where; what the person marks is used by the Full Quartet."""
+        dialog = self.create_melody_dialog()
+        if dialog is None:
+            self.prompts.inform(
+                self, TITLE, "Choose a score and a voice for every part first: then BLT can tell."
+            )
+            return
+        if self.run_dialog(dialog):
+            self.controller.set_melody_marks(dialog.marks())
+
+    def open_to_fix(self) -> None:
+        """Open the score where it can be corrected: errors are fixed in a notation program."""
+        target = self.controller.fix_target()
+        if target is None:
+            self.prompts.inform(self, TITLE, "Choose a score first.")
+            return
+        is_picture = target.path.suffix.lower() in RECOGNITION_SUFFIXES
+        if is_picture:
+            opened = self.opener(target.path)  # nothing was read from it: just look at it
+        else:
+            opened = self.notation(target.path) or self.opener(target.path)
+        if not opened:
+            self.prompts.warn(
+                self,
+                TITLE,
+                f"Could not open {target.path.name}. It is here:\n{target.path}\n\n"
+                "Open it in MuseScore (musescore.org) or another notation program.",
+            )
+            return
+        if target.compare_with is not None:
+            self.opener(target.compare_with)  # the PDF, to check the recognised score against
+        if target.recognised:
+            self.prompts.inform(
+                self,
+                TITLE,
+                f"Opened the recognised score ({target.path.name}) and the original PDF.\n\n"
+                "Go through the music bar by bar against the PDF and correct what recognition got "
+                "wrong. Then save it (File > Save, or File > Export > MusicXML) and open the "
+                "saved file here: BLT reads it as an ordinary score.\n\n"
+                f"The recognised score is kept at:\n{target.path}",
+            )
 
     def choose_voices_folder(self) -> None:
         current = self.controller.singers_folder()
@@ -419,6 +483,9 @@ class MainWindow(QMainWindow):
         else:
             self.why.setText("Everything is ready.")
         self.generate.setToolTip("\n".join(blockers))
+        fixable = c.fix_target() is not None
+        self.score_section.fix.setEnabled(fixable)
+        self.validation_section.fix.setEnabled(fixable)
         state = c.pronunciation_state()
         self.pronunciation_action.setEnabled(state is not None and bool(state.rows))
 
@@ -445,6 +512,12 @@ class MainWindow(QMainWindow):
             items.append(
                 ("info", f"Read from a {c.score.path.suffix} file by {conversion.get('tool')}.")
             )
+            tempo = conversion.get("playback_tempo")
+            if isinstance(tempo, dict) and tempo.get("note"):
+                items.append(("info" if tempo.get("applied") else "warning", str(tempo["note"])))
+            lines = conversion.get("lyric_lines")
+            if isinstance(lines, dict) and lines.get("note"):
+                items.append(("info", str(lines["note"])))
         if c.assignments is not None:
             items.extend(("info", p) for p in c.assignments.problems())
         view = c.validation
@@ -483,7 +556,7 @@ class MainWindow(QMainWindow):
     # --- score events ----------------------------------------------------------------------
 
     def _score_loaded(self, score: LoadedScore) -> None:
-        parts = [f"{info.part_name} ({info.sounding_attacks} notes)" for info in score.lines]
+        parts = [f"{info.display_name} ({info.sounding_attacks} notes)" for info in score.lines]
         self.score_section.show_score(score.title, score.path, parts)
         self.setWindowTitle(f"{score.title} — {TITLE}")
         self.progress_section.reset()

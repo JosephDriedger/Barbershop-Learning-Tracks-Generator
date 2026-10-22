@@ -9,6 +9,7 @@ and OpenUtau conventions such as ``+`` and ``+~`` never appear in the model.
 
 from dataclasses import dataclass
 from enum import Enum
+from fractions import Fraction
 
 
 class Syllabic(Enum):
@@ -91,6 +92,10 @@ class Lyric:
     time_only: str | None = None
     melisma: Melisma = Melisma.NONE
     elided: tuple[LyricSegment, ...] = ()
+    # How many quarter notes the underscore line after this syllable runs from its note, when the
+    # score's own project says (MuseScore's MusicXML writes only a bare <extend/>, so it does not);
+    # None: not known, and the line is read to the next lyric or rest
+    extend_length: Fraction | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "elided", tuple(self.elided))

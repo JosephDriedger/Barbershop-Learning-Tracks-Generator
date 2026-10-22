@@ -7,6 +7,8 @@ from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
+from barbershop_tracks.core.musicxml.fixing import open_in_musescore
+
 SCORE_FILTER = (
     "Scores (*.musicxml *.xml *.mxl *.mscz *.mscx *.pdf);;"
     "MusicXML (*.musicxml *.xml *.mxl);;MuseScore projects (*.mscz *.mscx);;"
@@ -48,5 +50,10 @@ Opener = Callable[[Path], bool]
 
 
 def open_in_explorer(path: Path) -> bool:
-    """Show a folder in the system file manager."""
+    """Show a folder in the system file manager (or open a file in the program set for it)."""
     return QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+
+
+def open_in_notation_program(path: Path) -> bool:
+    """Start MuseScore on a score; False if it is not installed (the caller has other ways)."""
+    return open_in_musescore(path) is not None

@@ -74,6 +74,7 @@ class Preferences:
     tune_up = _Pref("output/tune_up", False, bool)
     count_in = _Pref("output/count_in", False, bool)
     tune_up_minor = _Pref("output/tune_up_minor", False, bool)
+    follow_melody = _Pref("output/follow_melody", True, bool)
     follow_lead = _Pref("lyrics/follow_lead", True, bool)
     phonemizer = _Pref("engine/phonemizer", "", str)
     renderer = _Pref("engine/renderer", "", str)

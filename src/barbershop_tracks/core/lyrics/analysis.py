@@ -218,7 +218,16 @@ def _analyze(
             )
         previous_end = attack.end
         record = _classify(
-            index, attack, selected, tracker, words, report_all, report, in_slur=slurs_open > 0
+            index,
+            attack,
+            selected,
+            tracker,
+            words,
+            report_all,
+            report,
+            in_slur=slurs_open > 0,
+            dotted_tail=_dotted_tail(performed, index),
+            start=attack.start,
         )
         slurs_open = max(
             0, slurs_open + sum(n.slurs_opened - n.slurs_closed for n in attack.source)
@@ -233,6 +242,23 @@ def _analyze(
     )
 
 
+_DOTTED_EIGHTH = Fraction(3, 4)  # in quarter notes
+_SIXTEENTH = Fraction(1, 4)
+
+
+def _dotted_tail(performed: Sequence[PerformanceNote], index: int) -> bool:
+    """True for a sixteenth that starts exactly where a dotted eighth ends (no rest between)."""
+    if index == 0:
+        return False
+    before, now = performed[index - 1], performed[index]
+    return (
+        not before.is_rest
+        and before.end == now.start
+        and before.end - before.start == _DOTTED_EIGHTH
+        and now.end - now.start == _SIXTEENTH
+    )
+
+
 def _classify(
     index: int,
     attack: PerformanceNote,
@@ -243,13 +269,17 @@ def _classify(
     report: Callable[[Finding], None],
     *,
     in_slur: bool = False,
+    dotted_tail: bool = False,
+    start: Fraction | None = None,
 ) -> _Record:
     candidates = lyrics_for(attack.source[0], selected)
     if len(candidates) > 1:  # the parser already reported LYRIC_DUPLICATE_VERSE
         report_all(tracker.conflict())
         return _Record(index, attack, AttackRole.CONFLICT)
     if not candidates:
-        role, continuation = tracker.unlyriced(index, in_slur=in_slur)
+        role, continuation = tracker.unlyriced(
+            index, in_slur=in_slur, dotted_tail=dotted_tail, start=start
+        )
         return _Record(index, attack, role, continuation=continuation)
     lyric = candidates[0]
     if lyric.kind is LyricKind.TEXT:
@@ -265,7 +295,7 @@ def _classify(
             )
             report_all(tracker.conflict())
             return _Record(index, attack, AttackRole.CONFLICT)
-        report_all(tracker.syllable(lyric, index))
+        report_all(tracker.syllable(lyric, index, attack.start))
         report_all(words.add(index, lyric))
         return _Record(index, attack, AttackRole.SYLLABLE, lyric=lyric)
     if lyric.kind is LyricKind.EXTENSION:

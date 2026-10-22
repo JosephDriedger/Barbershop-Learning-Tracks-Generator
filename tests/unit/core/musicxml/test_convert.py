@@ -22,6 +22,7 @@ from barbershop_tracks.core.musicxml.convert import (
 from barbershop_tracks.core.rendering import CancelToken
 from cli_scores import quartet_xml
 from shims import PROGRAM_SUFFIX, write_shim
+from smf_builders import ritardando_from
 
 FAKE = Path(__file__).resolve().parents[3] / "fake_converter.py"
 SCORE = quartet_xml(all_lyrics=True)
@@ -49,8 +50,15 @@ class Rig:
         path.write_bytes(content)
         return path
 
+    def starts(self) -> list[str]:
+        return self.log.read_text(encoding="utf-8").splitlines() if self.log.is_file() else []
+
     def runs(self) -> int:
-        return len(self.log.read_text(encoding="utf-8").splitlines()) if self.log.is_file() else 0
+        """How many times the score was converted (MuseScore's playback export is not one)."""
+        return len([line for line in self.starts() if ".mid " not in line + " "])
+
+    def playback_exports(self) -> int:
+        return len([line for line in self.starts() if ".mid " in line + " "])
 
 
 @pytest.fixture
@@ -307,3 +315,66 @@ def test_blts_own_folders_are_taken_out_of_the_path() -> None:
     parts = env["PATH"].split(os.pathsep)
     assert elsewhere in parts
     assert ours not in parts
+
+
+# --- MuseScore's playback (its MIDI export, which carries the ritardando and the fermata) ---------
+
+
+def with_playback(rig: Rig) -> Path:
+    path = rig.root / "playback.mid"
+    path.write_bytes(ritardando_from(100))
+    rig.monkeypatch.setenv("FAKE_CONVERTER_MIDI", str(path))
+    return path
+
+
+def test_a_musescore_project_also_gives_its_playback_midi(rig: Rig) -> None:
+    sent = with_playback(rig)
+    with opened_score(rig.file("Hymn.mscz")) as opened:
+        assert opened.playback_midi is not None
+        assert opened.playback_midi.read_bytes() == sent.read_bytes()
+    assert rig.playback_exports() == 1
+    assert rig.runs() == 1
+
+
+def test_the_playback_is_kept_with_the_conversion_and_reused(rig: Rig) -> None:
+    with_playback(rig)
+    cache = rig.root / "cache"
+    project = rig.file("Hymn.mscz")
+    with opened_score(project, cache=cache) as first:
+        kept = first.playback_midi
+        assert kept is not None
+        assert kept.parent == cache
+    with opened_score(project, cache=cache) as second:
+        assert second.playback_midi == kept
+    assert rig.playback_exports() == 1  # exported once, like the MusicXML
+    assert rig.runs() == 1
+
+
+def test_a_conversion_kept_before_playback_existed_gets_its_playback_when_next_opened(
+    rig: Rig,
+) -> None:
+    cache = rig.root / "cache"
+    project = rig.file("Hymn.mscz")
+    with opened_score(project, cache=cache) as first:  # no playback could be made then
+        assert first.playback_midi is None
+    with_playback(rig)
+    with opened_score(project, cache=cache) as later:
+        assert later.parse_path == first.parse_path  # the MusicXML is not made again
+        assert later.playback_midi is not None
+    assert rig.runs() == 1
+
+
+def test_a_playback_that_cannot_be_made_never_refuses_the_score(rig: Rig) -> None:
+    with opened_score(rig.file("Hymn.mscz")) as opened:  # the stand-in writes no MIDI file
+        assert opened.parse_path.suffix == ".musicxml"
+        assert opened.playback_midi is None
+
+
+def test_only_a_musescore_project_has_a_playback(rig: Rig) -> None:
+    with_playback(rig)
+    xml = rig.file("score.musicxml", SCORE.encode("utf-8"))
+    with opened_score(xml) as plain:
+        assert plain.playback_midi is None
+    with opened_score(rig.file("Hymn.pdf"), accept_recognition=True) as recognised:
+        assert recognised.playback_midi is None
+    assert rig.playback_exports() == 0

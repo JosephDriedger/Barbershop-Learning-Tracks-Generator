@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (
 )
 
 from barbershop_tracks.core.pipeline import STAGE_LABELS
+from barbershop_tracks.core.readiness.suggest import SuggestionBasis
 from barbershop_tracks.core.synthesis import VOICE_ORDER
 from barbershop_tracks.core.wording import counted
 from barbershop_tracks.models import VoiceRole
@@ -79,8 +80,16 @@ def _button(text: str, tip: str = "") -> QPushButton:
     return button
 
 
+FIX_TEXT = "Open Score to &Fix…"
+FIX_TIP = (
+    "Open the score in MuseScore (or your usual program) to correct it. Save it there, then "
+    "open the corrected file here. A score read from a PDF opens beside the PDF."
+)
+
+
 class ScoreSection(QGroupBox):
     browse_requested = Signal()
+    fix_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Score", parent)
@@ -93,13 +102,21 @@ class ScoreSection(QGroupBox):
         self.problem = QLabel("")
         self.problem.setObjectName("error")
         self.problem.setWordWrap(True)
-        self.browse = _button("&Choose Score…", "Open a MusicXML file (.musicxml, .xml, .mxl)")
+        self.browse = _button(
+            "&Choose Score…",
+            "Open a score: MusicXML (.musicxml, .xml, .mxl), a MuseScore project, or a PDF",
+        )
         self.browse.setAccessibleName("Choose Score")
         self.browse.clicked.connect(self.browse_requested)
-        drop = hint("You can also drag a MusicXML file onto this window.")
+        self.fix = _button(FIX_TEXT, FIX_TIP)
+        self.fix.setAccessibleName("Open Score to Fix")
+        self.fix.setEnabled(False)
+        self.fix.clicked.connect(self.fix_requested)
+        drop = hint("You can also drag a MusicXML, MuseScore or PDF file onto this window.")
         layout = QVBoxLayout(self)
         row = QHBoxLayout()
         row.addWidget(self.browse)
+        row.addWidget(self.fix)
         row.addStretch(1)
         layout.addLayout(row)
         layout.addWidget(self.headline)
@@ -197,7 +214,11 @@ class AssignmentSection(QGroupBox):
         self.table.clearContents()
         self.table.setRowCount(len(state.lines))
         for row, info in enumerate(state.lines):
-            name = QTableWidgetItem(f"{info.part_name}  ({info.line_id})")
+            name = QTableWidgetItem(f"{info.display_name}  ({info.line_id})")
+            if (
+                info.position
+            ):  # the name in the file is often wrong (a recognised PDF keeps one line)
+                name.setToolTip(f"Named “{info.part_name}” in the file")
             bars = (
                 f"bars {info.first_measure} to {info.last_measure}"
                 if info.first_measure is not None
@@ -210,7 +231,7 @@ class AssignmentSection(QGroupBox):
             self.table.setItem(row, 0, name)
             self.table.setItem(row, 1, detail)
             combo = QComboBox()
-            combo.setAccessibleName(f"Voice for {info.part_name}")
+            combo.setAccessibleName(f"Voice for {info.display_name}")
             combo.addItem("— choose —", None)
             for role in VOICE_ORDER:
                 combo.addItem(ROLE_TEXT[role], role)
@@ -230,7 +251,12 @@ class AssignmentSection(QGroupBox):
                 lambda _i, line=info.line_id, box=combo: self._chosen(line, box.currentData())
             )
             if info.line_id in state.suggested:
-                combo.setToolTip("Suggested from the part name — please confirm")
+                basis = (
+                    "the staff layout (upper voice: Tenor or Baritone, lower: Lead or Bass)"
+                    if info.suggestion.basis is SuggestionBasis.LAYOUT
+                    else "the part name"
+                )
+                combo.setToolTip(f"Suggested from {basis} — please confirm")
                 note = QLabel(" suggested ")
                 note.setObjectName("hint")
                 holder = QWidget()
@@ -379,6 +405,7 @@ class VoicesSection(QGroupBox):
 
 class ValidationSection(QGroupBox):
     review_requested = Signal()
+    fix_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Lyrics and Validation", parent)
@@ -393,6 +420,10 @@ class ValidationSection(QGroupBox):
         self.review = _button("Review &Lyrics…", "Decide what the notes without lyrics are sung to")
         self.review.setEnabled(False)
         self.review.clicked.connect(self.review_requested)
+        self.fix = _button(FIX_TEXT, FIX_TIP)
+        self.fix.setAccessibleName("Open Score to Fix, from the list of problems")
+        self.fix.setEnabled(False)
+        self.fix.clicked.connect(self.fix_requested)
         self.details_button = _button("Show &Technical Details")
         self.details_button.setCheckable(True)
         self.details = QPlainTextEdit()
@@ -406,6 +437,7 @@ class ValidationSection(QGroupBox):
         layout.addWidget(self.list, 1)
         row = QHBoxLayout()
         row.addWidget(self.review)
+        row.addWidget(self.fix)
         row.addStretch(1)
         row.addWidget(self.details_button)
         layout.addLayout(row)
@@ -439,6 +471,7 @@ class ValidationSection(QGroupBox):
 class OutputSection(QGroupBox):
     browse_requested = Signal()
     ffmpeg_requested = Signal()
+    melody_requested = Signal()
 
     def __init__(self, controller: AppController, parent: QWidget | None = None) -> None:
         super().__init__("Output Settings", parent)
@@ -485,6 +518,17 @@ class OutputSection(QGroupBox):
             box.setToolTip(tip)
         self.focus.setAccessibleName("Featured voice loudness")
         self.others.setAccessibleName("Other voices loudness")
+        self.follow_melody = QCheckBox("Make the Part with the &Melody Louder in the Full Quartet")
+        self.follow_melody.setToolTip(
+            "In the Full Quartet track the part that has the melody is louder than the others, "
+            "following it from part to part. BLT finds it from the words (the part singing the "
+            "words while the others hold an 'oo'); you can mark bars where it is somewhere "
+            "else. The other tracks are not changed. Switch off for all four parts evenly."
+        )
+        self.melody_button = _button(
+            "Who Has the Melody…", "See who has the melody where, and mark bars"
+        )
+        self.melody_button.setAccessibleName("Who has the melody")
         self.keep_stems = QCheckBox("Keep the Four Separate Voice Recordings")
         self.keep_project = QCheckBox("Keep the Singing Project File")
         self.tune_up = QCheckBox("Add a &Tune-Up Note Before the Music")
@@ -548,6 +592,11 @@ class OutputSection(QGroupBox):
         form.addRow("", self.gain_row)
         layout = QVBoxLayout(self)
         layout.addLayout(form)
+        melody_row = QHBoxLayout()
+        melody_row.addWidget(self.follow_melody)
+        melody_row.addWidget(self.melody_button)
+        melody_row.addStretch(1)
+        layout.addLayout(melody_row)
         layout.addWidget(self.keep_stems)
         layout.addWidget(self.keep_project)
         tune_row = QHBoxLayout()
@@ -573,6 +622,8 @@ class OutputSection(QGroupBox):
         )
         self.focus.valueChanged.connect(lambda v: controller.set_options(custom_focus=v))
         self.others.valueChanged.connect(lambda v: controller.set_options(custom_others=v))
+        self.follow_melody.toggled.connect(lambda v: controller.set_options(follow_melody=v))
+        self.melody_button.clicked.connect(self.melody_requested)
         self.keep_stems.toggled.connect(lambda v: controller.set_options(keep_stems=v))
         self.keep_project.toggled.connect(lambda v: controller.set_options(keep_project=v))
         self.tune_up.toggled.connect(lambda v: controller.set_options(tune_up=v))
@@ -594,6 +645,7 @@ class OutputSection(QGroupBox):
             self.preset,
             self.focus,
             self.others,
+            self.follow_melody,
             self.keep_stems,
             self.keep_project,
             self.tune_up,
@@ -620,6 +672,10 @@ class OutputSection(QGroupBox):
             self.preset.setCurrentIndex(max(self.preset.findData(options.gain_preset), 0))
             self.focus.setValue(options.custom_focus)
             self.others.setValue(options.custom_others)
+            self.follow_melody.setChecked(options.follow_melody)
+            self.melody_button.setEnabled(
+                options.follow_melody and controller.melody_plan() is not None
+            )
             self.keep_stems.setChecked(options.keep_stems)
             self.keep_project.setChecked(options.keep_project)
             self.tune_up.setChecked(options.tune_up)

@@ -235,7 +235,8 @@ def _source(error: PipelineError) -> Explanation:
             "This file could not be read as a score",
             error.message,
             (
-                "Make sure the file is MusicXML (.musicxml, .xml or .mxl).",
+                "Make sure the file is MusicXML (.musicxml, .xml or .mxl), "
+                "a MuseScore project or a PDF.",
                 "In MuseScore use File > Export > MusicXML.",
             ),
             text,

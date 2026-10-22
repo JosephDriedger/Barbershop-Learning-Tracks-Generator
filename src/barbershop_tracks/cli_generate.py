@@ -24,6 +24,7 @@ JSON object per line instead: stage/progress/host/warning events, then a final `
 import argparse
 import hashlib
 import json
+import re
 import signal
 import sys
 import threading
@@ -31,6 +32,7 @@ from pathlib import Path
 from types import FrameType
 from typing import Any
 
+from barbershop_tracks.core.melody import MelodyError, MelodyMark
 from barbershop_tracks.core.mixing import PRESETS, AudioFormat, find_ffmpeg
 from barbershop_tracks.core.pipeline import (
     APPROVALS_SCHEMA,
@@ -96,6 +98,33 @@ def _singer(text: str) -> tuple[VoiceRole | None, str]:
     if not text.strip():
         raise argparse.ArgumentTypeError("a singer id must not be empty")
     return None, text.strip()
+
+
+def _melody_mark(text: str) -> MelodyMark:
+    """``ROLE=FIRST-LAST`` (or ``ROLE=BAR``): that voice has the melody in those bars.
+
+    A bar may be followed by ``:BEAT``: ``TENOR=30:3-31:2`` is from beat 3 of bar 30 to the end of
+    beat 2 of bar 31. Without a beat the whole bar is meant.
+    """
+    role_text, _, bars = text.partition("=")
+    role = _ROLES.get(role_text.strip().lower())
+    found = re.fullmatch(r"(\d+)(?::(\d+))?(?:-(\d+)(?::(\d+))?)?", bars.strip())
+    if role is None or found is None:
+        raise argparse.ArgumentTypeError(
+            f"{text!r} is not ROLE=FIRST-LAST or ROLE=BAR, for example LEAD=12-16, TENOR=30 or "
+            "TENOR=30:3-31:2 (bars, and beats after a colon)"
+        )
+    first, first_beat, last, last_beat = found.groups()
+    try:
+        return MelodyMark(
+            role,
+            int(first),
+            int(last or first),
+            int(first_beat or 1),
+            int(last_beat) if last_beat else None,
+        )
+    except MelodyError as error:
+        raise argparse.ArgumentTypeError(error.message) from error
 
 
 def add_config_options(parser: argparse.ArgumentParser) -> None:
@@ -184,6 +213,20 @@ def add_parsers(commands: Any) -> None:
         "--no-follow-lead",
         action="store_true",
         help="do not let parts without their own lyrics sing the Lead's words (they go to review)",
+    )
+    gen.add_argument(
+        "--melody",
+        action="append",
+        default=[],
+        type=_melody_mark,
+        metavar="ROLE=FIRST-LAST",
+        help="that voice has the melody in those bars of the score (repeatable), whatever the "
+        "words say, e.g. --melody tenor=30-33; by default the part singing the words has it",
+    )
+    gen.add_argument(
+        "--no-follow-melody",
+        action="store_true",
+        help="mix the Full Quartet evenly instead of making the voice with the melody louder",
     )
     gen.add_argument("--keep-stems", action="store_true", help="also publish the four stems")
     gen.add_argument("--keep-project", action="store_true", help="also publish the USTX project")
@@ -417,6 +460,8 @@ def _generate(args: argparse.Namespace, json_mode: bool) -> int:
         timeout_seconds=args.timeout,
         mp3_quality=args.mp3_quality,
         follow_lead=False if args.no_follow_lead else None,
+        follow_melody=not args.no_follow_melody,
+        melody_marks=tuple(args.melody),
         accept_recognition=args.accept_recognition,
         compose_unknown_words=not args.no_composed_pronunciations,
         guess_by_spelling=not args.no_guessed_pronunciations,

@@ -10,7 +10,7 @@ undecided until they decide it: no tempo, meter, lyric, voice assignment or sing
 
 import os
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -18,6 +18,7 @@ from typing import Any
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from barbershop_tracks.core.handoff import HandoffError, sanitize_name
+from barbershop_tracks.core.melody import MelodyError, MelodyMark, MelodySection, melody_of
 from barbershop_tracks.core.mixing import (
     PRESETS,
     AudioFormat,
@@ -25,6 +26,8 @@ from barbershop_tracks.core.mixing import (
     MixConfigurationError,
 )
 from barbershop_tracks.core.musicxml import ParseResult, opened_score, parse_musicxml
+from barbershop_tracks.core.musicxml.fixing import editable_copy
+from barbershop_tracks.core.musicxml.opened import parse_opened
 from barbershop_tracks.core.pipeline import (
     DEFAULT_PHONEMIZER,
     DEFAULT_RENDERER,
@@ -81,6 +84,16 @@ class LoadedScore:
     # how it came from a file that is not MusicXML (MuseScore project, recognised PDF), or None
     conversion: dict[str, Any] | None = None
     accepted_recognition: bool = False  # the person accepted a recognised score
+    converted_path: Path | None = None  # the MusicXML BLT read, when it converted the file first
+
+
+@dataclass(frozen=True, slots=True)
+class FixTarget:
+    """What to put in front of a person who wants to correct the score."""
+
+    path: Path  # the file to open: an editable score, or the picture itself if nothing was read
+    compare_with: Path | None  # the original picture of a recognised score, to check it against
+    recognised: bool  # the file is music recognised from a picture
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +132,7 @@ class OutputOptions:
     tune_up: bool = False  # a note to tune to before the music
     count_in: bool = False  # a bar of metronome clicks before the music
     tune_up_minor: bool = False  # the tune-up note is the minor key's tonic, not the major's
+    follow_melody: bool = True  # the Full Quartet makes the voice with the melody louder
     replace: bool = False
 
 
@@ -162,12 +176,16 @@ class AppController(QObject):
         self.adding_voice = False
         self.review: LyricReviewState | None = None
         self.approvals: tuple[LyricApproval, ...] = ()
+        # bars a person marked as having the melody in a part other than the one the words say
+        self.melody_marks: tuple[MelodyMark, ...] = ()
         # the words the dictionary lacks (learned when a run stops at them) and what is decided
         self.pronunciation: PronunciationState | None = None
         self.checking = False
         self.validation: ValidationView | None = None
         self.validating = False
         self.loading = False
+        self.last_attempt: Path | None = None  # the file most recently chosen, read or not
+        self.failed: Path | None = None  # set while the most recent attempt could not be read
         self.running = False
         self.token: CancelToken | None = None
         self.started_at = 0.0
@@ -185,6 +203,7 @@ class AppController(QObject):
             tune_up=prefs.tune_up,
             count_in=prefs.count_in,
             tune_up_minor=prefs.tune_up_minor,
+            follow_melody=prefs.follow_melody,
         )
         self.output_dir = prefs.output_dir
         self._debounce = QTimer(self)
@@ -249,6 +268,7 @@ class AppController(QObject):
 
     def load_score(self, path: Path, *, accept_recognition: bool = False) -> None:
         self.loading = True
+        self.last_attempt = path
         self.state_changed.emit()
         cache = self.converted_cache()
 
@@ -258,10 +278,14 @@ class AppController(QObject):
                 with opened_score(
                     path, accept_recognition=accept_recognition, cache=cache
                 ) as opened:
-                    parsed = self._parse(opened.parse_path)
+                    parsed, reading = parse_opened(opened, self._parse)
                     digest = opened.sha256
-                    conversion = (
+                    conversion = reading.into(
                         None if opened.conversion is None else opened.conversion.as_record()
+                    )
+                    # only a kept (cached) conversion outlives this block
+                    converted_path = (
+                        opened.parse_path if conversion is not None and cache is not None else None
                     )
             except OSError as error:
                 raise PipelineError(
@@ -283,6 +307,7 @@ class AppController(QObject):
                 problems=problems,
                 conversion=conversion,
                 accepted_recognition=accept_recognition,
+                converted_path=converted_path,
             )
 
         self.dispatcher.submit(work, self._score_ready, self._score_failed)
@@ -293,12 +318,14 @@ class AppController(QObject):
         if previous is not None and self.assignments is not None:
             self._remembered[previous.sha256] = self.assignments.snapshot()
         self.score = score
+        self.failed = None
         self.assignments = AssignmentState(score.lines)
         saved = self._remembered.get(score.sha256)
         if saved:  # the same score opened again in this session keeps the user's choices
             self.assignments.restore(saved, [info.line_id for info in score.lines])
         self.review = None
         self.approvals = ()
+        self.melody_marks = ()  # marks belong to one score
         self.pronunciation = None  # decisions belong to one score
         self.validation = None
         self.last_result = None
@@ -310,8 +337,27 @@ class AppController(QObject):
 
     def _score_failed(self, error: BaseException) -> None:
         self.loading = False
+        self.failed = self.last_attempt
         self.score_failed.emit(translate(error))
         self.state_changed.emit()
+
+    def fix_target(self) -> FixTarget | None:
+        """The file to open so the person can correct the score; None before any score was chosen.
+
+        A score that could not be read is opened as it is. A recognised one is opened as the
+        MusicXML BLT read (under the name of the PDF, beside it), together with the picture to check
+        it against. Anything else is the person's own file.
+        """
+        if self.failed is not None:
+            return FixTarget(self.failed, None, False)
+        score = self.score
+        if score is None:
+            return None
+        recognised = bool(score.conversion and score.conversion.get("recognised"))
+        if recognised and score.converted_path is not None and score.converted_path.is_file():
+            copy = editable_copy(score.converted_path, score.path, self.converted_cache())
+            return FixTarget(copy, score.path, True)
+        return FixTarget(score.path, None, False)
 
     # --- assignments -----------------------------------------------------------------------
 
@@ -423,6 +469,32 @@ class AppController(QObject):
         prefs.tune_up = options.tune_up
         prefs.count_in = options.count_in
         prefs.tune_up_minor = options.tune_up_minor
+        prefs.follow_melody = options.follow_melody
+        self.state_changed.emit()
+
+    # --- the melody ------------------------------------------------------------------------
+
+    def melody_plan(self) -> SynthesisPlan | None:
+        """The plan the melody is read from: there once voices are chosen."""
+        view = self.validation
+        if view is None:
+            return None
+        return view.effective or view.baseline
+
+    def melody_sections(
+        self, marks: Sequence[MelodyMark] | None = None
+    ) -> tuple[MelodySection, ...]:
+        """Who has the melody where, with ``marks`` (default: the person's) laid over the words."""
+        plan = self.melody_plan()
+        if plan is None:
+            return ()
+        try:
+            return melody_of(plan, self.melody_marks if marks is None else marks)
+        except MelodyError:
+            return ()
+
+    def set_melody_marks(self, marks: Sequence[MelodyMark]) -> None:
+        self.melody_marks = tuple(marks)
         self.state_changed.emit()
 
     def set_output_dir(self, folder: str) -> None:
@@ -710,6 +782,8 @@ class AppController(QObject):
             tune_up=options.tune_up,
             count_in=options.count_in,
             tune_up_minor=options.tune_up_minor,
+            follow_melody=options.follow_melody,
+            melody_marks=self.melody_marks,
             timeout_seconds=float(self.prefs.timeout_minutes * 60),
             mp3_quality=options.mp3_quality,
             follow_lead=self.follow_lead(),

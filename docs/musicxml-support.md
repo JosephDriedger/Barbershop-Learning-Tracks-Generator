@@ -133,6 +133,20 @@ quarter notes per minute, as an exact `Fraction` (92.5 is 185/2; nothing is roun
   ERROR `TEMPO_CONFLICT` and that position is left unresolved. A tempo declared in one part only
   (typical for MuseScore) is used.
 
+**Ritardando, fermata and "a tempo" (MuseScore projects only).** MuseScore exports `rit.` and a fermata to MusicXML as words
+or not at all, with no tempo attached, so MusicXML alone would be sung straight through at the opening tempo; a tempo text
+with a number and "a tempo" do arrive as `<sound tempo>`. MuseScore *plays* all of them, and its MIDI export of the project
+says how (a ritardando as steps of a quarter of a beat, a fermata as a slower stretch, "a tempo" as the return). For a `.mscz`
+or `.mscx` BLT therefore also has MuseScore export the playback MIDI (kept in the cache beside the MusicXML) and takes the
+**tempo of the performance from it** (`core/musicxml/midi_tempo.py`, `playback.py`): what the person hears in MuseScore, with
+nothing guessed about how much a `rit.` slows. It is trusted only if the score states a tempo of its own and MuseScore's
+playback agrees with every tempo mark BLT reads from the score, at the place it is written (within 0.01 beat per minute);
+otherwise it is left unused, a warning says so, and the score's own tempo marks decide. A score with no tempo of its own is
+not given one (`TEMPO_MISSING` stays). Tempo values are rounded to a multiple of 1/1024 beat per minute (a MIDI tempo is a
+whole number of microseconds, so never quite the value meant), which is exact as a double. The package's `source.conversion`
+records `playback_tempo` (applied, how many changes). For MusicXML, compressed MusicXML and recognised PDFs there is no
+playback to read, so only the tempo marks of the file count there.
+
 **Meter**: `Song.time_signatures` has one `TimeSignature` per **effective change**. Each part
 records the meter in effect at every measure; parts are compared by what is in effect (a part
 that declares nothing inherits), and any difference is ERROR `TIME_SIGNATURE_CONFLICT`. Repeated
@@ -170,6 +184,10 @@ Problems and placements:
 - Slurs are read (`Note.slurs_opened` / `slurs_closed`). A lyric-less note inside a slur that opened on an earlier note holds
   the syllable sung before it (basis `slur`), the usual notation for one syllable over several notes; an extender, when the
   score has one, decides first, and a slur never invents a syllable (a slur over notes that were never given one stays lyric-less).
+- **Dotted figure (our reading).** MuseScore draws no extender line under so short a note, so a **lyric-less sixteenth note
+  straight after a dotted eighth that carries a syllable** (no rest between, no slur or extender to say otherwise) holds that
+  syllable (basis `dotted_rhythm`). It holds that one note only: a second lyric-less note after it is still missing its lyric,
+  and a sixteenth with a lyric of its own is sung as written.
 
 ### Performed lyric analysis (M3c2)
 
@@ -179,6 +197,16 @@ MusicXML does not define are labelled as ours in the issue messages.
 
 - **Verse:** logical `"1"` (explicit or unnumbered) if present, else the first logical verse; a
   requested verse overrides; mixed `1`/unnumbered is analyzed as one stream with one warning.
+- **Line length from the project (MuseScore `.mscz`/`.mscx`).** MuseScore's MusicXML writes only a bare `<extend/>`, but the project keeps
+  the length of every underscore line (`<ticks_f>9/8</ticks_f>` in the lyric: nine eighths of a whole note, ie 4.5 quarter notes from the note it
+  is on). `core/musicxml/mscx_lyrics.py` reads those lengths; `lyric_lines.py` gives them to the matching held syllables (`Lyric.extend_length`),
+  matching each voice of the score to a voice of the project **by what it sings** (the same lyrics, in the same order, per staff; an ambiguous
+  tie between two voices that sing the same words is broken by their order; anything that does not match exactly is left to the inference
+  below). A syllable with a known length holds at least that far (basis `line`): attacks that start inside the line continue it. Lyric-less attacks
+  after its end carry on as an untyped line does (to the next lyric or rest), because MuseScore leaves out lines that are clearly implied;
+  a rest or a new lyric still ends it early. The follow-the-Lead rule that reads an untyped line as ended
+  where a part keeps the Lead's rhythm does not apply to such a line. The performance is derived again from the song with the lengths, and the
+  playback tempo (`playback.py`) is laid on that performance afterwards (`opened.py`).
 - **Melisma:** an *untyped* `<extend/>` (MuseScore) is inferred: lyric-less attacks after it are
   continuations until a new lyric, a **rest** (our conservative boundary), humming or laughing, or
   the end of the line. A *typed* extension (`start`/`continue`/`stop`) is explicit state: a rest

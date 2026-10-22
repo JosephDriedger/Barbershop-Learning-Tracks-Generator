@@ -24,7 +24,7 @@ Baritone, Bass. They come from `GainProfile` (`DEFAULT_PROFILE`); nothing else c
 
 | # | Identifier | File | Tenor | Lead | Baritone | Bass |
 |---|---|---|---|---|---|---|
-| 1 | `full_quartet` | `01_Full_Quartet` | 0.25 | 0.25 | 0.25 | 0.25 |
+| 1 | `full_quartet` | `01_Full_Quartet` | 0.25 | 0.25 | 0.25 | 0.25 (or following the melody, below) |
 | 2 | `tenor_predominant` | `02_Tenor_Predominant` | 0.50 | 0.15 | 0.15 | 0.15 |
 | 3 | `lead_predominant` | `03_Lead_Predominant` | 0.15 | 0.50 | 0.15 | 0.15 |
 | 4 | `baritone_predominant` | `04_Baritone_Predominant` | 0.15 | 0.15 | 0.50 | 0.15 |
@@ -33,6 +33,33 @@ Baritone, Bass. They come from `GainProfile` (`DEFAULT_PROFILE`); nothing else c
 | 10 to 13 | `without_tenor` … `without_bass` | `10_Without_Tenor` … `13_Without_Bass` | 0.33 for each remaining voice, 0 for the muted one | | | |
 
 Filenames are `NN_Label_With_Underscores.wav` / `.mp3`; the order and numbers never change.
+
+### The Full Quartet follows the melody
+
+By default track 1 is not an even blend: the voice that **has the melody** is louder, moment by moment, like a real
+performance (`--no-follow-melody`, or the *Make the Part with the Melody Louder* checkbox, mixes all four evenly again).
+The holder gets `melody_focus` (0.40) and each other voice `melody_others` (0.20), which add up to exactly 1.0, so the
+mix cannot clip; the presets scale them (`strong-focus` 0.50/0.15, `gentle-focus` 0.34/0.22). When the melody moves from
+one voice to another the gains crossfade over 50 ms (`RAMP_SECONDS`), centred on the change, so there is no click; a
+change closer to the next than the crossfade shortens the crossfade instead of breaking it. The other twelve tracks are
+never touched, and a score whose melody never leaves one voice gets a plain constant balance, not a schedule.
+
+Who has the melody (`core/melody.py`) is read from the words, because BLT cannot hear a melody:
+
+* the **Lead** while it sings words, and while nobody does (all four on "oo");
+* when the Lead sings an "oo" or rests and **exactly one other part sings words**, that part;
+* when the Lead sings an "oo" and **several other parts sing words**, nothing says which: the Lead is kept and the
+  section's note says so (a Lead that merely rests for a moment while the others move keeps it without a note).
+
+A word is any lyric that is not a vocable (`oo`, `ooh`, `mm`, `hmm`, `doo`, `dum`, `bum`, `bom`, `bah`, `wah`; "la", "oh"
+and "ah" can be words and are not in the list). A syllable held over several notes is as much a word as its first note.
+A person can **mark bars, down to the beat** (*Who Has the Melody…* in Output Settings, `--melody tenor=30-33` for whole bars
+or `--melody tenor=30:3-31:2` from beat 3 of bar 30 to the end of beat 2 of bar 31 on the command line, repeatable); a mark
+always wins, applies in every pass of a repeat, and a bar or beat the score does not have is refused before anything is
+sung. A bar has as many beats as its time signature says (4/4 has four quarter-note beats, 6/8 six eighth-note beats, 9/8 nine), and
+the window limits the beat boxes to the beats of the bar chosen. The manifest records `melody` (every section, in quarter notes, with its bars and whether it came from
+the lyrics or a mark) and, on track 1, `gain_schedule` (the gains from each frame on) and `crossfade_frames`; its `gains`
+are then the most each voice reaches.
 
 Rationale (conservative, clipping-averse):
 

@@ -10,9 +10,20 @@ nothing musical is decided for the user.
    file name and detected parts (with note counts) appear.
 2. **Voice Assignment**: every part has a *Sings as* choice: Tenor, Lead, Baritone, Bass or *Ignore
    this part*. A voice that is already used by another part is greyed out in the other rows; incomplete
-   choices are explained immediately. *Suggest voices* fills in likely voices from the part names, marks
+   choices are explained immediately. *Suggest voices* fills in likely voices, marks
    them *suggested*, and generation stays blocked until you confirm them (*Confirm suggestions*) or
    change the rows yourself. Your choices are kept if you reopen the same score during the session.
+   The suggestion comes from the part names or, when no name speaks, from the usual barbershop layout:
+   two staves with two voices each, the Tenor/Lead staff first and the Baritone/Bass staff second, and on
+   each staff the upper voice (the lower voice number: stems up) is the Tenor or Baritone and the lower
+   voice is the Lead or Bass. The voice decides, never the pitch, because these voices cross often. Such
+   lines are labelled by their place ("Tenor/Lead staff, upper voice") rather than by the name in the
+   file, which a recognised PDF often gets wrong; a stray fragment of a few notes is labelled "extra voice"
+   and gets no suggestion.
+   **Open Score to Fix** (beside *Choose score* and under the list of problems) opens the score in MuseScore
+   (or the program your system uses for it) so errors can be corrected there, then you open the corrected
+   file here. A score read from a PDF opens as `NAME (recognised).musicxml` beside the PDF, with the PDF
+   itself opened next to it to check the music against. It also works when a file could not be read at all.
 3. **Singing Voices**: a voices folder (found automatically in OpenUtau's default location if it
    exists, or chosen with *Browse*) is scanned in the background; each part has its own voice selector.
    Nothing is pre-selected, even when only one voice is installed. *Same voice for all parts* copies the
@@ -26,6 +37,9 @@ nothing musical is decided for the user.
    MP3, both), MP3 quality, FFmpeg location (MP3 only; BLT never ships FFmpeg), mix balance (three
    presets or *Custom* featured/other loudness, validated), keep the four recordings, keep the project
    file, and *Replace existing tracks*. The exact folder the tracks will be saved in is always shown.
+   *Make the Part with the Melody Louder in the Full Quartet* (on by default) makes track 1 follow the melody;
+   *Who Has the Melody…* shows who BLT thinks has it in each stretch of bars (read from the words) and lets you
+   mark bars, down to the beat, where it is somewhere else. See [m9-mixing.md](m9-mixing.md).
 6. **Generate learning tracks** is enabled only when everything is decided; otherwise the text beside it
    lists what is missing. **Generation Progress** shows the current step, a list of steps, elapsed time,
    a *Cancel generation* button and an expandable technical log. On success: how many tracks, in which

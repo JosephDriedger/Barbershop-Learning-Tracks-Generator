@@ -23,6 +23,7 @@ from typing import Any, Protocol
 
 from barbershop_tracks.core.errors import ScoreConversionError, ScoreLoadError
 from barbershop_tracks.core.handoff import HandoffError, sanitize_name
+from barbershop_tracks.core.melody import MelodyError, MelodyMark, MelodySection, melody_of
 from barbershop_tracks.core.mixing import (
     AudioFormat,
     FfmpegMp3Encoder,
@@ -40,6 +41,7 @@ from barbershop_tracks.core.mixing import (
     stems_from_render,
 )
 from barbershop_tracks.core.musicxml import ParseResult, opened_score, parse_musicxml
+from barbershop_tracks.core.musicxml.opened import parse_opened
 from barbershop_tracks.core.pipeline.config import (
     ENGLISH_PHONEMIZERS,
     ResolvedConfig,
@@ -201,6 +203,10 @@ class GenerateRequest:
     tune_up: bool = False
     count_in: bool = False
     tune_up_minor: bool = False  # the tune-up note is the relative minor's tonic, not the major's
+    # the Full Quartet makes the voice that has the melody louder (read from the lyrics: the part
+    # singing the words), except in the bars a person marked; False: all four evenly
+    follow_melody: bool = True
+    melody_marks: tuple[MelodyMark, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,6 +235,8 @@ def translate(error: BaseException) -> PipelineError:
         return PipelineError(cat.CANCELLED, "CANCELLED", error.message)
     if isinstance(error, RenderTimeoutError):
         return PipelineError(cat.TIMEOUT, error.code, error.message, error.details)
+    if isinstance(error, MelodyError):
+        return PipelineError(cat.CONFIGURATION, error.code, error.message)
     if isinstance(error, OverrideError):
         # a pronunciation a person gave does not fit this score, voice or engine (stale, mismatched,
         # for another phonemizer): the person decides it again; nothing was rendered
@@ -301,12 +309,21 @@ def generate(
         raise translate(error) from error
 
 
+# what is said, by code, about what was read from a MuseScore project besides its MusicXML
+_READING_NOTICES = {
+    "tempo": "TEMPO_FROM_PLAYBACK",
+    "tempo_unused": "TEMPO_PLAYBACK_UNUSED",
+    "lines": "LYRIC_LINES_FROM_PROJECT",
+}
+
+
 def _load_plan(
     request: GenerateRequest,
     services: Services,
     run: _Run,
     refs: Mapping[VoiceRole, VoiceEngineRef],
     cache: Path | None = None,
+    warnings: list[str] | None = None,
 ) -> tuple[SynthesisPlan, str]:
     """Read and analyse the score and build the ready plan; returns it with the score's SHA-256.
 
@@ -322,14 +339,22 @@ def _load_plan(
             cache=cache,
             cancel=run.cancel,
         ) as opened:
-            parsed = services.parse(opened.parse_path)
+            # a MuseScore project's held syllables, ritardando, fermata and "a tempo" come from it
+            parsed, reading = parse_opened(opened, services.parse)
             sha = opened.sha256
-            conversion = None if opened.conversion is None else opened.conversion.as_record()
+            conversion = reading.into(
+                None if opened.conversion is None else opened.conversion.as_record()
+            )
     except OSError as error:
         raise PipelineError(
             ErrorCategory.SOURCE, "SCORE_UNREADABLE", f"cannot read {request.score}: {error}"
         ) from error
     run.stage(Stage.SOURCE_LOADING, "finished")
+    for kind, message in reading.notices():
+        code = _READING_NOTICES[kind]
+        if warnings is not None:
+            warnings.append(f"{code}: {message}")
+        run.emit({"event": "warning", "code": code, "message": message})
     run.check()
 
     run.stage(Stage.SCORE_ANALYSIS, "started")
@@ -590,7 +615,9 @@ def _generate(
             "MP3 output needs FFmpeg: pass --ffmpeg PATH, set BLT_FFMPEG, or put ffmpeg on PATH",
         )
 
-    plan, sha = _load_plan(request, services, run, refs, config.layout.cache / "converted")
+    plan, sha = _load_plan(
+        request, services, run, refs, config.layout.cache / "converted", warnings
+    )
     if request.tune_up or request.count_in:  # refused now, not after the voices are sung
         try:
             prelude_for(
@@ -598,6 +625,13 @@ def _generate(
                 PreludeOptions(request.tune_up, request.count_in, request.tune_up_minor),
             )
         except MixConfigurationError as error:
+            raise PipelineError(ErrorCategory.CONFIGURATION, error.code, error.message) from error
+
+    melody: tuple[MelodySection, ...] = ()
+    if request.follow_melody:  # a bar that is not in the score is refused now, not after singing
+        try:
+            melody = melody_of(plan, request.melody_marks)
+        except MelodyError as error:
             raise PipelineError(ErrorCategory.CONFIGURATION, error.code, error.message) from error
 
     run.stage(Stage.USTX_PREPARATION, "started")
@@ -635,6 +669,7 @@ def _generate(
             warnings,
             started,
             resolved,
+            melody,
         )
     finally:
         try:
@@ -655,6 +690,7 @@ def _render_and_mix(
     warnings: list[str],
     started: float,
     resolved: ResolvedOverrides = NO_OVERRIDES,
+    melody: tuple[MelodySection, ...] = (),
 ) -> GenerateResult:
     settings = RenderSettings(
         layout=config.layout,
@@ -743,7 +779,7 @@ def _render_and_mix(
     if mp3 is not None:
         run.stage(Stage.MP3_ENCODING, "started")
     package = services.package(
-        PackageSource.from_plan(plan, pronunciations=pronunciations),
+        PackageSource.from_plan(plan, pronunciations=pronunciations, melody=melody),
         stems_from_render(rendered),
         destination,
         PackageSettings(
@@ -752,6 +788,7 @@ def _render_and_mix(
             profile=config.gain_profile,
             mp3=mp3,
             prelude=PreludeOptions(request.tune_up, request.count_in, request.tune_up_minor),
+            follow_melody=request.follow_melody,
         ),
         cancel=run.cancel,
         on_progress=on_package_event,

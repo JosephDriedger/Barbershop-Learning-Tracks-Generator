@@ -46,6 +46,7 @@ def codes_in_source() -> set[str]:
             ("core", "mixing"),
             ("core", "pipeline"),
             ("core", "voices"),  # typed VoiceInstallError codes of adding a voicebank
+            ("core", "melody.py"),  # typed MelodyError codes of a melody mark that cannot be used
         }:
             # Narrow on purpose: M5 serialization/package failures are typed ``MidiExportError`` /
             # ``HandoffError`` codes (M7b: ``SynthesisPlanError`` / ``UstxError`` /

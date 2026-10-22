@@ -4,7 +4,12 @@ from dataclasses import dataclass
 from fractions import Fraction
 
 from barbershop_tracks.core.musicxml import ParseResult
-from barbershop_tracks.core.readiness.suggest import RoleSuggestion, suggest_roles
+from barbershop_tracks.core.readiness.suggest import (
+    RoleSuggestion,
+    SuggestionBasis,
+    shared_staff_positions,
+    suggest_roles,
+)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -22,6 +27,14 @@ class LineInfo:
     last_measure: int | None
     first_start: Fraction | None
     suggestion: RoleSuggestion
+    # where the line sits in the Tenor/Lead + Baritone/Bass layout ("Tenor/Lead staff, upper
+    # voice"), or None if the score is not laid out that way; part names are often unreliable
+    position: str | None = None
+
+    @property
+    def display_name(self) -> str:
+        """What to call the line to a person: its place on the staff, else its name."""
+        return self.position or self.part_name
 
 
 def describe_lines(parsed: ParseResult) -> tuple[LineInfo, ...]:
@@ -30,6 +43,10 @@ def describe_lines(parsed: ParseResult) -> tuple[LineInfo, ...]:
         return ()
     song = parsed.song
     suggestions = suggest_roles(song.parts)
+    named = any(
+        s.basis is SuggestionBasis.NAME for s in suggestions
+    )  # then names speak, not layout
+    positions = {} if named else shared_staff_positions(song.parts)
     attacks_by_line: dict[str, int] = {}
     if parsed.performed is not None:
         for line, merged in zip(parsed.performed.lines, parsed.performed.merged, strict=True):
@@ -51,6 +68,7 @@ def describe_lines(parsed: ParseResult) -> tuple[LineInfo, ...]:
                 last_measure=max((n.measure for n in sounding), default=None),
                 first_start=min((n.start for n in sounding), default=None),
                 suggestion=suggestion,
+                position=None if part.part_id not in positions else positions[part.part_id].text,
             )
         )
     return tuple(infos)

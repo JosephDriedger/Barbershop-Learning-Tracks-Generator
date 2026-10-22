@@ -18,7 +18,7 @@ import json
 import os
 import time
 import uuid
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -61,6 +61,7 @@ from barbershop_tracks.core.synthesis.openutau import (
     ResolvedOverride,
     ResolvedOverrides,
     UstxError,
+    short_tail_words,
     write_ustx,
 )
 from barbershop_tracks.models import VoiceRole
@@ -344,9 +345,13 @@ class OpenUtauRenderBackend:
         return [str(runtime.exe)], environment
 
     @staticmethod
-    def _project(plan: SynthesisPlan, overrides: ResolvedOverrides = NO_OVERRIDES) -> str:
+    def _project(
+        plan: SynthesisPlan,
+        overrides: ResolvedOverrides = NO_OVERRIDES,
+        phonemes: Mapping[str, Sequence[str]] | None = None,
+    ) -> str:
         try:
-            return write_ustx(plan, overrides=overrides).text
+            return write_ustx(plan, overrides=overrides, phonemes=phonemes).text
         except PlanNotReadyError as error:
             raise ProjectValidationError(error.code, str(error)) from error
         except UstxError as error:
@@ -371,7 +376,8 @@ class OpenUtauRenderBackend:
         built stays unknown and stops the run as before. The words built this way are reported
         in the result (``blt_composed``) so the package records them as BLT's, not a person's.
         """
-        project = self._project(plan, overrides)
+        phonemes = self._tail_phonemes(plan, overrides, command_prefix, environment, token)
+        project = self._project(plan, overrides, phonemes)
         try:
             first, events = self._run(
                 plan,
@@ -395,7 +401,7 @@ class OpenUtauRenderBackend:
             merged = ResolvedOverrides({**overrides.by_note, **added})
             if on_event is not None:
                 on_event({"event": "blt_composed", "words": len(added)})
-            project = self._project(plan, merged)
+            project = self._project(plan, merged, phonemes)
             host_result, events = self._run(
                 plan,
                 area,
@@ -422,6 +428,25 @@ class OpenUtauRenderBackend:
                 for found in added.values()
             ]
             return {**host_result, "blt_composed": made}, events, project
+
+    def _tail_phonemes(
+        self,
+        plan: SynthesisPlan,
+        overrides: ResolvedOverrides,
+        command_prefix: list[str],
+        environment: dict[str, str],
+        token: CancelToken,
+    ) -> dict[str, tuple[str, ...]]:
+        """The dictionary's phonemes for the held words whose closing consonants may need moving.
+
+        Only words the dictionary has are returned; if it cannot be asked, or a word is not in it,
+        the word is simply not adjusted and the engine places it as it always did.
+        """
+        words = short_tail_words(plan, overrides)
+        if not words:
+            return {}
+        found = self._lookup(list(words), command_prefix, environment, token)
+        return {word: tuple(symbols.split()) for word, symbols in found.items() if symbols}
 
     def _compose(
         self,

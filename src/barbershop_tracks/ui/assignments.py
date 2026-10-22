@@ -98,7 +98,7 @@ class AssignmentState:
             out.append(f"Choose a part for: {names}.")
         musical = [i for i in self.undecided() if i.sounding_attacks > 0]
         if not missing and musical:
-            names = ", ".join(i.part_name for i in musical)
+            names = ", ".join(i.display_name for i in musical)
             out.append(f"Say what to do with: {names} (choose a voice, or ignore it).")
         return out
 

@@ -19,6 +19,7 @@ from barbershop_tracks.core.synthesis import VOICE_ORDER
 from barbershop_tracks.models import VoiceRole
 
 MAX_GAIN = 4.0
+RAMP_SECONDS = 0.05  # the crossfade when the melody moves from one voice to another
 
 
 class MixKind(Enum):
@@ -36,12 +37,25 @@ def _gain(value: float, what: str) -> float:
     return float(value)
 
 
+_PROFILE_FIELDS = (
+    "full_quartet",
+    "melody_focus",
+    "melody_others",
+    "predominant_focus",
+    "predominant_others",
+    "solo",
+    "without_each",
+)
+
+
 @dataclass(frozen=True, slots=True)
 class GainProfile:
     """Linear gains (1.0 = the stem unchanged) for the four kinds of mix."""
 
     name: str = "default"
-    full_quartet: float = 0.25  # each of the four voices
+    full_quartet: float = 0.25  # each of the four voices when the quartet is mixed evenly
+    melody_focus: float = 0.4  # the voice that has the melody, in a Full Quartet that follows it
+    melody_others: float = 0.2  # each of the other three then (the four add up to 1.0)
     predominant_focus: float = 0.5  # the prominent voice
     predominant_others: float = 0.15  # each of the other three
     solo: float = 0.5  # the single voice
@@ -50,21 +64,25 @@ class GainProfile:
     def __post_init__(self) -> None:
         if not self.name:
             raise MixConfigurationError("MIX_PROFILE_NAME", "a gain profile needs a name")
+        for field_name in _PROFILE_FIELDS:
+            _gain(getattr(self, field_name), field_name)
         for field_name in (
             "full_quartet",
+            "melody_focus",
             "predominant_focus",
-            "predominant_others",
             "solo",
             "without_each",
         ):
-            _gain(getattr(self, field_name), field_name)
-        for field_name in ("full_quartet", "predominant_focus", "solo", "without_each"):
             if getattr(self, field_name) <= 0:
                 raise MixConfigurationError("MIX_GAIN_SILENT", f"{field_name} must be above zero")
         if not 0 < self.predominant_others < self.predominant_focus:
             raise MixConfigurationError(
                 "MIX_PREDOMINANT_ORDER",
                 "predominant_others must be above zero and below predominant_focus",
+            )
+        if not 0 < self.melody_others < self.melody_focus:
+            raise MixConfigurationError(
+                "MIX_MELODY_ORDER", "melody_others must be above zero and below melody_focus"
             )
 
 
@@ -75,24 +93,26 @@ DEFAULT_PROFILE = GainProfile()
 PRESETS: dict[str, GainProfile] = {
     "default": DEFAULT_PROFILE,
     "strong-focus": GainProfile(
-        name="strong-focus", predominant_focus=0.6, predominant_others=0.1, solo=0.6
+        name="strong-focus",
+        melody_focus=0.5,
+        melody_others=0.15,
+        predominant_focus=0.6,
+        predominant_others=0.1,
+        solo=0.6,
     ),
     "gentle-focus": GainProfile(
-        name="gentle-focus", predominant_focus=0.4, predominant_others=0.18, solo=0.5
+        name="gentle-focus",
+        melody_focus=0.34,
+        melody_others=0.22,
+        predominant_focus=0.4,
+        predominant_others=0.18,
+        solo=0.5,
     ),
 }
 
-_PROFILE_FIELDS = (
-    "full_quartet",
-    "predominant_focus",
-    "predominant_others",
-    "solo",
-    "without_each",
-)
-
 
 def profile_from_dict(raw: object) -> GainProfile:
-    """A profile from a JSON object: ``name`` plus any of the five gains (others stay default)."""
+    """A profile from a JSON object: ``name`` plus any of the gains (others stay default)."""
     if not isinstance(raw, dict):
         raise MixConfigurationError("MIX_PROFILE_FILE", "a gain profile must be a JSON object")
     unknown = sorted(set(raw) - {"name", *_PROFILE_FIELDS})
@@ -106,13 +126,27 @@ def profile_from_dict(raw: object) -> GainProfile:
 
 
 @dataclass(frozen=True, slots=True)
+class GainStep:
+    """From ``frame`` on (after the crossfade) the voices have these gains."""
+
+    frame: int
+    gains: tuple[float, float, float, float]  # in VOICE_ORDER
+
+
+@dataclass(frozen=True, slots=True)
 class MixSpec:
     number: int
     identifier: str
     label: str
     kind: MixKind
     focus: VoiceRole | None
-    gains: tuple[float, float, float, float]  # in VOICE_ORDER: tenor, lead, baritone, bass
+    # in VOICE_ORDER: tenor, lead, baritone, bass. With a ``schedule`` the largest gain each voice
+    # ever has (what a mix can reach at most); without one, the gain it always has.
+    gains: tuple[float, float, float, float]
+    # gains that change over the mix (the Full Quartet following the melody): the first step is at
+    # frame 0; the voices crossfade over ``ramp_frames`` around the start of every later step
+    schedule: tuple[GainStep, ...] = ()
+    ramp_frames: int = 0
 
     def __post_init__(self) -> None:
         if self.number < 1:
@@ -125,6 +159,20 @@ class MixSpec:
             _gain(gain, f"{self.identifier} gain for {role.value}")
         if not any(g > 0 for g in self.gains):
             raise MixConfigurationError("MIX_EMPTY", f"{self.identifier} has no audible voice")
+        if self.schedule:
+            if self.schedule[0].frame != 0 or any(
+                b.frame <= a.frame for a, b in zip(self.schedule, self.schedule[1:], strict=False)
+            ):
+                raise MixConfigurationError(
+                    "MIX_SCHEDULE", f"{self.identifier}: steps must start at 0 and move forward"
+                )
+            if self.ramp_frames < 0:
+                raise MixConfigurationError("MIX_SCHEDULE", "the crossfade cannot be negative")
+            for step in self.schedule:
+                if len(step.gains) != len(VOICE_ORDER):
+                    raise MixConfigurationError("MIX_GAIN_COUNT", "a step needs one gain per voice")
+                for role, gain in zip(VOICE_ORDER, step.gains, strict=True):
+                    _gain(gain, f"{self.identifier} gain for {role.value} at frame {step.frame}")
 
     @property
     def filename_stem(self) -> str:
@@ -140,6 +188,8 @@ class MixSpec:
     @property
     def worst_case_sum(self) -> float:
         """The largest possible output peak for stems that are at most full scale."""
+        if self.schedule:  # a crossfade is a blend of two steps, so no more than the larger sum
+            return max(sum(step.gains) for step in self.schedule)
         return sum(self.gains)
 
 
@@ -170,6 +220,39 @@ def standard_mix_specs(profile: GainProfile = DEFAULT_PROFILE) -> tuple[MixSpec,
             number += 1
     validate_spec_set(specs)
     return tuple(specs)
+
+
+def following_melody(
+    spec: MixSpec,
+    changes: Sequence[tuple[int, VoiceRole]],
+    profile: GainProfile,
+    ramp_frames: int,
+) -> MixSpec:
+    """``spec`` with the melody's voice louder; ``changes`` are (frame, holder), from frame 0."""
+    steps: list[GainStep] = []
+    for frame, holder in changes:
+        gains = tuple(
+            profile.melody_focus if role is holder else profile.melody_others
+            for role in VOICE_ORDER
+        )
+        if steps and steps[-1].gains == gains:
+            continue  # the same balance continues: nothing to change
+        steps.append(GainStep(frame, _four(gains)))
+    if len(steps) == 1:  # the same voice has the melody throughout: one balance, no schedule
+        return MixSpec(
+            spec.number, spec.identifier, spec.label, spec.kind, spec.focus, steps[0].gains
+        )
+    peak = tuple(max(step.gains[i] for step in steps) for i in range(len(VOICE_ORDER)))
+    return MixSpec(
+        spec.number,
+        spec.identifier,
+        spec.label,
+        spec.kind,
+        spec.focus,
+        _four(peak),
+        tuple(steps),
+        ramp_frames,
+    )
 
 
 def _four(gains: Sequence[float]) -> tuple[float, float, float, float]:

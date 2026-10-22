@@ -1,11 +1,15 @@
 """The ``generate`` and ``config`` commands up to (not including) the render host."""
 
+import argparse
 import json
 from pathlib import Path
 
 import pytest
 
 from barbershop_tracks.cli import main
+from barbershop_tracks.cli_generate import _melody_mark
+from barbershop_tracks.core.melody import MelodyMark
+from barbershop_tracks.models import VoiceRole
 from cli_scores import LINES, quartet_xml, write_quartet
 
 
@@ -286,3 +290,46 @@ def test_voices_lists_and_adds_a_voicebank(
     assert "nice-voice" in capsys.readouterr().out
     assert main(["voices", "add", str(source), "--singers-dir", str(voices)]) == 2
     assert "VOICE_EXISTS" in capsys.readouterr().err
+
+
+def test_help_lists_the_melody_options(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        main(["generate", "--help"])
+    text = capsys.readouterr().out
+    assert "--melody" in text
+    assert "--no-follow-melody" in text
+
+
+@pytest.mark.parametrize(
+    "mark", ["tenor", "tenor=", "tenor=x", "tenor=3-", "bogus=1-2", "tenor=5-2"]
+)
+def test_a_bad_melody_mark_is_a_usage_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], mark: str
+) -> None:
+    score = write_quartet(tmp_path)
+    with pytest.raises(SystemExit) as stop:
+        main(generate(tmp_path, score, "--melody", mark))
+    assert stop.value.code == 2
+
+
+def test_a_melody_mark_for_a_bar_the_score_lacks_is_refused_before_anything_is_sung(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    score = write_quartet(tmp_path, all_lyrics=True)
+    code = main(generate(tmp_path, score, "--melody", "tenor=99"))
+    assert code == 2
+    assert "bar 99 is not in the score" in capsys.readouterr().err
+
+
+def test_a_melody_mark_can_name_beats() -> None:
+    mark = _melody_mark("tenor=30:3-31:2")
+    assert (mark.role, mark.first_bar, mark.first_beat) == (VoiceRole.TENOR, 30, 3)
+    assert (mark.last_bar, mark.last_beat) == (31, 2)
+    assert _melody_mark("lead=5:2") == MelodyMark(VoiceRole.LEAD, 5, 5, 2, None)
+    assert _melody_mark("lead=5-7") == MelodyMark(VoiceRole.LEAD, 5, 7)
+
+
+@pytest.mark.parametrize("mark", ["tenor=3:", "tenor=3:x", "tenor=3:0", "tenor=4:3-4:2"])
+def test_a_bad_melody_beat_is_a_usage_error(mark: str) -> None:
+    with pytest.raises(argparse.ArgumentTypeError):
+        _melody_mark(mark)

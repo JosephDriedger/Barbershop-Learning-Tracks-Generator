@@ -8,7 +8,8 @@ It is started through a ``.cmd`` wrapper (a program file BLT can run) with the a
 ``FAKE_CONVERTER_MODE`` chooses what it does: ``ok`` (write the MusicXML named by ``FAKE_CONVERTER_SOURCE``),
 ``fail`` (exit 3 with a message), ``no_output`` (exit 0, write nothing), ``empty`` (write an empty file),
 ``garbage`` (write something that is not XML), ``two`` (Audiveris: two pieces), ``hang`` (never finish),
-``mxl`` (Audiveris: write a compressed ``.mxl``). Every start appends a line to ``FAKE_CONVERTER_LOG``.
+``mxl`` (Audiveris: write a compressed ``.mxl``). A MuseScore start that asks for a ``.mid`` copies
+``FAKE_CONVERTER_MIDI`` if that is set and writes nothing otherwise. Every start appends a line to ``FAKE_CONVERTER_LOG``.
 """
 
 import json
@@ -39,6 +40,11 @@ def main() -> int:
         return 3
     if "-o" in arguments:  # MuseScore
         output = Path(arguments[arguments.index("-o") + 1])
+        if output.suffix.lower() == ".mid":  # MuseScore's playback export (its tempo changes)
+            playback = os.environ.get("FAKE_CONVERTER_MIDI")
+            if playback:
+                shutil.copyfile(playback, output)
+            return 0
         if mode == "no_output":
             return 0
         if mode == "empty":

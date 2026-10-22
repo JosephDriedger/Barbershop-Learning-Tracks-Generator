@@ -116,20 +116,49 @@ def fit_stem(stem: StemAudio, target_frames: int, tail: TailPolicy) -> FittedSte
     return FittedStem(stem.role, out, -excess, 0)
 
 
+def gain_block(spec: MixSpec, index: int, start: int, stop: int) -> float | Float:
+    """The gain of voice ``index`` over frames ``start:stop``: a number, or a curve if it changes.
+
+    A mix without a schedule has one gain for its whole length (a plain float, so the arithmetic of
+    such a mix is exactly what it always was). A scheduled mix (the Full Quartet following the
+    melody) has a piecewise-linear curve: the gain of one step, then a crossfade of ``ramp_frames``
+    centred on the start of the next step, and so on. The curve is a function of the frame alone,
+    so any block of it equals the same frames of the whole curve.
+    """
+    if not spec.schedule:
+        return spec.gains[index]
+    steps = spec.schedule
+    xs = [0.0]
+    ys = [steps[0].gains[index]]
+    for i in range(1, len(steps)):
+        at = steps[i].frame
+        before = at - steps[i - 1].frame
+        after = steps[i + 1].frame - at if i + 1 < len(steps) else spec.ramp_frames
+        half = min(spec.ramp_frames // 2, before // 2, after // 2)
+        if half == 0:
+            xs += [at - 1.0, float(at)]  # a step: one frame from the old gain to the new
+        else:
+            xs += [float(at - half), float(at + half)]
+        ys += [steps[i - 1].gains[index], steps[i].gains[index]]
+    frames = np.arange(start, stop, dtype=np.float64)
+    return np.asarray(np.interp(frames, xs, ys), dtype=np.float64)
+
+
 def mix_float(spec: MixSpec, stems: Mapping[VoiceRole, FittedStem]) -> Float:
     """The weighted sum, in voice order, in float64."""
     frames = {fitted.samples.shape[0] for fitted in stems.values()}
     if len(frames) != 1:
         raise MixInputError("MIX_FRAME_MISMATCH", f"stems differ in length: {sorted(frames)}")
-    out = np.zeros(frames.pop(), dtype=np.float64)
-    for role, gain in zip(VOICE_ORDER, spec.gains, strict=True):
-        if gain == 0.0:
+    length = frames.pop()
+    out = np.zeros(length, dtype=np.float64)
+    for index, (role, peak) in enumerate(zip(VOICE_ORDER, spec.gains, strict=True)):
+        if peak == 0.0:
             continue
         if role not in stems:
             raise MixInputError(
                 "MIX_STEM_MISSING", f"{spec.identifier} needs the {role.value} stem"
             )
-        out += gain * stems[role].samples
+        out += gain_block(spec, index, 0, length) * stems[role].samples
     return out
 
 

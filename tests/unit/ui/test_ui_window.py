@@ -69,12 +69,18 @@ class Rig:
         self.opened.append(path)
         return True
 
+    def _notate(self, path: Path) -> bool:
+        self.notated.append(path)  # never start a real MuseScore from a test
+        return self.notation_available
+
     def __init__(self, qtbot: QtBot, tmp_path: Path) -> None:
         self.tmp = tmp_path
         self.prefs = Preferences.at(tmp_path / "prefs.ini")
         self.pipeline = FakePipeline()
         self.prompts = FakePrompts()
         self.opened: list[Path] = []
+        self.notated: list[Path] = []
+        self.notation_available = True
         voices = tmp_path / "voices"
         for name in ("alto-voice", "bass-voice"):
             (voices / name).mkdir(parents=True)
@@ -95,6 +101,7 @@ class Rig:
             controller=self.controller,
             prompts=self.prompts,
             opener=self._open,
+            notation=self._notate,
         )
         qtbot.addWidget(self.window)
         self.qtbot = qtbot

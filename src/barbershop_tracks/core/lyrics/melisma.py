@@ -14,10 +14,18 @@ Lyric-less attacks are continuations while either state is active; otherwise the
 A third, weaker reading: a lyric-less attack inside a **slur** that opened on an earlier attack
 holds the syllable sung before it (a slur over one syllable is the usual notation for a melisma,
 and MuseScore writes no extender for it unless the lyric has one). An extender always decides first.
+When the score's project is at hand (a MuseScore ``.mscz``) the length of an untyped line is known
+(``Lyric.extend_length``), and the line then holds exactly that far (basis ``line``) instead of to
+the next lyric or rest; a rest still ends it, and a lyric still ends it early.
+A fourth, our own reading, for what MuseScore leaves unmarked even without a slur: a lyric-less
+**sixteenth note straight after a dotted eighth** that carries a syllable holds that syllable (the
+short note is the tail of the long one, the usual dotted figure under a single syllable). It holds
+that one note only. A slur or an extender, when there is one, decides first.
 There is no maximum length. This is independent of the syllabic word machine (``words.py``).
 """
 
 from dataclasses import dataclass
+from fractions import Fraction
 
 from barbershop_tracks.core.lyrics.findings import Finding, error, warning
 from barbershop_tracks.models import AttackRole, Lyric, Melisma, MelismaBasis
@@ -29,6 +37,7 @@ class Extension:
     origin: int  # attack index that opened it
     run: int = 0  # continuation attacks so far
     rest_seen: bool = False
+    end: Fraction | None = None  # where a line of known length stops (performed position)
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,10 +109,24 @@ class MelismaTracker:
         return findings
 
     def unlyriced(
-        self, index: int, *, in_slur: bool = False
+        self,
+        index: int,
+        *,
+        in_slur: bool = False,
+        dotted_tail: bool = False,
+        start: Fraction | None = None,
     ) -> tuple[AttackRole, Continuation | None]:
-        """A sung attack with no lyric for the verse (``in_slur``: inside a slur)."""
+        """A sung attack with no lyric for the verse.
+
+        ``in_slur``: inside a slur. ``dotted_tail``: a sixteenth that follows a dotted eighth.
+        """
         ext = self.typed or self.inferred
+        if ext is not None and ext.end is not None and start is not None and start >= ext.end:
+            # the line was drawn to here and no further, but MuseScore leaves out lines that are
+            # clearly implied: from here the syllable is held as an untyped line is, to the next
+            # lyric or rest
+            ext = Extension(MelismaBasis.UNTYPED, ext.origin, run=ext.run)
+            self.inferred = ext
         if ext is not None:
             self.slurred = None
             self._on_sung()
@@ -113,13 +136,18 @@ class MelismaTracker:
                 self.slurred = Extension(MelismaBasis.SLUR, self._held)
             self._on_sung()
             return AttackRole.MELISMA_CONTINUATION, self._continue(self.slurred)
+        if dotted_tail and self._held is not None and self._held == index - 1:
+            self._on_sung()
+            tail = Extension(MelismaBasis.DOTTED_RHYTHM, self._held)
+            self._held = None  # this one note only: a second lyric-less note is missing a lyric
+            return AttackRole.MELISMA_CONTINUATION, self._continue(tail)
         self.slurred = self._held = None
         if self._ended_by_rest:
             self.interruptions.append(index)
         self._on_sung()
         return AttackRole.MISSING, None
 
-    def syllable(self, lyric: Lyric, index: int) -> list[Finding]:
+    def syllable(self, lyric: Lyric, index: int, start: Fraction | None = None) -> list[Finding]:
         """A text lyric: ends any extension and, if it has an extender, opens a new one."""
         findings: list[Finding] = []
         self._on_sung()
@@ -128,7 +156,11 @@ class MelismaTracker:
         self.slurred = None
         self._held = index
         if lyric.melisma is Melisma.UNTYPED:
-            self.inferred = Extension(MelismaBasis.UNTYPED, index)
+            if lyric.extend_length is not None and start is not None:
+                # the project says how far MuseScore drew the line: held exactly that far
+                self.inferred = Extension(MelismaBasis.LINE, index, end=start + lyric.extend_length)
+            else:
+                self.inferred = Extension(MelismaBasis.UNTYPED, index)
         elif lyric.melisma is Melisma.START:
             self.typed = Extension(MelismaBasis.TYPED, index)
         return findings

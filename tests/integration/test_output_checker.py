@@ -76,7 +76,8 @@ def test_a_genuine_package_passes_every_arithmetic_check(package: Path) -> None:
     assert done.returncode == 0, done.stdout
     assert "every arithmetic check passed" in done.stdout
     assert "FAIL" not in done.stdout
-    assert done.stdout.count("add up to the Full Quartet") == 4
+    assert done.stdout.count("add up to the same four voices") == 3
+    assert done.stdout.count("The Full Quartet is the four voices mixed") == 1
 
 
 def test_two_swapped_solo_files_are_caught(package: Path, tmp_path: Path) -> None:
@@ -89,8 +90,8 @@ def test_two_swapped_solo_files_are_caught(package: Path, tmp_path: Path) -> Non
     spare.rename(lead)
     done = check(damaged)
     assert done.returncode == 1
-    assert "Tenor: Solo and Without Tenor add up" in done.stdout
-    assert "FAIL" in done.stdout
+    assert "FAIL  Lead: Solo and Without Lead add up" in done.stdout
+    assert "FAIL  The Full Quartet is the four voices mixed" in done.stdout
 
 
 def test_a_missing_file_is_reported_by_name(package: Path, tmp_path: Path) -> None:
