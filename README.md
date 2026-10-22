@@ -5,12 +5,13 @@ Bass) from a score: a MuseScore project (`.mscz`, `.mscx`), a MusicXML file (`.m
 (recognised with Audiveris). From it BLT makes 13 tracks, sung by OpenUtau's engine with a voicebank you provide: the
 Full Quartet, and for each part a predominant, a solo and a without track.
 
-Status: **version 1.0.0, not cleared for public release.** The whole pipeline works: score loading,
-readiness checks, quartet MIDI, headless OpenUtau rendering, deterministic mixing into the 13 tracks, a
-command line and a GUI, a per-user Windows installer and an experimental macOS disk image (unsigned installers
-are attached to the [1.0.0 release](https://github.com/JosephDriedger/Barbershop-Learning-Tracks-Generator/releases/tag/v1.0.0)). Open before any release: licensing blockers in
-[docs/dependency-audit.md](docs/dependency-audit.md) and musical acceptance with a real English voicebank
-([docs/m12-acceptance.md](docs/m12-acceptance.md)). See [docs/INSTALL.md](docs/INSTALL.md) to install and
+Status: **version 1.0.0, tested by its developer and published** (unsigned installers are attached to the
+[1.0.0 release](https://github.com/JosephDriedger/Barbershop-Learning-Tracks-Generator/releases/tag/v1.0.0)). The whole
+pipeline works: score loading, readiness checks, quartet MIDI, headless OpenUtau rendering, deterministic mixing into
+the 13 tracks, a command line and a GUI, a per-user Windows installer and an experimental macOS disk image. The
+independent licensing reviews in [docs/dependency-audit.md](docs/dependency-audit.md) and the independent acceptance
+tests ([docs/m12-acceptance.md](docs/m12-acceptance.md)) have not been signed off by anyone else, so the project's
+formal release gate is still open. See [docs/INSTALL.md](docs/INSTALL.md) to install and
 [docs/KNOWN-LIMITATIONS.md](docs/KNOWN-LIMITATIONS.md) for what is not done.
 
 ## Names: product versus technical identifiers
