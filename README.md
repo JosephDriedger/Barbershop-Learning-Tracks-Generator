@@ -1,11 +1,14 @@
 # BLT Music Generator
 
 Desktop app that generates four-part barbershop learning tracks (Tenor, Lead, Baritone,
-Bass) from a MusicXML file exported from MuseScore.
+Bass) from a score: a MuseScore project (`.mscz`, `.mscx`), a MusicXML file (`.musicxml`, `.xml`, `.mxl`) or a PDF
+(recognised with Audiveris). From it BLT makes 13 tracks, sung by OpenUtau's engine with a voicebank you provide: the
+Full Quartet, and for each part a predominant, a solo and a without track.
 
 Status: **version 1.0.0, not cleared for public release.** The whole pipeline works: score loading,
 readiness checks, quartet MIDI, headless OpenUtau rendering, deterministic mixing into the 13 tracks, a
-command line and a GUI, and a per-user Windows installer. Open before any release: licensing blockers in
+command line and a GUI, a per-user Windows installer and an experimental macOS disk image (unsigned installers
+are attached to the [1.0.0 release](https://github.com/JosephDriedger/Barbershop-Learning-Tracks-Generator/releases/tag/v1.0.0)). Open before any release: licensing blockers in
 [docs/dependency-audit.md](docs/dependency-audit.md) and musical acceptance with a real English voicebank
 ([docs/m12-acceptance.md](docs/m12-acceptance.md)). See [docs/INSTALL.md](docs/INSTALL.md) to install and
 [docs/KNOWN-LIMITATIONS.md](docs/KNOWN-LIMITATIONS.md) for what is not done.

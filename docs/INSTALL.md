@@ -1,6 +1,6 @@
 # Installing and first run
 
-BLT Music Generator turns a four-part (TTBB) MusicXML score from MuseScore into 13 learning tracks:
+BLT Music Generator turns a four-part (TTBB) score (a MuseScore project, MusicXML or PDF) into 13 learning tracks:
 the full quartet, and for each of Tenor, Lead, Baritone and Bass a *predominant* track (that part
 loud, the others quiet), a *solo* track and a *without* track (the other three, so you can sing the
 missing part).
@@ -17,8 +17,9 @@ missing part).
   have (see below). BLT does not contain Microsoft's runtime files itself.
 * A **singing voicebank** that works with OpenUtau (UTAU-style), for example an English one. BLT does not
   include or download any; you get one from its author and agree to its licence.
-* A MusicXML export (`.musicxml`, `.xml` or `.mxl`) of your arrangement from MuseScore, with the lyrics
-  typed under every note of the four parts.
+* Your arrangement as a MuseScore project (`.mscz`, `.mscx`; best, since it also gives held syllables and tempo changes), a
+  MusicXML export (`.musicxml`, `.xml` or `.mxl`) or a PDF, with the lyrics typed under every note of the four parts.
+  Projects need MuseScore and PDFs need Audiveris installed; BLT ships neither.
 * Optional, for MP3 output: **FFmpeg** (a separate free program). WAV output needs nothing.
 
 ## Install
