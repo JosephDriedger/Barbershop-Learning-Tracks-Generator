@@ -117,7 +117,7 @@ def test_a_mark_can_name_beats_and_says_so(rig: Rig) -> None:
     rig.qtbot.addWidget(dialog)
     assert dialog.add_mark(VoiceRole.TENOR, 1, 1, 2, 3)
     assert dialog.marks() == (MelodyMark(VoiceRole.TENOR, 1, 1, 2, 3),)
-    assert dialog.marks_list.item(0).text() == "Tenor: bar 1 beat 2 to bar 1 beat 3"  # type: ignore[union-attr]
+    assert dialog.marks_list.item(0).text() == "Tenor: bar 1 beat 2 to bar 1 beat 3"
     assert not dialog.add_mark(VoiceRole.TENOR, 1, 1, 9, None)
     assert "beats" in dialog.problem.text()
 
