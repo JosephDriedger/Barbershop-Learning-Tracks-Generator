@@ -64,7 +64,7 @@ def parse_score(source: MusicXmlSource) -> ParseResult:
     root = source.root
     issues = IssueCollector()
     names = _part_names(root)
-    timelines = _read_parts(root, names, issues)
+    timelines = _read_parts(root, names, issues, rests_written=_writes_every_rest(root))
     if not timelines:
         issues.error("NO_PARTS", "the score contains no <part> elements")
         return ParseResult(song=None, issues=issues.result())
@@ -158,7 +158,7 @@ def _part_names(root: ET.Element) -> dict[str, str]:
 
 
 def _read_parts(
-    root: ET.Element, names: dict[str, str], issues: IssueCollector
+    root: ET.Element, names: dict[str, str], issues: IssueCollector, *, rests_written: bool = False
 ) -> list[PartTimeline]:
     timelines: list[PartTimeline] = []
     for element in root.findall("part"):
@@ -172,7 +172,7 @@ def _read_parts(
                 f"part '{part_id}' is not declared in <part-list>",
                 part_id=part_id,
             )
-        timelines.append(read_part(element, part_id, issues))
+        timelines.append(read_part(element, part_id, issues, rests_written=rests_written))
     return timelines
 
 
@@ -253,6 +253,12 @@ def _creator(root: ET.Element, kind: str) -> str | None:
         if creator.get("type") == kind and creator.text and creator.text.strip():
             return creator.text.strip()
     return None
+
+
+def _writes_every_rest(root: ET.Element) -> bool:
+    """Whether the file was written by MuseScore, which writes every rest of every measure."""
+    software = _software(root)
+    return software is not None and "musescore" in software.lower()
 
 
 def _software(root: ET.Element) -> str | None:

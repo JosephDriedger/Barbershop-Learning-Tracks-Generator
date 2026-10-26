@@ -35,8 +35,8 @@ def _variable(data: bytes, at: int) -> tuple[int, int]:
             return value, at
 
 
-def _track_tempos(body: bytes) -> list[tuple[int, int]]:
-    """(tick, microseconds per quarter) of every tempo event of one track."""
+def _track_tempos(body: bytes) -> tuple[list[tuple[int, int]], int]:
+    """(tick, microseconds per quarter) of every tempo event of one track, and where it ends."""
     found: list[tuple[int, int]] = []
     at = tick = 0
     status = 0
@@ -63,17 +63,18 @@ def _track_tempos(body: bytes) -> list[tuple[int, int]]:
             if not status:
                 raise MidiTempoError("the MIDI file has data before its first event")
             at += 1 if status & 0xF0 in (0xC0, 0xD0) else 2
-    return found
+    return found, tick
 
 
-def read_tempo_changes(data: bytes) -> tuple[TempoChange, ...]:
-    """The tempo changes of a MIDI file, in order, equal ones merged, positions in quarters."""
+def _read(data: bytes) -> tuple[dict[int, int], int, int]:
+    """(tempo events by tick, the tick the longest track ends at, ticks per quarter note)."""
     if len(data) < 14 or data[:4] != b"MThd":
         raise MidiTempoError("not a MIDI file")
     _format, tracks, division = struct.unpack(">HHH", data[8:14])
     if division & 0x8000 or division == 0:
         raise MidiTempoError("the MIDI file counts time in frames, not in quarter notes")
     events: dict[int, int] = {}
+    end = 0
     at = 14
     for _ in range(tracks):
         if data[at : at + 4] != b"MTrk":
@@ -81,9 +82,23 @@ def read_tempo_changes(data: bytes) -> tuple[TempoChange, ...]:
         (length,) = struct.unpack(">I", data[at + 4 : at + 8])
         body = data[at + 8 : at + 8 + length]
         at += 8 + length
-        for tick, microseconds in _track_tempos(body):
+        found, track_end = _track_tempos(body)
+        end = max(end, track_end)
+        for tick, microseconds in found:
             if microseconds > 0:
                 events[tick] = microseconds  # a later event at the same tick replaces an earlier
+    return events, end, division
+
+
+def read_length(data: bytes) -> Fraction:
+    """How long the MIDI file plays, in quarter notes (its longest track)."""
+    _events, end, division = _read(data)
+    return Fraction(end, division)
+
+
+def read_tempo_changes(data: bytes) -> tuple[TempoChange, ...]:
+    """The tempo changes of a MIDI file, in order, equal ones merged, positions in quarters."""
+    events, _end, division = _read(data)
     changes: list[TempoChange] = []
     for tick in sorted(events):
         bpm = Fraction(round(Fraction(60_000_000, events[tick]) * _STEP), _STEP)

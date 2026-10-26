@@ -102,7 +102,7 @@ def test_a_midi_file_beside_the_score_is_read_and_followed(tmp_path: Path) -> No
     xml.write_text(score(measure(1, attributes() + tempo_direction("63") + FOUR)), encoding="utf-8")
     playback = tmp_path / "score.mid"
     steps = [tempo_event(0, 63), tempo_event(720, 59), tempo_event(480, 47)]
-    playback.write_bytes(midi(track(*steps)))
+    playback.write_bytes(midi(track(*steps, length=720)))  # four quarter notes in all
     result, done = parse_with_playback_tempo(opened_with(xml, playback), parse_musicxml)
     assert done.applied
     assert result.performed is not None
@@ -174,7 +174,7 @@ def test_the_ebb_tide_pickup_as_musescore_exports_it_is_followed(tmp_path: Path)
     xml.write_text(score(measure(1, attributes() + tempo_direction("60") + FOUR)), encoding="utf-8")
     playback = tmp_path / "score.mid"
     steps = [(0, 30.0), (239, 60.0), (1, 30.0), (239, 60.0)]
-    playback.write_bytes(midi(track(*(tempo_event(d, b) for d, b in steps))))
+    playback.write_bytes(midi(track(*(tempo_event(d, b) for d, b in steps), length=1441)))
     result, done = parse_with_playback_tempo(opened_with(xml, playback), parse_musicxml)
     assert done.applied
     assert done.changes == 1  # the one-tick returns are not tempo changes
@@ -243,3 +243,33 @@ def test_a_playback_that_is_not_used_leaves_no_opening_tempo(tmp_path: Path) -> 
     assert not done.applied
     assert result.performed is not None
     assert result.performed.opening_bpm is None
+
+
+def test_playback_as_long_as_the_score_is_used(tmp_path: Path) -> None:
+    result, done = apply_playback_tempo(parsed(tmp_path), RITARDANDO, Fraction(4))
+    assert done.applied
+    assert result.performed is not None
+
+
+def test_playback_within_half_a_quarter_of_the_score_length_is_still_used(tmp_path: Path) -> None:
+    _, done = apply_playback_tempo(parsed(tmp_path), RITARDANDO, Fraction(9, 2))
+    assert done.applied
+
+
+def test_playback_of_another_length_than_the_score_is_not_used_and_says_why(tmp_path: Path) -> None:
+    # a pickup read as a whole bar makes the score two beats longer than MuseScore plays it: every
+    # tempo change would fall two beats from the notes it belongs to
+    before = parsed(tmp_path)
+    result, done = apply_playback_tempo(before, RITARDANDO, Fraction(2))
+    assert result is before
+    assert not done.applied
+    assert "2 quarter notes long" in done.note
+    assert "4" in done.note
+    assert "wrong notes" in done.note
+
+
+def test_playback_whose_length_is_not_known_is_judged_by_its_tempo_marks_alone(
+    tmp_path: Path,
+) -> None:
+    _, done = apply_playback_tempo(parsed(tmp_path), RITARDANDO)
+    assert done.applied

@@ -229,7 +229,9 @@ def test_the_window_says_the_tempo_follows_musescores_playback(
     rig: Rig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     playback = rig.tmp / "playback.mid"
-    playback.write_bytes(ritardando_from(100))  # the stand-in score is at 100 beats a minute
+    playback.write_bytes(
+        ritardando_from(100, quarters=8)
+    )  # the stand-in score: 100 bpm, 8 quarters
     monkeypatch.setenv("FAKE_CONVERTER_MIDI", str(playback))
     with rig.qtbot.waitSignal(rig.controller.score_loaded, timeout=30000):
         rig.window.open_score(project(rig, "Hymn.mscz"))

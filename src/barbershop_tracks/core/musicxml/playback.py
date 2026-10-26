@@ -20,11 +20,19 @@ from pathlib import Path
 
 from barbershop_tracks.core.musicxml.convert import OpenedScore
 from barbershop_tracks.core.musicxml.fermata_tails import tempo_changes_heard, with_fermata_tails
-from barbershop_tracks.core.musicxml.midi_tempo import MidiTempoError, read_tempo_changes
+from barbershop_tracks.core.musicxml.midi_tempo import (
+    MidiTempoError,
+    read_length,
+    read_tempo_changes,
+)
 from barbershop_tracks.core.musicxml.parser import ParseResult
 from barbershop_tracks.models import TempoChange
 
 _AGREE = Fraction(1, 100)  # beats per minute: the most a mark and the playback may differ by
+# quarter notes: the most the length of the score and the length of MuseScore's playback may differ
+# by; a different number of beats (a pickup read as a whole bar) puts every tempo change on the
+# wrong notes
+_SAME_LENGTH = Fraction(1, 2)
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,14 +84,28 @@ def _agrees(changes: Sequence[TempoChange], mark: TempoChange) -> bool:
 
 
 def apply_playback_tempo(
-    parsed: ParseResult, changes: Sequence[TempoChange]
+    parsed: ParseResult, changes: Sequence[TempoChange], length: Fraction | None = None
 ) -> tuple[ParseResult, PlaybackTempo]:
-    """``parsed`` with the playback tempo as its tempo, if it can be trusted; with what was done."""
+    """``parsed`` with the playback tempo as its tempo, if it can be trusted; with what was done.
+
+    ``length`` is how long MuseScore's playback is, in quarter notes: the tempo changes are at
+    MuseScore's positions, so they are only used if the score is as long as MuseScore plays it.
+    """
     performed = parsed.performed
     if performed is None or not performed.tempo_events or not changes:
         return parsed, NOT_USED  # a score with no tempo of its own stays blocked, not given one
     if changes[0].position != 0:
         return parsed, NOT_USED
+    if length is not None:
+        ours = performed.plan.end if performed.plan.played else performed.song.duration
+        if abs(ours - length) > _SAME_LENGTH:
+            return parsed, PlaybackTempo(
+                False,
+                0,
+                f"MuseScore's playback is {float(length):g} quarter notes long but the score read "
+                f"here is {float(ours):g}, so its tempo changes would fall on the wrong notes: the "
+                "score's own tempo marks are used and a ritardando or fermata is not followed.",
+            )
     for mark in performed.tempo_events:
         if not _agrees(changes, mark):
             return parsed, PlaybackTempo(
@@ -125,7 +147,9 @@ def follow_playback_tempo(
     if opened.playback_midi is None:
         return parsed, NOT_USED
     try:
-        changes = read_tempo_changes(opened.playback_midi.read_bytes())
+        data = opened.playback_midi.read_bytes()
+        changes = read_tempo_changes(data)
+        length = read_length(data)
     except (OSError, MidiTempoError):
         return parsed, NOT_USED
-    return apply_playback_tempo(parsed, changes)
+    return apply_playback_tempo(parsed, changes, length)

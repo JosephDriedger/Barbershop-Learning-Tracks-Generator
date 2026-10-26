@@ -42,7 +42,7 @@ def opened(tmp_path: Path, *, with_project: bool = True, with_playback: bool = T
         archive.writestr("Hymn.mscx", music if with_project else "<museScore/>")
     playback = tmp_path / "Hymn.mid"
     playback.write_bytes(
-        midi(track(tempo_event(0, 60), tempo_event(480, 45), tempo_event(480, 60)))
+        midi(track(tempo_event(0, 60), tempo_event(480, 45), tempo_event(480, 60), length=960))
     )
     note_about = Conversion("MuseScore", "ms", "export", "0" * 64, False, "exported")
     return OpenedScore(xml, project, "1" * 64, note_about, playback if with_playback else None)

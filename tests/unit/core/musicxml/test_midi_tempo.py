@@ -5,7 +5,11 @@ from fractions import Fraction
 
 import pytest
 
-from barbershop_tracks.core.musicxml.midi_tempo import MidiTempoError, read_tempo_changes
+from barbershop_tracks.core.musicxml.midi_tempo import (
+    MidiTempoError,
+    read_length,
+    read_tempo_changes,
+)
 from smf_builders import midi, tempo_event, track
 
 
@@ -81,3 +85,16 @@ def test_a_file_without_tempo_events_has_none() -> None:
 def test_what_is_not_a_midi_file_with_quarter_note_time_is_refused(data: bytes) -> None:
     with pytest.raises(MidiTempoError):
         read_tempo_changes(data)
+
+
+def test_the_length_of_the_file_is_where_its_longest_track_ends() -> None:
+    assert read_length(midi(track(tempo_event(0, 63), length=1920))) == 4
+    assert read_length(midi(track(tempo_event(0, 63), tempo_event(240, 60), length=240))) == 1
+    conductor = track(tempo_event(0, 63))
+    voices = track(tempo_event(0, 63), length=2400)
+    assert read_length(midi(conductor, voices)) == Fraction(5)  # the longest of the tracks
+    assert read_length(midi(track(), division=960)) == 0
+
+
+def test_the_length_counts_quarter_notes_at_any_division() -> None:
+    assert read_length(midi(track(length=3840), division=960)) == 4

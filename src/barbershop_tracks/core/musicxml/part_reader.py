@@ -77,9 +77,15 @@ class _PitchError(Exception):
         self.code = code
 
 
-def read_part(part: ET.Element, part_id: str, issues: IssueCollector) -> PartTimeline:
-    """Read ``part`` (a ``<part>`` element) into voice lines, clefs and measure lengths."""
-    reader = _PartReader(part, part_id, issues)
+def read_part(
+    part: ET.Element, part_id: str, issues: IssueCollector, *, rests_written: bool = False
+) -> PartTimeline:
+    """Read ``part`` (a ``<part>`` element) into voice lines, clefs and measure lengths.
+
+    ``rests_written``: the program that wrote the file writes every rest (MuseScore does), so a
+    measure it exports shorter than the time signature is shorter (a pickup), not missing rests.
+    """
+    reader = _PartReader(part, part_id, issues, rests_written)
     reader.read()
     return PartTimeline(
         part_id=part_id,
@@ -98,7 +104,10 @@ def read_part(part: ET.Element, part_id: str, issues: IssueCollector) -> PartTim
 
 
 class _PartReader:
-    def __init__(self, part: ET.Element, part_id: str, issues: IssueCollector) -> None:
+    def __init__(
+        self, part: ET.Element, part_id: str, issues: IssueCollector, rests_written: bool = False
+    ) -> None:
+        self._rests_written = rests_written
         self._part = part
         self._part_id = part_id
         self._issues = issues
@@ -208,6 +217,12 @@ class _PartReader:
             return occupied
         if implicit:
             return occupied  # a pickup or other deliberately short measure
+        if occupied < nominal and self._rests_written:
+            # MuseScore writes every rest, so a measure it exports under-filled is an irregular one
+            # (a pickup it does not mark implicit, a measure it was told is shorter): padding it to
+            # the time signature would put every later note, and every tempo change MuseScore
+            # plays, that much later than in MuseScore
+            return occupied
         if occupied < nominal:
             self._issues.warning(
                 "MEASURE_INCOMPLETE",

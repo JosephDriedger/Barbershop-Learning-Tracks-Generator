@@ -166,7 +166,9 @@ def test_a_musescore_projects_playback_tempo_reaches_the_plan_the_warnings_and_t
     rig: Rig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     playback = rig.root / "playback.mid"
-    playback.write_bytes(ritardando_from(100))  # the stand-in score is at 100 beats a minute
+    playback.write_bytes(
+        ritardando_from(100, quarters=8)
+    )  # the stand-in score: 100 bpm, 8 quarters
     monkeypatch.setenv("FAKE_CONVERTER_MIDI", str(playback))
     choose(rig, "Hymn.mscz")
     result = rig.run()
@@ -199,7 +201,7 @@ def test_the_count_in_clicks_at_the_written_tempo_not_at_a_fermatas_stretched_on
     # 100 a tick before each ends
     playback = rig.root / "playback.mid"
     steps = [tempo_event(0, 50), tempo_event(239, 100), tempo_event(1, 50), tempo_event(239, 100)]
-    playback.write_bytes(midi(track(*steps)))
+    playback.write_bytes(midi(track(*steps, length=3361)))  # the stand-in score: 8 quarters
     monkeypatch.setenv("FAKE_CONVERTER_MIDI", str(playback))
     choose(rig, "Hymn.mscz")
     result = rig.run(rig.request(count_in=True))
