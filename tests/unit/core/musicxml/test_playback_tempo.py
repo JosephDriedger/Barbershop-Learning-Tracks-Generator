@@ -141,8 +141,11 @@ def test_a_tempo_mark_on_a_fermata_is_followed_when_the_tempo_returns_to_it(
     stretch = [change(0, 30), change(Fraction(359, 240), 60), change(Fraction(45, 4), 45)]
     result, done = apply_playback_tempo(parsed_at(tmp_path, "60"), stretch)
     assert done.applied
+    assert done.changes == 2
     assert result.performed is not None
-    assert result.performed.tempo_events == tuple(stretch)
+    # the end of the fermata note runs at the tempo it returns to (fermata_tails.py)
+    assert result.performed.tempo_events[1].bpm == 60
+    assert result.performed.tempo_events[1].position < Fraction(359, 240)
 
 
 def test_a_slower_playback_that_does_not_return_to_the_mark_is_not_used(tmp_path: Path) -> None:
@@ -174,6 +177,50 @@ def test_the_ebb_tide_pickup_as_musescore_exports_it_is_followed(tmp_path: Path)
     playback.write_bytes(midi(track(*(tempo_event(d, b) for d, b in steps))))
     result, done = parse_with_playback_tempo(opened_with(xml, playback), parse_musicxml)
     assert done.applied
-    assert done.changes == 1  # the one-tick return is not a tempo change
+    assert done.changes == 1  # the one-tick returns are not tempo changes
     assert result.performed is not None
-    assert [float(t.bpm) for t in result.performed.tempo_events] == [30.0, 60.0]
+    events = result.performed.tempo_events
+    assert [float(t.position) for t in events] == [0.0, 0.375, 0.5, 0.875]
+    assert [float(t.bpm) for t in events][1::2] == [60.0, 60.0]
+
+
+def two_bars(tmp_path: Path, first: str, second: str) -> ParseResult:
+    bars = measure(1, attributes() + tempo_direction(first) + FOUR) + measure(
+        2, tempo_direction(second) + FOUR
+    )
+    return parse_text(tmp_path, score(bars))
+
+
+def test_a_tempo_mark_in_the_middle_of_the_score_on_a_fermata_is_followed(tmp_path: Path) -> None:
+    ending = 4 + Fraction(959, 480)
+    playback = [change(0, 60), change(4, 30), change(ending, 60)]
+    result, done = apply_playback_tempo(two_bars(tmp_path, "60", "60"), playback)
+    assert done.applied
+    assert result.performed is not None
+    assert result.performed.tempo_events[-1].bpm == 60
+
+
+def test_a_mark_on_a_fermata_after_a_ritardando_is_followed(tmp_path: Path) -> None:
+    ritardando = [change(0, 60), change(2, 56), change(3, 50), change(Fraction(7, 2), 45)]
+    playback = [*ritardando, change(4, 28), change(Fraction(4) + Fraction(959, 480), 60)]
+    result, done = apply_playback_tempo(two_bars(tmp_path, "60", "60"), playback)
+    assert done.applied
+    assert result.performed is not None
+    assert [float(t.bpm) for t in result.performed.tempo_events[:4]] == [60.0, 56.0, 50.0, 45.0]
+
+
+def test_a_mark_that_the_playback_has_slowed_before_it_is_not_taken_for_a_fermata(
+    tmp_path: Path,
+) -> None:
+    before = two_bars(tmp_path, "60", "60")
+    playback = [change(0, 60), change(Fraction(7, 2), 30), change(5, 60)]  # slow before the mark
+    result, done = apply_playback_tempo(before, playback)
+    assert result is before
+    assert "does not agree" in done.note
+
+
+def test_a_second_mark_that_the_playback_plays_at_another_speed_is_not_used(tmp_path: Path) -> None:
+    before = two_bars(tmp_path, "60", "90")
+    result, done = apply_playback_tempo(before, [change(0, 60), change(4, 60)])
+    assert result is before
+    assert not done.applied

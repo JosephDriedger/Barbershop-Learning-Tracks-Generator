@@ -19,6 +19,7 @@ from fractions import Fraction
 from pathlib import Path
 
 from barbershop_tracks.core.musicxml.convert import OpenedScore
+from barbershop_tracks.core.musicxml.fermata_tails import tempo_changes_heard, with_fermata_tails
 from barbershop_tracks.core.musicxml.midi_tempo import MidiTempoError, read_tempo_changes
 from barbershop_tracks.core.musicxml.parser import ParseResult
 from barbershop_tracks.models import TempoChange
@@ -95,14 +96,16 @@ def apply_playback_tempo(
     own = tuple((t.position, t.bpm) for t in performed.tempo_events)
     if own == tuple((t.position, t.bpm) for t in changes):
         return parsed, NOT_USED  # nothing but the marks: nothing to follow
+    heard = tempo_changes_heard(changes)
     done = PlaybackTempo(
         True,
-        len(changes) - 1,
-        f"The tempo follows MuseScore's playback: {len(changes) - 1} tempo "
-        f"change{'' if len(changes) == 2 else 's'} (a ritardando, a fermata or a return to the "
+        heard,
+        f"The tempo follows MuseScore's playback: {heard} tempo "
+        f"change{'' if heard == 1 else 's'} (a ritardando, a fermata or a return to the "
         "first tempo, as MuseScore plays them).",
     )
-    return replace(parsed, performed=replace(performed, tempo_events=tuple(changes))), done
+    shaped = with_fermata_tails(changes)
+    return replace(parsed, performed=replace(performed, tempo_events=shaped)), done
 
 
 def parse_with_playback_tempo(

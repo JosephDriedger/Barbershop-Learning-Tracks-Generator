@@ -17,11 +17,6 @@ from barbershop_tracks.models import TempoChange
 # is exact as a double, so the project file can state it without a quantisation error
 _STEP = 1024
 _TEMPO = 0x51
-# Two fermatas on notes that follow each other are exported as slow, fast, slow, with the fast one
-# lasting a single tick (30, 60, 30 bpm at 0, 0.498 and 0.5 quarters). A ritardando's steps are a
-# sixteenth of a quarter note apart, so anything shorter than this between two equal tempos is that
-# tick and not a tempo anyone plays.
-_BLIP = Fraction(1, 64)
 
 
 class MidiTempoError(ValueError):
@@ -72,11 +67,7 @@ def _track_tempos(body: bytes) -> list[tuple[int, int]]:
 
 
 def read_tempo_changes(data: bytes) -> tuple[TempoChange, ...]:
-    """The tempo changes of a MIDI file, in order, equal ones merged, positions in quarters.
-
-    A one-tick return to the tempo before, between two stretches of the same slower tempo, is left
-    out (see ``_BLIP``); it is about a millisecond of the playing time.
-    """
+    """The tempo changes of a MIDI file, in order, equal ones merged, positions in quarters."""
     if len(data) < 14 or data[:4] != b"MThd":
         raise MidiTempoError("not a MIDI file")
     _format, tracks, division = struct.unpack(">HHH", data[8:14])
@@ -93,23 +84,10 @@ def read_tempo_changes(data: bytes) -> tuple[TempoChange, ...]:
         for tick, microseconds in _track_tempos(body):
             if microseconds > 0:
                 events[tick] = microseconds  # a later event at the same tick replaces an earlier
-    ticks = sorted(events)
-    steps = [
-        (
-            Fraction(tick, division),
-            Fraction(round(Fraction(60_000_000, events[tick]) * _STEP), _STEP),
-        )
-        for tick in ticks
-    ]
     changes: list[TempoChange] = []
-    for index, (position, bpm) in enumerate(steps):
-        if (
-            0 < index < len(steps) - 1
-            and steps[index - 1][1] == steps[index + 1][1] != bpm
-            and steps[index + 1][0] - position < _BLIP
-        ):
-            continue  # a return to the tempo before, for a tick, between two stretches
+    for tick in sorted(events):
+        bpm = Fraction(round(Fraction(60_000_000, events[tick]) * _STEP), _STEP)
         if changes and changes[-1].bpm == bpm:
             continue  # the same tempo goes on
-        changes.append(TempoChange(position=position, bpm=bpm))
+        changes.append(TempoChange(position=Fraction(tick, division), bpm=bpm))
     return tuple(changes)
