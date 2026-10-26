@@ -149,11 +149,20 @@ and the playback is followed if it returns to the mark's tempo right after. The 
 in ticks, not in seconds: its closing consonants sit 60, 120 and 180 ticks before the end of the note (the opening ones of the
 next word the same before its start), and the note ends with a quiet release of about 60 ticks. A note stretched to half the
 tempo would double all of that, stop sounding a quarter of a second early, and put a word such as "first" (two closing
-consonants) a third of a second early, which is where the song sounded chopped. `fermata_tails.py` therefore runs the last 180
-ticks of every fermata note at the tempo it returns to and the first part of the note slower (a note too short for that gets 120
-or 60 ticks): every note end stays at the same time in seconds (within about 0.1 ms per note), and the sound is what the same
-words have at the normal tempo (checked in all four voices). A ritardando, a section at another tempo and a tempo that changes
-at a note start are left exactly as MuseScore plays them. A fermata that nothing follows (the end of a song) is left as it is.
+consonants) a third of a second early, which is where the song sounded chopped. `fermata_tails.py` therefore runs the last 300
+ticks of every fermata note at the tempo it returns to and the first part of the note slower (a note too short for that gets
+less, in steps of 60 ticks, and always keeps 30 ticks of slow part). Every note end stays at the same time in seconds (within a
+microsecond or so), and the sound is what the same words have at the normal tempo. Checked with real renders (Bennett (ENG), Lead
+and Baritone): fermatas on eighth, quarter and half notes stretched to half and to a third of the tempo, on open and closed
+syllables, clusters of consonants ("lasts", "street") and diphthongs ("night", "my"); and the pickup of *Ebb Tide* in all four
+voices with Bennett (ENG) and with AyaLuna English. 300 and not 180 ticks because a diphthong before a stop ("night") on a
+stretched half note had a dip in the vowel 200 to 230 ticks before the end.
+A fermata is recognised by what MuseScore 4's export does: a clear slowdown (more than a quarter) of at most a whole note's length
+that returns to the faster tempo exactly one tick before a note end, which is never where a ritardando step, "a tempo" or a
+tempo mark falls. Those, a section at another tempo, a stretch of less than a quarter (1.25 times), a fermata that nothing
+follows (the end of a song) and a stretch that would need the first part slower than 4 beats per minute (a MIDI file cannot
+hold less) are left exactly as MuseScore plays them. Only MuseScore 4 was tried; another version that exports a fermata
+differently is simply not shaped.
 The package's `source.conversion`
 records `playback_tempo` (applied, how many changes). For MusicXML, compressed MusicXML and recognised PDFs there is no
 playback to read, so only the tempo marks of the file count there.

@@ -138,14 +138,14 @@ def parsed_at(tmp_path: Path, bpm: str) -> ParseResult:
 def test_a_tempo_mark_on_a_fermata_is_followed_when_the_tempo_returns_to_it(
     tmp_path: Path,
 ) -> None:
-    stretch = [change(0, 30), change(Fraction(359, 240), 60), change(Fraction(45, 4), 45)]
+    stretch = [change(0, 30), change(Fraction(719, 480), 60), change(Fraction(45, 4), 45)]
     result, done = apply_playback_tempo(parsed_at(tmp_path, "60"), stretch)
     assert done.applied
     assert done.changes == 2
     assert result.performed is not None
     # the end of the fermata note runs at the tempo it returns to (fermata_tails.py)
     assert result.performed.tempo_events[1].bpm == 60
-    assert result.performed.tempo_events[1].position < Fraction(359, 240)
+    assert result.performed.tempo_events[1].position < Fraction(719, 480)
 
 
 def test_a_slower_playback_that_does_not_return_to_the_mark_is_not_used(tmp_path: Path) -> None:
