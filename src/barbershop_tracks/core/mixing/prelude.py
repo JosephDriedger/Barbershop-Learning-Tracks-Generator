@@ -8,7 +8,8 @@ starts later, ``Prelude.frames`` frames into each file, and the manifest says wh
   signature fits a major key and its relative minor (G major and E minor both have one sharp), so
   the person chooses which one the song is in; major is the default. A score without a key
   signature is C major or A minor, and the manifest says that the key was assumed.
-* **Count-in**: one bar of clicks at the score's first tempo and meter, the first click accented.
+* **Count-in**: one bar of clicks at the tempo the score is written at where it begins (not the
+  stretched tempo of a fermata on its first note) and its first meter, the first click accented.
   The music starts exactly one beat after the last click, as if it were the next beat of the count.
 
 After the tune-up note there is a second of silence so that it does not run into the count-in or

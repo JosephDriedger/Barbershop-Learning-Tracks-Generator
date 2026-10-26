@@ -295,6 +295,10 @@ class PerformedSong:
     located_issues: tuple[LocatedIssue, ...] = ()
     tempo_events: tuple[TempoChange, ...] = ()
     meter_events: tuple[PerformedMeterEvent, ...] = ()
+    # the tempo the score is written at where it begins, kept when ``tempo_events`` is replaced by
+    # what a notation program plays (a fermata on the first note plays at half of it); the
+    # metronome count-in clicks at this one. ``None``: the first of ``tempo_events``
+    opening_bpm: Fraction | None = None
 
     def __post_init__(self) -> None:
         if len(self.merged) != len(self.lines):

@@ -12,7 +12,7 @@ from test_coordinator import Rig, error_of
 from barbershop_tracks.core.pipeline import PipelineError
 from cli_scores import quartet_xml
 from shims import write_shim
-from smf_builders import ritardando_from
+from smf_builders import midi, ritardando_from, tempo_event, track
 
 FAKE = Path(__file__).resolve().parents[3] / "fake_converter.py"
 
@@ -190,3 +190,28 @@ def test_without_a_playback_the_tempo_is_the_scores_own_marks(rig: Rig) -> None:
     result = rig.run()
     assert [float(t.bpm) for t in result.plan.tempo] == [100.0]
     assert not any("TEMPO_" in w for w in result.warnings)
+
+
+def test_the_count_in_clicks_at_the_written_tempo_not_at_a_fermatas_stretched_one(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # two fermata eighths open the score (written at 100): MuseScore plays them at 50 and returns to
+    # 100 a tick before each ends
+    playback = rig.root / "playback.mid"
+    steps = [tempo_event(0, 50), tempo_event(239, 100), tempo_event(1, 50), tempo_event(239, 100)]
+    playback.write_bytes(midi(track(*steps)))
+    monkeypatch.setenv("FAKE_CONVERTER_MIDI", str(playback))
+    choose(rig, "Hymn.mscz")
+    result = rig.run(rig.request(count_in=True))
+    assert result.plan.tempo[0].bpm < 100  # the performance follows the fermata
+    assert result.plan.opening_bpm == 100
+    count_in = result.package.manifest["audio"]["prelude"]["count_in"]
+    assert count_in["bpm"] == "100"  # the metronome does not
+    assert count_in["seconds"] == pytest.approx(4 * 0.6)
+
+
+def test_without_a_playback_the_count_in_is_at_the_first_tempo_as_before(rig: Rig) -> None:
+    choose(rig, "Hymn.mscz")
+    result = rig.run(rig.request(count_in=True))
+    assert result.plan.opening_bpm is None
+    assert result.package.manifest["audio"]["prelude"]["count_in"]["bpm"] == "100"

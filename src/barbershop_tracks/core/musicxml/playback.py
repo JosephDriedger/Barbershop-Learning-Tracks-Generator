@@ -105,7 +105,10 @@ def apply_playback_tempo(
         "first tempo, as MuseScore plays them).",
     )
     shaped = with_fermata_tails(changes)
-    return replace(parsed, performed=replace(performed, tempo_events=shaped)), done
+    opening = min(performed.tempo_events, key=lambda mark: mark.position).bpm
+    return replace(
+        parsed, performed=replace(performed, tempo_events=shaped, opening_bpm=opening)
+    ), done
 
 
 def parse_with_playback_tempo(

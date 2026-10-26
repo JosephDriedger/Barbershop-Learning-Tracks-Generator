@@ -319,6 +319,9 @@ class SynthesisPlan:
     output: OutputRequirements
     # the performed measures with the score's own numbers; empty for a plan built by hand
     measures: tuple[MeasureMark, ...] = ()
+    # the tempo the score is written at where it begins, when ``tempo`` is what a notation program
+    # plays (a fermata on the first note): what the metronome count-in clicks at. ``None``: tempo[0]
+    opening_bpm: Fraction | None = None
 
     def __post_init__(self) -> None:
         if tuple(v.role for v in self.voices) != VOICE_ORDER:

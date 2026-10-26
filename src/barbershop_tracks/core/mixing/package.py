@@ -94,6 +94,7 @@ class PackageSource:
     meter: tuple[MeterPoint, ...] = ()  # for the count-in
     reference_midi: int | None = None  # the Lead's first note: the tune-up note sits near it
     melody: tuple[MelodySection, ...] = ()  # who has the melody when: the Full Quartet follows it
+    count_in_bpm: Fraction | None = None  # the written opening tempo; None: the first of ``tempo``
 
     @classmethod
     def from_plan(
@@ -113,6 +114,7 @@ class PackageSource:
             plan.meter,
             reference,
             tuple(melody),
+            plan.opening_bpm,
         )
 
     @property
@@ -524,7 +526,7 @@ def prelude_for(source: PackageSource, options: PreludeOptions) -> Prelude | Non
         options,
         key=source.key,
         reference_midi=source.reference_midi,
-        bpm=source.tempo[0].bpm,
+        bpm=source.count_in_bpm or source.tempo[0].bpm,  # not a fermata's stretched tempo
         beats=meter.beats if meter else 4,
         beat_type=meter.beat_type if meter else 4,
     )

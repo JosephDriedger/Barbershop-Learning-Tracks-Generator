@@ -224,3 +224,22 @@ def test_a_second_mark_that_the_playback_plays_at_another_speed_is_not_used(tmp_
     result, done = apply_playback_tempo(before, [change(0, 60), change(4, 60)])
     assert result is before
     assert not done.applied
+
+
+def test_the_tempo_the_score_is_written_at_is_kept_beside_the_playback_tempo(
+    tmp_path: Path,
+) -> None:
+    # the first note has a fermata: it plays at 30 but the score says 60 (the metronome keeps 60)
+    stretch = [change(0, 30), change(Fraction(719, 480), 60), change(Fraction(45, 4), 45)]
+    result, done = apply_playback_tempo(parsed_at(tmp_path, "60"), stretch)
+    assert done.applied
+    assert result.performed is not None
+    assert result.performed.tempo_events[0].bpm < 30  # what is played
+    assert result.performed.opening_bpm == 60  # what is written
+
+
+def test_a_playback_that_is_not_used_leaves_no_opening_tempo(tmp_path: Path) -> None:
+    result, done = apply_playback_tempo(parsed_at(tmp_path, "60"), [change(0, 100), change(3, 63)])
+    assert not done.applied
+    assert result.performed is not None
+    assert result.performed.opening_bpm is None

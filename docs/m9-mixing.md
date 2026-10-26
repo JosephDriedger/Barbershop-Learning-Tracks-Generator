@@ -199,7 +199,7 @@ off by default, and the music itself is never changed: it only starts later, and
   E minor both have one sharp), so the person chooses which one the song is in (`--tune-up-key major|minor`, or *Major Key* /
   *Minor Key* beside the checkbox; major by default); the choice overrides a `<mode>` the file may write. A score with no key
   signature is C major or A minor, and the manifest records `assumed: true` (`audio.prelude.tune_up.key`).
-* **Count-in**: one bar of metronome clicks (not spoken numbers), the first one higher, at the score's first tempo and
+* **Count-in**: one bar of metronome clicks (not spoken numbers), the first one higher, at the tempo the score is written at where it begins (never a fermata's stretched tempo) and
   time signature, one click per notated beat (6/8 gives six clicks). The music starts one beat after the last click. It is
   not repeated during the song.
 

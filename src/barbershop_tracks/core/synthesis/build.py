@@ -273,6 +273,7 @@ def build_synthesis_plan(
         meter=meter,
         engine_refs=refs,
         output=OutputRequirements(performed_length=length),
+        opening_bpm=performed.opening_bpm,
         measures=tuple(
             MeasureMark(start=m.performed_start, length=m.length, number=m.number, visit=m.visit)
             for m in played.played

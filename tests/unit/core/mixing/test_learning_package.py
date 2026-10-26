@@ -587,3 +587,27 @@ def test_a_count_in_needs_a_time_signature(rig: Rig) -> None:
     settings = rig.settings(prelude=PreludeOptions(count_in=True))
     with pytest.raises(MixConfigurationError, match="time signature"):
         build_learning_tracks(SOURCE, rig.stems, rig.destination, settings)
+
+
+def test_the_count_in_clicks_at_the_written_opening_tempo_when_the_music_is_played_slower(
+    rig: Rig,
+) -> None:
+    # a fermata on the first note plays at half the written tempo; the metronome keeps the written
+    stretched = PackageSource(
+        KEYED_SOURCE.identity,
+        (TempoPoint(position=Fraction(0), bpm=Fraction(50)),),
+        KEYED_SOURCE.length,
+        meter=KEYED_SOURCE.meter,
+        count_in_bpm=Fraction(100),
+    )
+    settings = rig.settings(prelude=PreludeOptions(count_in=True))
+    result = build_learning_tracks(stretched, rig.stems, rig.destination, settings)
+    count_in = result.manifest["audio"]["prelude"]["count_in"]
+    assert count_in["bpm"] == "100"
+    assert count_in["seconds"] == 2.4  # four beats of 0.6 s, not of 1.2 s
+
+
+def test_without_a_written_opening_tempo_the_count_in_follows_the_first_tempo(rig: Rig) -> None:
+    settings = rig.settings(prelude=PreludeOptions(count_in=True))
+    result = build_learning_tracks(KEYED_SOURCE, rig.stems, rig.destination, settings)
+    assert result.manifest["audio"]["prelude"]["count_in"]["bpm"] == "100"
