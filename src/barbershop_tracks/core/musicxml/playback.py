@@ -56,6 +56,24 @@ def _bpm_at(changes: Sequence[TempoChange], position: Fraction) -> Fraction:
     return playing
 
 
+def _agrees(changes: Sequence[TempoChange], mark: TempoChange) -> bool:
+    """MuseScore plays ``mark`` at its place: at that tempo, or as a fermata stretch of it.
+
+    A tempo mark on a note with a fermata is played slower for the length of the fermata, and the
+    stretch begins exactly at the mark. That is the mark being followed, if the first faster tempo
+    after the stretch is the mark's own.
+    """
+    playing = _bpm_at(changes, mark.position)
+    if abs(playing - mark.bpm) <= _AGREE:
+        return True
+    if playing >= mark.bpm or not any(c.position == mark.position for c in changes):
+        return False
+    for change in changes:
+        if change.position > mark.position and change.bpm > playing:
+            return abs(change.bpm - mark.bpm) <= _AGREE
+    return False
+
+
 def apply_playback_tempo(
     parsed: ParseResult, changes: Sequence[TempoChange]
 ) -> tuple[ParseResult, PlaybackTempo]:
@@ -66,7 +84,7 @@ def apply_playback_tempo(
     if changes[0].position != 0:
         return parsed, NOT_USED
     for mark in performed.tempo_events:
-        if abs(_bpm_at(changes, mark.position) - mark.bpm) > _AGREE:
+        if not _agrees(changes, mark):
             return parsed, PlaybackTempo(
                 False,
                 0,

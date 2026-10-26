@@ -81,3 +81,28 @@ def test_a_file_without_tempo_events_has_none() -> None:
 def test_what_is_not_a_midi_file_with_quarter_note_time_is_refused(data: bytes) -> None:
     with pytest.raises(MidiTempoError):
         read_tempo_changes(data)
+
+
+# Ebb Tide opens with two eighth notes that each have a fermata. MuseScore exports them as 30 bpm
+# for the first, 60 for a single tick, 30 for the second, then 60 again.
+EBB_TIDE_PICKUP = [(0, 30.0), (239, 60.0), (1, 30.0), (239, 60.0)]
+
+
+def test_a_one_tick_return_between_two_fermatas_is_not_a_tempo_change() -> None:
+    changes = read_tempo_changes(midi(track(*(tempo_event(d, b) for d, b in EBB_TIDE_PICKUP))))
+    assert [(c.position, float(c.bpm)) for c in changes] == [
+        (Fraction(0), 30.0),
+        (Fraction(479, 480), 60.0),
+    ]
+
+
+def test_a_short_return_between_two_different_tempos_is_kept() -> None:
+    steps = [(0, 30.0), (239, 60.0), (1, 45.0)]
+    changes = read_tempo_changes(midi(track(*(tempo_event(d, b) for d, b in steps))))
+    assert [float(c.bpm) for c in changes] == [30.0, 60.0, 45.0]
+
+
+def test_a_return_that_lasts_as_long_as_a_ritardando_step_is_kept() -> None:
+    steps = [(0, 30.0), (240, 60.0), (30, 30.0), (240, 60.0)]  # 30 ticks: a sixteenth of a quarter
+    changes = read_tempo_changes(midi(track(*(tempo_event(d, b) for d, b in steps))))
+    assert [float(c.bpm) for c in changes] == [30.0, 60.0, 30.0, 60.0]

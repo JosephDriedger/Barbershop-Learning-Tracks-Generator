@@ -127,3 +127,53 @@ def test_a_playback_that_is_not_there_or_not_midi_leaves_the_score_alone(
     assert done is NOT_USED
     assert result.performed is not None
     assert [float(t.bpm) for t in result.performed.tempo_events] == [63.0]
+
+
+# A tempo mark on a note with a fermata (the pickup of Ebb Tide, whose mark is 60): MuseScore plays
+# the note at half the tempo, and the mark's tempo when the fermata is over.
+def parsed_at(tmp_path: Path, bpm: str) -> ParseResult:
+    return parse_text(tmp_path, score(measure(1, attributes() + tempo_direction(bpm) + FOUR)))
+
+
+def test_a_tempo_mark_on_a_fermata_is_followed_when_the_tempo_returns_to_it(
+    tmp_path: Path,
+) -> None:
+    stretch = [change(0, 30), change(Fraction(359, 240), 60), change(Fraction(45, 4), 45)]
+    result, done = apply_playback_tempo(parsed_at(tmp_path, "60"), stretch)
+    assert done.applied
+    assert result.performed is not None
+    assert result.performed.tempo_events == tuple(stretch)
+
+
+def test_a_slower_playback_that_does_not_return_to_the_mark_is_not_used(tmp_path: Path) -> None:
+    before = parsed_at(tmp_path, "60")
+    result, done = apply_playback_tempo(before, [change(0, 30), change(1, 45)])
+    assert result is before
+    assert "does not agree" in done.note
+
+
+def test_a_slower_playback_that_never_speeds_up_is_not_used(tmp_path: Path) -> None:
+    before = parsed_at(tmp_path, "60")
+    result, done = apply_playback_tempo(before, [change(0, 30), change(2, 20)])
+    assert result is before
+    assert not done.applied
+
+
+def test_a_faster_playback_than_the_mark_is_not_taken_for_a_fermata(tmp_path: Path) -> None:
+    before = parsed_at(tmp_path, "60")
+    result, done = apply_playback_tempo(before, [change(0, 120), change(1, 60)])
+    assert result is before
+    assert not done.applied
+
+
+def test_the_ebb_tide_pickup_as_musescore_exports_it_is_followed(tmp_path: Path) -> None:
+    xml = tmp_path / "score.musicxml"
+    xml.write_text(score(measure(1, attributes() + tempo_direction("60") + FOUR)), encoding="utf-8")
+    playback = tmp_path / "score.mid"
+    steps = [(0, 30.0), (239, 60.0), (1, 30.0), (239, 60.0)]
+    playback.write_bytes(midi(track(*(tempo_event(d, b) for d, b in steps))))
+    result, done = parse_with_playback_tempo(opened_with(xml, playback), parse_musicxml)
+    assert done.applied
+    assert done.changes == 1  # the one-tick return is not a tempo change
+    assert result.performed is not None
+    assert [float(t.bpm) for t in result.performed.tempo_events] == [30.0, 60.0]
