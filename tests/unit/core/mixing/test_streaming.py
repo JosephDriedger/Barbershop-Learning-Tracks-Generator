@@ -189,3 +189,30 @@ def test_memory_does_not_grow_with_the_length_of_the_song(tmp_path: Path) -> Non
     long = traced_peak(long_dir, 10 * 60 * RATE)  # 10 minutes: 30 times longer
     assert long < 40 * 1024 * 1024  # a handful of blocks, never the song
     assert long < short * 1.5 + 2_000_000  # and independent of the length
+
+
+def test_a_few_milliseconds_of_quiet_release_are_trimmed_by_the_streaming_mixer_as_well(
+    tmp_path: Path,
+) -> None:
+    # the in-memory reference and the streaming mixer agree on a stem 4 ms too long that peaks at
+    # 0.0011 of full scale (36 of 32768): over the strict limit, inside the short one
+    excess = round(0.004 * RATE)
+    paths = write_stems(tmp_path, dict.fromkeys(VOICE_ORDER, 30000), amplitude=1000)
+    loud = np.random.default_rng(3).integers(-1000, 1000, size=30000).astype(np.int16)
+    paths[VoiceRole.BASS].write_bytes(wav_bytes(np.concatenate([loud, np.full(excess, 36, "<i2")])))
+    tail = TailPolicy()
+    for spec in SPECS:
+        out = tmp_path / f"{spec.identifier}.wav"
+        streamed(paths, 30000, spec, tail, out, 4096)
+        assert out.read_bytes() == reference(paths, 30000, spec, tail)
+
+
+def test_the_streaming_mixer_still_refuses_a_loud_short_excess(tmp_path: Path) -> None:
+    excess = round(0.004 * RATE)
+    paths = write_stems(tmp_path, dict.fromkeys(VOICE_ORDER, 30000), amplitude=1000)
+    loud = np.random.default_rng(3).integers(-1000, 1000, size=30000).astype(np.int16)
+    paths[VoiceRole.BASS].write_bytes(
+        wav_bytes(np.concatenate([loud, np.full(excess, 400, "<i2")]))
+    )
+    with pytest.raises(MixDurationError):
+        place_stem(VoiceRole.BASS, paths[VoiceRole.BASS], 30000, TailPolicy())

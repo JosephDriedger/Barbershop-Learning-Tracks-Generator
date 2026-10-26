@@ -44,10 +44,28 @@ class TailPolicy:
 
     max_trim_seconds: float = 0.05
     max_trim_peak: float = 1e-3  # share of full scale; -60 dBFS
+    # The engine places phrases on its own time grid, so a stem ends a few milliseconds either side
+    # of the exact end (measured: -5 to +4 ms). A stem a few milliseconds too long whose last note
+    # releases a little above -60 dBFS (peaks of 0.0011 and 0.0012 were refused) is no more audible
+    # than one below it, so a very short excess may be a little louder: at most 12 ms at -48 dBFS.
+    short_trim_seconds: float = 0.012
+    short_trim_peak: float = 4e-3
 
     def __post_init__(self) -> None:
-        if self.max_trim_seconds < 0 or not 0 <= self.max_trim_peak <= 1:
+        if (
+            self.max_trim_seconds < 0
+            or not 0 <= self.max_trim_peak <= 1
+            or self.short_trim_seconds < 0
+            or not 0 <= self.short_trim_peak <= 1
+        ):
             raise MixConfigurationError("MIX_TAIL_POLICY", "the tail policy is out of range")
+
+    def allows(self, excess_frames: int, peak: float, sample_rate: int) -> bool:
+        """Whether ``excess_frames`` frames of the given peak (full scale 1.0) may be dropped."""
+        seconds = excess_frames / sample_rate
+        return (seconds <= self.max_trim_seconds and peak <= self.max_trim_peak) or (
+            seconds <= self.short_trim_seconds and peak <= self.short_trim_peak
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,8 +119,7 @@ def fit_stem(stem: StemAudio, target_frames: int, tail: TailPolicy) -> FittedSte
     if excess > 0:
         dropped = decoded[target_frames:]
         peak = float(np.max(np.abs(dropped)))
-        limit = int(tail.max_trim_seconds * stem.sample_rate)
-        if excess > limit or peak > tail.max_trim_peak:
+        if not tail.allows(excess, peak, stem.sample_rate):
             raise MixDurationError(
                 "MIX_STEM_TOO_LONG",
                 f"{stem.role.display_name} sounds {excess} frames "

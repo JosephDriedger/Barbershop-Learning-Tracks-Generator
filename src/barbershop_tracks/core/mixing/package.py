@@ -482,6 +482,8 @@ def _manifest(
             "tail_policy": {
                 "max_trim_seconds": settings.tail.max_trim_seconds,
                 "max_trim_peak": settings.tail.max_trim_peak,
+                "short_trim_seconds": settings.tail.short_trim_seconds,
+                "short_trim_peak": settings.tail.short_trim_peak,
             },
             "mp3": settings.mp3.settings()
             if AudioFormat.MP3 in settings.formats and settings.mp3

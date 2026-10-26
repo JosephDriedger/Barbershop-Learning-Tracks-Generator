@@ -102,8 +102,11 @@ What is **not** verified:
   * **Ritardando, fermata, "a tempo".** For a MuseScore project BLT follows the tempo MuseScore plays (from its own MIDI export), so
   these are respected as in MuseScore; if that playback disagrees with the score's tempo marks it is left unused and a warning says
   so. For MusicXML, compressed MusicXML and recognised PDFs only the tempo marks in the file count: a `rit.` written as words is
-  sung at the tempo before it. Other tempo effects of MuseScore's playback (swing, a gradual tempo change MuseScore itself
-  exports as plain steps) are followed as MuseScore plays them; BLT adds none of its own.
+  sung at the tempo before it. A gradual tempo change MuseScore itself exports as plain steps is followed as MuseScore plays it; BLT adds none of its own.
+  **Swing is not followed**: it is not a tempo, it moves the off-beat notes later in MuseScore's playback (a score with a swing
+  style such as *San Francisco Bay Blues* plays its eighths 60/40), and BLT sings every note where the score writes it, so
+  the eighths are straight. Measured on that score: 149 of its 316 note starts are a tenth of a quarter note earlier than in
+  MuseScore's playback.
 * a **PDF or image of the music** (`.pdf`, `.png`, `.jpg`) has no notes in it; they are *recognised* by Audiveris (free; `BLT_AUDIVERIS` or its usual folder) when you accept that recognition makes mistakes (a dialog in the app, `--accept-recognition` on the command line). The result is flagged everywhere (a warning in the window, `recognised: true` in the package), and BLT does not check the recognised music: a wrong note or a word under the wrong note will be sung. Several recognised pieces in one PDF are refused (BLT will not choose). **Real Audiveris was tried once (21 Oct 2026) on a clean PDF that MuseScore exported from a four-part test score**: it found all four parts and every note, but recognised none of the lyrics and no tempo, so readiness blocked generation. Recognition quality is Audiveris's, not BLT's, and it is known to be weak on barbershop layouts (shared staves, two voices per staff, lyrics); treat a PDF as a last resort and prefer MusicXML or a MuseScore project. Scanned PDFs have not been tried.
   * A missing program, a failure, a time-out (3 minutes for MuseScore, 20 for recognition) or an empty result is reported with what to do; nothing is guessed. MIDI is not read (no lyrics, no voice names).
 * **No playback or preview** inside the app yet (tracked separately). You open the output folder and play the files elsewhere.

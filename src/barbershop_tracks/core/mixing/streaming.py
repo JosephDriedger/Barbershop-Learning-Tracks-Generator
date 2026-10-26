@@ -97,8 +97,7 @@ def place_stem(role: VoiceRole, path: Path, target_frames: int, tail: TailPolicy
     excess = info.frames - target_frames
     if excess > 0:
         peak = _peak(path, offset, target_frames, info.frames)
-        limit = int(tail.max_trim_seconds * SAMPLE_RATE)
-        if excess > limit or peak > tail.max_trim_peak:
+        if not tail.allows(excess, peak, SAMPLE_RATE):
             raise MixDurationError(
                 "MIX_STEM_TOO_LONG",
                 f"{role.display_name} sounds {excess} frames "

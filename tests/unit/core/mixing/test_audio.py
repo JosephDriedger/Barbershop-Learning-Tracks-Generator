@@ -301,3 +301,53 @@ def test_wav_bytes_are_canonical_and_decode_back(tmp_path: Path) -> None:
     audio = read_wav(write(tmp_path / "o.wav", data))
     assert (audio.info.sample_rate, audio.info.bit_depth, audio.info.channels) == (44100, 16, 1)
     assert [round(x * SCALE) for x in audio.samples] == [0, 1, -1, 32767, -32768]
+
+
+# --- a stem a few milliseconds too long whose last note releases a little above -60 dBFS ---
+
+
+def test_a_few_milliseconds_of_quiet_release_above_minus_60_dbfs_are_trimmed() -> None:
+    # 4 ms past the target peaking at 0.0011 of full scale: what a real render of a score with a 4x
+    # fermata stretch gave, and what was refused as MIX_STEM_TOO_LONG (the strict limit is 0.001)
+    excess = round(0.004 * RATE)
+    values = [1000] * 100 + [36] * excess
+    placed = fit_stem(stem(VoiceRole.LEAD, values), 100, TailPolicy())
+    assert placed.samples.shape == (100,)
+    assert placed.trimmed_frames == excess
+
+
+def test_the_short_excess_may_not_be_loud() -> None:
+    values = [1000] * 100 + [400] * round(0.004 * RATE)  # 0.012 of full scale: -38 dBFS
+    with pytest.raises(MixDurationError) as error:
+        fit_stem(stem(VoiceRole.LEAD, values), 100, TailPolicy())
+    assert error.value.code == "MIX_STEM_TOO_LONG"
+
+
+def test_an_excess_past_twelve_milliseconds_still_needs_to_be_below_minus_60_dbfs() -> None:
+    quiet_but_not_silent = [1000] * 100 + [36] * round(0.02 * RATE)  # 0.0011, 20 ms
+    with pytest.raises(MixDurationError):
+        fit_stem(stem(VoiceRole.LEAD, quiet_but_not_silent), 100, TailPolicy())
+    below = [1000] * 100 + [30] * round(0.02 * RATE)  # 0.0009, 20 ms: the strict rule as before
+    assert fit_stem(stem(VoiceRole.LEAD, below), 100, TailPolicy()).trimmed_frames == round(
+        0.02 * RATE
+    )
+
+
+def test_the_two_limits_meet_at_their_edges() -> None:
+    policy = TailPolicy()
+    assert policy.allows(round(0.012 * RATE), 4e-3, RATE)
+    assert not policy.allows(round(0.012 * RATE) + 50, 4e-3, RATE)  # past 12 ms, above -60 dBFS
+    assert not policy.allows(10, 4.1e-3, RATE)  # above -48 dBFS
+    assert policy.allows(round(0.05 * RATE), 1e-3, RATE)  # the strict tier as before
+    assert not policy.allows(round(0.05 * RATE) + 50, 1e-3, RATE)
+
+
+def test_the_short_limits_are_checked_and_can_be_changed() -> None:
+    with pytest.raises(MixConfigurationError):
+        TailPolicy(short_trim_peak=2.0)
+    with pytest.raises(MixConfigurationError):
+        TailPolicy(short_trim_seconds=-1)
+    strict = TailPolicy(short_trim_seconds=0.0, short_trim_peak=0.0)
+    values = [1000] * 100 + [36] * round(0.004 * RATE)
+    with pytest.raises(MixDurationError):
+        fit_stem(stem(VoiceRole.LEAD, values), 100, strict)

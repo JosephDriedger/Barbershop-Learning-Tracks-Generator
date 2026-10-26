@@ -88,8 +88,11 @@ raises `MixClippingError`. Profile validation: finite, in range, focus above oth
   shifted: leading silence, late entrances and the roughly 50 ms preutterance before a note
   (M8 measurement) are preserved sample for sample (tested).
 * A stem longer than the target raises `MixDurationError` unless the excess is both short (at most
-  0.05 s) and nearly silent (peak at most -60 dBFS); then it is trimmed and the manifest records
-  `trimmed_frames`. Both limits are in `TailPolicy`.
+  0.05 s) and nearly silent (peak at most -60 dBFS), or very short (at most 12 ms) and quiet (peak at
+  most -48 dBFS: the engine places phrases on its own time grid, so a stem ends a few milliseconds
+  either side of the exact end, and a last note that releases at -59 dBFS made a 4 ms excess refuse a
+  whole score); then it is trimmed and the manifest records `trimmed_frames`. The limits are in
+  `TailPolicy`.
 * All 13 WAVs have the same frame count; this is verified after writing and again by re-reading.
 
 ## Audio processing and quantisation
