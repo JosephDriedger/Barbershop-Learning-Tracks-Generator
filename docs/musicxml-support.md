@@ -146,12 +146,15 @@ not given one (`TEMPO_MISSING` stays). Tempo values are rounded to a multiple of
 whole number of microseconds, so never quite the value meant), which is exact as a double.
 A tempo mark on a note with a fermata (the pickup of *Ebb Tide*) is accepted: MuseScore plays that note at the stretched tempo,
 and the playback is followed if it returns to the mark's tempo right after. The singing engine counts the closing of a syllable
-(its closing consonants and the quiet release of a note, about 60 ticks) in ticks, not in seconds, so a note stretched to half
-the tempo would stop sounding a quarter of a second before its end, which is where the song sounded chopped. `fermata_tails.py`
-therefore runs the last 60 ticks of every fermata note at the tempo it returns to and the rest of the stretch a little slower:
-every note end stays at the same time in seconds (within about 0.1 ms per note), and a ritardando, a section at another tempo and
-a tempo that changes at a note start are left exactly as MuseScore plays them. A fermata that nothing follows (the end of a song)
-is left as it is. The package's `source.conversion`
+in ticks, not in seconds: its closing consonants sit 60, 120 and 180 ticks before the end of the note (the opening ones of the
+next word the same before its start), and the note ends with a quiet release of about 60 ticks. A note stretched to half the
+tempo would double all of that, stop sounding a quarter of a second early, and put a word such as "first" (two closing
+consonants) a third of a second early, which is where the song sounded chopped. `fermata_tails.py` therefore runs the last 180
+ticks of every fermata note at the tempo it returns to and the first part of the note slower (a note too short for that gets 120
+or 60 ticks): every note end stays at the same time in seconds (within about 0.1 ms per note), and the sound is what the same
+words have at the normal tempo (checked in all four voices). A ritardando, a section at another tempo and a tempo that changes
+at a note start are left exactly as MuseScore plays them. A fermata that nothing follows (the end of a song) is left as it is.
+The package's `source.conversion`
 records `playback_tempo` (applied, how many changes). For MusicXML, compressed MusicXML and recognised PDFs there is no
 playback to read, so only the tempo marks of the file count there.
 

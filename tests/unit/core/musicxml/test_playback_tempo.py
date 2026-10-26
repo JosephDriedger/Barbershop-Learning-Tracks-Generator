@@ -180,7 +180,7 @@ def test_the_ebb_tide_pickup_as_musescore_exports_it_is_followed(tmp_path: Path)
     assert done.changes == 1  # the one-tick returns are not tempo changes
     assert result.performed is not None
     events = result.performed.tempo_events
-    assert [float(t.position) for t in events] == [0.0, 0.375, 0.5, 0.875]
+    assert [float(t.position) for t in events] == [0.0, 0.125, 0.5, 0.625]
     assert [float(t.bpm) for t in events][1::2] == [60.0, 60.0]
 
 

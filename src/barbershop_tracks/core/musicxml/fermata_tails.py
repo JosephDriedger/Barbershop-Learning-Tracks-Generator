@@ -8,12 +8,16 @@ those 60 ticks last twice as long, so a syllable held under a fermata sounds for
 its note and then stops: a gap of a quarter of a second before the next syllable, which is where
 the song sounds chopped.
 
-Here the stretch is reshaped so that its last 60 ticks run at the tempo before and the rest runs
-a little slower. Every note end stays at the same time in seconds (the time at the end of the
-stretch is kept); only the tempo inside the last eighth of a quarter note changes, so the closing
-of the syllable takes the time it takes everywhere else in the song. Nothing else is touched: a
-ritardando, a section at another tempo, or a tempo that changes at a note start, is left exactly
-as it is.
+Here the stretch is reshaped so that its last 180 ticks run at the tempo before and the rest runs
+slower. Every note end stays at the same time in seconds (the time at the end of the stretch is
+kept); only the tempo inside the last three eighths of a quarter note changes, so the closing of
+the syllable takes the time it takes everywhere else in the song. 180 ticks is three consonants:
+the engine puts the closing consonants of a word 60, 120 and 180 ticks before the end of its note
+(and the opening ones of the next word 60, 120 and 180 before its start), and with a shorter tail
+a word such as "first" still had its "s" in the slow part, a third of a second too early. Measured
+against the same words at the normal tempo, 180 ticks gives the same sound and 120 does not. A note
+too short for that gets a tail of 60 or 120 ticks. Nothing else is touched: a ritardando, a section
+at another tempo, or a tempo that changes at a note start, is left exactly as it is.
 """
 
 from collections.abc import Sequence
@@ -21,17 +25,31 @@ from fractions import Fraction
 
 from barbershop_tracks.models import TempoChange
 
-TAIL = Fraction(1, 8)  # quarter notes: 60 ticks at 480 per quarter, the engine's closing length
+CONSONANT = Fraction(
+    1, 8
+)  # quarter notes: 60 ticks at 480 per quarter, the engine's closing length
+TAIL = 3 * CONSONANT  # the most closing (or opening) consonants of one word the tail makes room for
 _TICK = Fraction(1, 480)
+_SLOW_PART = Fraction(1, 16)  # the least of a note that stays at the slow tempo: 30 ticks
 # a stretch is slower than this fraction of the tempo it comes from and of the tempo it returns to
 _SLOWER = Fraction(3, 4)
 _LONGEST = 4  # quarter notes: a fermata note is no longer than a whole note
 _BLIP = Fraction(1, 64)  # a return to the slow tempo this soon is the end of one fermata note
 _STEP = 1024  # bpm is a multiple of 1/1024: exact as a double, as in midi_tempo.py
+_MIN_BPM = 1  # the engine renders 1.5 bpm correctly; below 1 is not a tempo anyone meant
 
 
 def _on_grid(position: Fraction) -> bool:
     return (position * 480).denominator == 1
+
+
+def tail_for(length: Fraction) -> Fraction:
+    """The tail of a fermata note ``length`` long (quarters): up to ``TAIL``, whole consonants.
+
+    Zero when the note is too short to keep a slow part and a whole consonant.
+    """
+    room = max(length - _SLOW_PART, Fraction(0))
+    return min(TAIL, CONSONANT * int(room / CONSONANT))
 
 
 def _seconds(quarters: Fraction, bpm: Fraction) -> Fraction:
@@ -55,8 +73,8 @@ def tempo_changes_heard(changes: Sequence[TempoChange]) -> int:
     return max(len(merged) - 1, 0)
 
 
-def _stretch_end(changes: Sequence[TempoChange], index: int) -> Fraction | None:
-    """The end of the note whose slow stretch ends at ``changes[index]``, if it is a fermata's."""
+def _stretch_end(changes: Sequence[TempoChange], index: int) -> tuple[Fraction, Fraction] | None:
+    """The end and the tail of the note whose slow stretch ends at ``changes[index]``, if any."""
     here, slow = changes[index], changes[index - 1]
     if slow.bpm >= here.bpm * _SLOWER:
         return None  # not clearly slower: a ritardando step or a tempo change, not a fermata
@@ -72,32 +90,32 @@ def _stretch_end(changes: Sequence[TempoChange], index: int) -> Fraction | None:
             ending = following.position  # another fermata note follows at once
         elif following.position <= ending:
             return None
-    if not (_on_grid(ending) and _on_grid(ending - TAIL)):
-        return None
-    if ending - TAIL < start + TAIL:
-        return None  # a stretch too short to have a tail of its own
-    return ending
+    tail = tail_for(ending - start)
+    if tail == 0 or not (_on_grid(ending) and _on_grid(ending - tail)):
+        return None  # too short to have a tail of its own, or an end off the engine's grid
+    return ending, tail
 
 
 def with_fermata_tails(changes: Sequence[TempoChange]) -> tuple[TempoChange, ...]:
-    """``changes`` with the last eighth of a quarter of every fermata note at the faster tempo."""
+    """``changes`` with the last three eighths of a quarter of every fermata note at full tempo."""
     result = list(changes)
     for index in range(1, len(changes)):
-        ending = _stretch_end(changes, index)
-        if ending is None:
+        found = _stretch_end(changes, index)
+        if found is None:
             continue
+        ending, tail = found
         slow, fast = changes[index - 1], changes[index]
         start = slow.position
         kept = _seconds(fast.position - start, slow.bpm) + _seconds(
             ending - fast.position, fast.bpm
         )
-        remaining = kept - _seconds(TAIL, fast.bpm)
+        remaining = kept - _seconds(tail, fast.bpm)
         if remaining <= 0:
             continue
-        bpm = (ending - TAIL - start) * 60 / remaining
+        bpm = (ending - tail - start) * 60 / remaining
         bpm = Fraction(round(bpm * _STEP), _STEP)
-        if bpm <= 0:
+        if bpm < _MIN_BPM:
             continue
         result[index - 1] = TempoChange(position=start, bpm=bpm)
-        result[index] = TempoChange(position=ending - TAIL, bpm=fast.bpm)
+        result[index] = TempoChange(position=ending - tail, bpm=fast.bpm)
     return tuple(result)

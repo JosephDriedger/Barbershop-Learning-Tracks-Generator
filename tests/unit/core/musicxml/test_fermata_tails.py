@@ -4,7 +4,9 @@ import random
 from fractions import Fraction
 
 from barbershop_tracks.core.musicxml.fermata_tails import (
+    CONSONANT,
     TAIL,
+    tail_for,
     tempo_changes_heard,
     with_fermata_tails,
 )
@@ -43,12 +45,13 @@ PICKUP = [
 ]
 
 
-def test_each_fermata_note_ends_at_the_full_tempo_for_the_last_eighth_of_a_quarter() -> None:
+def test_each_fermata_note_ends_at_the_full_tempo_for_its_last_three_consonants() -> None:
     shaped = with_fermata_tails(PICKUP)
     assert [c.position for c in shaped] == [0, HALF - TAIL, HALF, 1 - TAIL]
     assert bpm_at(shaped, HALF - TAIL) == 60
     assert bpm_at(shaped, 1 - TAIL) == 60
-    assert bpm_at(shaped, Fraction(1, 4)) < 30  # what the tail took is given back before it
+    assert bpm_at(shaped, Fraction(1, 16)) < 30  # what the tail took is given back before it
+    assert TAIL == 3 * CONSONANT == Fraction(3, 8)  # 180 ticks
 
 
 def test_the_notes_end_at_the_same_time_in_seconds() -> None:
@@ -84,8 +87,8 @@ def test_a_section_at_a_slower_tempo_is_not_a_held_note() -> None:
     assert with_fermata_tails(slower) == tuple(slower)
 
 
-def test_a_stretch_too_short_to_have_a_tail_of_its_own_is_left_as_it_was() -> None:
-    short = [change(0, 60), change(1, 30), change(Fraction(6, 5), 60)]
+def test_a_note_too_short_for_a_slow_part_and_a_consonant_is_left_as_it_was() -> None:
+    short = [change(0, 60), change(1, 30), change(Fraction(11, 10), 60)]  # 49 ticks
     assert with_fermata_tails(short) == tuple(short)
 
 
@@ -191,3 +194,35 @@ def test_random_stretches_keep_their_times_their_grid_and_their_order() -> None:
         for end in ends:
             assert abs(seconds_at(shaped, end) - seconds_at(changes, end)) < Fraction(1, 2_000)
             assert bpm_at(shaped, end - TAIL) == fast
+
+
+def test_the_tail_is_three_consonants_and_less_for_a_shorter_note() -> None:
+    assert tail_for(Fraction(1, 2)) == Fraction(3, 8)  # an eighth note: 240 ticks
+    assert tail_for(Fraction(4)) == Fraction(3, 8)
+    assert tail_for(Fraction(5, 16)) == Fraction(1, 4)  # 150 ticks: two consonants
+    assert tail_for(Fraction(1, 4)) == Fraction(1, 8)  # a sixteenth: 120 ticks
+    assert tail_for(Fraction(3, 16)) == Fraction(1, 8)  # 90 ticks: one consonant, 30 ticks slow
+    assert tail_for(Fraction(1, 8)) == 0  # 60 ticks: no room for both
+    assert tail_for(Fraction(0)) == 0
+
+
+def test_a_sixteenth_note_fermata_gets_a_one_consonant_tail_and_keeps_its_time() -> None:
+    sixteenth = [change(0, 30), change(Fraction(119, 480), 60)]
+    shaped = with_fermata_tails(sixteenth)
+    assert bpm_at(shaped, Fraction(1, 4) - CONSONANT) == 60
+    assert bpm_at(shaped, Fraction(1, 16)) < 30
+    assert abs(
+        seconds_at(shaped, Fraction(1, 4)) - seconds_at(sixteenth, Fraction(1, 4))
+    ) < Fraction(1, 10_000)
+
+
+def test_a_very_slow_stretch_gets_a_very_slow_first_part_but_keeps_its_time() -> None:
+    triple = [change(0, 20), change(Fraction(239, 480), 60), change(HALF, 20)]  # three times
+    shaped = with_fermata_tails(triple)
+    assert 0 < shaped[0].bpm < 10
+    assert abs(seconds_at(shaped, HALF) - seconds_at(triple, HALF)) < Fraction(1, 1_000)
+
+
+def test_a_stretch_that_would_need_less_than_a_beat_per_minute_is_left_as_it_was() -> None:
+    extreme = [change(0, 0.5), change(Fraction(239, 480), 60), change(HALF, 0.5)]
+    assert with_fermata_tails(extreme) == tuple(extreme)
