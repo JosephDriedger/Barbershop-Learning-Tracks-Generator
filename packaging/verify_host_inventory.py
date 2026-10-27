@@ -1,6 +1,6 @@
 """Compare what a built render host really contains with the reviewed allow-list.
 
-    python packaging/verify_host_inventory.py HOST_DIR [--g2p-model included|excluded|auto]
+    python packaging/verify_host_inventory.py HOST_DIR [--g2p-model included|excluded|auto] [--arpa-plus]
     python packaging/verify_host_inventory.py --write-expected HOST_DIR_WITH_MODEL HOST_DIR_WITHOUT_MODEL
 
 ``blt-render-host --inventory`` reads the host's own assemblies (nothing of OpenUtau runs) and reports every
@@ -15,6 +15,10 @@ is the reviewed allow-list. The check fails when
 * the neural English model (``g2p.onnx``) is present with bytes other than the reviewed ones, is present when
   ``--g2p-model excluded`` was asked for, is absent when ``included`` was asked for, or disagrees with
   ``blt-host-build.json`` or with the presence of the native ``onnxruntime.dll`` (which exists only to run it).
+
+With ``--arpa-plus`` (the internal DiffSinger edition, docs/diffsinger.md) exactly one addition to the allow-list
+is accepted: the English plus pack (by size and SHA-256), the three types that serve it and the DiffSinger English+
+phonemizer. Everything else, Arpasing+ and English C+V included, is still refused.
 
 This is a check of the PACKAGED artifact (it runs the host that is in the package), complementary to
 ``packaging/verify_absent_data.py`` (searches the bytes of every file for known removed data) and
@@ -44,6 +48,25 @@ FORBIDDEN_NAMES = re.compile(
 )
 ASSEMBLIES = ("OpenUtau.Core.dll", "OpenUtau.Plugin.Builtin.dll")
 FORBIDDEN_BYTES = re.compile(rb"Voicevox[A-Za-z_]|ArpabetPlus|ArpasingPlus|EnglishCpV|ARPAPlus")
+# what --arpa-plus (the internal DiffSinger edition) adds to the allow-list, and nothing else
+ARPA_PLUS_PHONEMIZER = "OpenUtau.Core.DiffSinger.DiffSingerARPAPlusEnglishPhonemizer"
+ARPA_PLUS_TYPES = (
+    ARPA_PLUS_PHONEMIZER,
+    "OpenUtau.Core.G2p.ArpabetPlusG2p",
+    "OpenUtau.Core.G2p.ArpabetPlusG2p+<>c",
+    "OpenUtau.Core.Util.ArpabetPlusG2pLyricsHelper",
+)
+ARPA_PLUS_RESOURCE = (
+    "OpenUtau.Core",
+    "OpenUtau.Core.G2p.Data.Resources.resources",
+    "g2p_arpabet_plus",
+)
+ARPA_PLUS_PACK = {
+    "size": 4327034,
+    "sha256": "9fc73c72a112084820cccbe1ddecdd36b8c20a757428c16f0a8bacf758f88733",
+}
+FORBIDDEN_NAMES_WITH_ARPA_PLUS = re.compile(r"Voicevox|ArpasingPlus|EnglishCpV", re.IGNORECASE)
+FORBIDDEN_BYTES_WITH_ARPA_PLUS = re.compile(rb"Voicevox[A-Za-z_]|ArpasingPlus|EnglishCpV")
 MODEL_MEMBER = "g2p.onnx"
 DEFAULT_PHONEMIZER = "OpenUtau.Core.DefaultPhonemizer"
 
@@ -106,22 +129,27 @@ def compare(
     g2p_model: str = "auto",
     removed: dict[str, str] | None = None,
     required: tuple[str, ...] = (),
+    arpa_plus: bool = False,
 ) -> list[str]:
     """Every difference between ``actual`` (the host's report) and ``expected`` (the allow-list)."""
     problems: list[str] = []
     if g2p_model not in ("included", "excluded", "auto"):
         raise ValueError(g2p_model)
+    forbidden = FORBIDDEN_NAMES_WITH_ARPA_PLUS if arpa_plus else FORBIDDEN_NAMES
 
     # 1. phonemizers: exact set
     have = set(actual.get("phonemizers", []))
     allowed = set(expected["phonemizers"])
+    if arpa_plus:
+        allowed.add(ARPA_PLUS_PHONEMIZER)
+        required = (*required, ARPA_PLUS_PHONEMIZER)
     for name in sorted(have - allowed):
         problems.append(f"phonemizer not on the allow-list: {name}")
     for name in sorted(allowed - have):
         problems.append(f"phonemizer on the allow-list is missing: {name}")
     for name in sorted(have):
         short = name.rsplit(".", 1)[-1]
-        if removed and short in removed:
+        if removed and short in removed and not (arpa_plus and name == ARPA_PLUS_PHONEMIZER):
             problems.append(f"{name} is a phonemizer BLT removed ({removed[short]}) and it is back")
     for name in required:
         if name not in have:
@@ -129,8 +157,13 @@ def compare(
 
     # 1b. every type of the two assemblies: none that must not return, and the whole set as reviewed
     names = actual.get("types")
+    if names is not None and arpa_plus:
+        missing = [t for t in ARPA_PLUS_TYPES if t not in names]
+        if missing:
+            problems.append(f"the DiffSinger edition lacks the type(s) {', '.join(missing)}")
+        names = [n for n in names if n not in ARPA_PLUS_TYPES]
     if names is not None:
-        for name in sorted(n for n in names if FORBIDDEN_NAMES.search(n))[:10]:
+        for name in sorted(n for n in names if forbidden.search(n))[:10]:
             problems.append(
                 f"type {name} is code BLT removed (Voicevox, or the English plus data) and it is back"
             )
@@ -143,6 +176,17 @@ def compare(
 
     # 2. embedded resources: exact set, exact bytes
     actual_resources = {resource_key(r): r for r in actual.get("resources", [])}
+    if arpa_plus:
+        plus = actual_resources.pop(ARPA_PLUS_RESOURCE, None)
+        if plus is None:
+            problems.append("the DiffSinger edition lacks the English plus pack")
+        elif (plus.get("size"), plus.get("sha256")) != (
+            ARPA_PLUS_PACK["size"],
+            ARPA_PLUS_PACK["sha256"],
+        ):
+            problems.append(
+                f"the English plus pack is not the reviewed one (sha256 {plus.get('sha256')})"
+            )
     expected_resources = {resource_key(r): r for r in expected["resources"]}
     for key in sorted(set(actual_resources) - set(expected_resources)):
         problems.append(f"embedded resource not on the allow-list: {describe(key)}")
@@ -189,7 +233,7 @@ def compare(
     return problems
 
 
-def file_problems(host_dir: Path, model_present: bool) -> list[str]:
+def file_problems(host_dir: Path, model_present: bool, arpa_plus: bool = False) -> list[str]:
     """Files beside the host that must agree with whether the neural model is there."""
     problems: list[str] = []
     # independent of the host's own report: the names are in the assemblies' metadata if the code is.
@@ -198,7 +242,8 @@ def file_problems(host_dir: Path, model_present: bool) -> list[str]:
     for dll in ASSEMBLIES:
         path = host_dir / dll
         if path.is_file():
-            found = FORBIDDEN_BYTES.search(path.read_bytes())
+            pattern = FORBIDDEN_BYTES_WITH_ARPA_PLUS if arpa_plus else FORBIDDEN_BYTES
+            found = pattern.search(path.read_bytes())
             if found:
                 name = found.group().decode("ascii")
                 problems.append(f"{dll} contains the name {name}: removed code is in the build")
@@ -281,6 +326,11 @@ def main(argv: list[str]) -> int:
     parser.add_argument("hosts", nargs="+", type=Path)
     parser.add_argument("--g2p-model", choices=("included", "excluded", "auto"), default="auto")
     parser.add_argument(
+        "--arpa-plus",
+        action="store_true",
+        help="the internal DiffSinger edition: accept the English plus pack and DIFFS EN+",
+    )
+    parser.add_argument(
         "--write-expected", action="store_true", help="HOST_WITH_MODEL HOST_WITHOUT_MODEL"
     )
     args = parser.parse_args(argv)
@@ -307,8 +357,9 @@ def main(argv: list[str]) -> int:
         g2p_model=args.g2p_model,
         removed=REMOVED_PHONEMIZERS,
         required=(*ENGLISH_PHONEMIZERS, DEFAULT_PHONEMIZER),
+        arpa_plus=args.arpa_plus,
     )
-    problems += file_problems(host_dir, actual.get("g2p_model") == "included")
+    problems += file_problems(host_dir, actual.get("g2p_model") == "included", args.arpa_plus)
     if problems:
         for problem in problems:
             print(f"FAIL: {problem}")
@@ -316,6 +367,11 @@ def main(argv: list[str]) -> int:
     print(
         f"host inventory ok: {len(actual['phonemizers'])} phonemizers and {len(actual['resources'])} embedded resources, "
         f"all on the allow-list; none of the removed engines; g2p model {actual['g2p_model']}"
+        + (
+            "; INTERNAL DiffSinger edition: the English plus pack is present"
+            if args.arpa_plus
+            else ""
+        )
     )
     return 0
 

@@ -231,3 +231,62 @@ def test_building_the_allow_list_requires_hosts_that_differ_only_by_the_model() 
     with pytest.raises(SystemExit):
         vhi.build_expected(with_model, types_differ)
     assert built["types"] == vhi.type_digest(TYPES)
+
+
+def diffsinger_report() -> dict[str, Any]:
+    """The host report of the internal DiffSinger edition: the allow-list plus the plus pack."""
+    report = host_report()
+    report["phonemizers"] = [*report["phonemizers"], vhi.ARPA_PLUS_PHONEMIZER]
+    report["types"] = [*TYPES, *vhi.ARPA_PLUS_TYPES]
+    assembly, resource_set, name = vhi.ARPA_PLUS_RESOURCE
+    report["resources"].append(
+        {"assembly": assembly, "set": resource_set, "name": name, **vhi.ARPA_PLUS_PACK}
+    )
+    return report
+
+
+def edition_problems(actual: dict[str, Any], *, arpa_plus: bool) -> list[str]:
+    return vhi.compare(
+        actual,
+        EXPECTED_T,
+        g2p_model="included",
+        removed=REMOVED_PHONEMIZERS,
+        required=REQUIRED,
+        arpa_plus=arpa_plus,
+    )
+
+
+def test_the_diffsinger_edition_is_accepted_only_when_asked_for() -> None:
+    assert edition_problems(diffsinger_report(), arpa_plus=True) == []
+    assert edition_problems(diffsinger_report(), arpa_plus=False) != []
+    assert edition_problems(host_report(), arpa_plus=True) != []  # and it must really have the pack
+
+
+def test_the_diffsinger_edition_refuses_a_different_plus_pack() -> None:
+    report = diffsinger_report()
+    report["resources"][-1]["sha256"] = "1" * 64
+    assert any("plus pack" in p for p in edition_problems(report, arpa_plus=True))
+
+
+@pytest.mark.parametrize(
+    "extra",
+    ["OpenUtau.Plugin.Builtin.ArpasingPlusPhonemizer", "OpenUtau.Plugin.Builtin.EnglishCpV"],
+)
+def test_the_diffsinger_edition_still_refuses_arpasing_plus_and_english_cpv(extra: str) -> None:
+    report = diffsinger_report()
+    report["types"] = [*report["types"], extra]
+    assert edition_problems(report, arpa_plus=True) != []
+
+
+def test_the_diffsinger_edition_does_not_allow_other_unlisted_resources() -> None:
+    report = diffsinger_report()
+    report["resources"].append(
+        {
+            "assembly": "OpenUtau.Core",
+            "set": "x.resources",
+            "name": "mystery",
+            "size": 3,
+            "sha256": "2" * 64,
+        }
+    )
+    assert any("mystery" in p for p in edition_problems(report, arpa_plus=True))

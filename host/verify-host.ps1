@@ -10,6 +10,8 @@
 #     or, in the model-free build (the default; the research build is made with -IncludeG2pModel), absent (blt-host-build.json says which); the English "plus" dictionary (unverified origin) and everything that only serves it
 #     (Arpasing+, English C+V and their template) are absent, and every other g2p pack and every Vogen
 #     data file is empty;
+#   * the internal DiffSinger edition (hostuild.ps1 -IncludeDiffSinger, blt-host-build.json says arpa_plus: included) is the one
+#     exception: it must contain the plus pack of the pinned source byte for byte, and still no Arpasing+ or English C+V;
 #   (packaging/verify_absent_data.py is the byte-level companion: it searches for the removed data itself)
 #   * the CREPE model is still there (MIT);
 #   * worldline.dll is the one recorded in blt-host-build.json (BLT's build, not the stock DLL) unless
@@ -23,6 +25,12 @@ $ErrorActionPreference = "Stop"
 $HostDir = (Resolve-Path $HostDir).Path
 $OpenUtauSrc = (Resolve-Path $OpenUtauSrc).Path
 $problems = New-Object System.Collections.Generic.List[string]
+# the internal DiffSinger edition keeps the English plus pack (docs/diffsinger.md); nothing else that was removed
+$arpaPlus = $false
+$buildRecord = Join-Path $HostDir "blt-host-build.json"
+if (Test-Path $buildRecord) { $arpaPlus = ((Get-Content $buildRecord -Raw | ConvertFrom-Json).arpa_plus -eq "included") }
+$removedNames = if ($arpaPlus) { "Voicevox[A-Za-z_]|ArpasingPlus|EnglishCpV" } else { "Voicevox[A-Za-z_]|ArpabetPlus|ArpasingPlus|EnglishCpV|ARPAPlus" }
+$plusTypes = if ($arpaPlus) { "ArpasingPlus|EnglishCpV" } else { "ArpabetPlus|ArpasingPlus|EnglishCpV|ARPAPlus" }
 
 function Load-Types($path) {
     $assembly = [System.Reflection.Assembly]::LoadFile($path)
@@ -57,7 +65,7 @@ $builtin = Join-Path $HostDir "OpenUtau.Plugin.Builtin.dll"
 $latin1 = [System.Text.Encoding]::GetEncoding(28591)
 foreach ($dll in $core, $builtin) {
     $text = $latin1.GetString([System.IO.File]::ReadAllBytes($dll))
-    $named = [regex]::Match($text, "Voicevox[A-Za-z_]|ArpabetPlus|ArpasingPlus|EnglishCpV|ARPAPlus")
+    $named = [regex]::Match($text, $removedNames)
     if ($named.Success) { $problems.Add("$(Split-Path $dll -Leaf) contains the name $($named.Value): the removed Voicevox classes or the English plus code are in the build") }
 }
 foreach ($dll in $core, $builtin) {
@@ -86,6 +94,9 @@ if (-not $g2p) { $problems.Add("the g2p resources are missing") } else {
             }
             $extra = @($built.Keys | Where-Object { $_ -notin "dict.txt", "phones.txt", "g2p.onnx" })
             if ($extra.Count) { $problems.Add("$key has unexpected members: $($extra -join ', ')") }
+        } elseif ($arpaPlus -and $key -eq "g2p_arpabet_plus") {
+            $pinnedPlus = [System.IO.File]::ReadAllBytes((Join-Path $pinned "g2p-arpabet-plus.zip"))
+            if ((Sha $g2p[$key]) -ne (Sha $pinnedPlus)) { $problems.Add("the English plus pack differs from the pinned OpenUtau's g2p-arpabet-plus.zip") }
         } elseif ($key -match "plus") {
             $problems.Add("the English 'plus' dictionary ($key) is in the build: its origin is unverified (docs/g2p-plus-provenance.md)")
         } elseif ($g2p[$key].Length -gt 64) {
@@ -96,7 +107,7 @@ if (-not $g2p) { $problems.Add("the g2p resources are missing") } else {
 }
 # the phonemizers that only exist for the plus dictionary and the English C+V template are not offered
 foreach ($dll in $core, $builtin) {
-    $plus = @(Load-Types $dll | Where-Object { $_.FullName -match "ArpabetPlus|ArpasingPlus|EnglishCpV|ARPAPlus" })
+    $plus = @(Load-Types $dll | Where-Object { $_.FullName -match $plusTypes })
     if ($plus.Count) { $problems.Add("$(Split-Path $dll -Leaf) still has $($plus[0].FullName) (needs the unverified English 'plus' data)") }
 }
 $builtinData = Resource-Sizes $builtin "OpenUtau.Plugin.Builtin.Data.Resources.resources"
@@ -123,4 +134,8 @@ if ($problems.Count) {
     $problems | ForEach-Object { Write-Output "FAIL: $_" }
     exit 1
 }
-Write-Output "host ok (g2p model $g2pModel): no Voicevox types, CMUdict pack identical to the pinned source, no English plus dictionary or Arpasing+/English C+V, other dictionaries and Vogen data empty, BLT worldline.dll"
+if ($arpaPlus) {
+    Write-Output "host ok (INTERNAL DiffSinger edition, g2p model $g2pModel): no Voicevox types, CMUdict pack identical to the pinned source, the English plus pack identical to the pinned one (the only exception), no Arpasing+/English C+V, other dictionaries and Vogen data empty, BLT worldline.dll"
+} else {
+    Write-Output "host ok (g2p model $g2pModel): no Voicevox types, CMUdict pack identical to the pinned source, no English plus dictionary or Arpasing+/English C+V, other dictionaries and Vogen data empty, BLT worldline.dll"
+}

@@ -1,6 +1,7 @@
 """Fail if data BLT decided not to distribute is anywhere in a built folder.
 
-    python packaging/verify_absent_data.py FOLDER --openutau-src PINNED [--without-g2p-model]
+    python packaging/verify_absent_data.py FOLDER --openutau-src PINNED
+        [--without-g2p-model] [--allow-arpa-plus]
 
 The patch ``host/patch_openutau.py`` removes data from the OpenUtau sources: the English "plus"
 dictionary (unverified origin, docs/g2p-plus-provenance.md), the English C+V template, the other
@@ -40,6 +41,7 @@ REMOVED = (
 )
 REMOVED_FOLDERS = (("OpenUtau.Core/Vogen/Data", (".onnx", ".csv")),)
 ENGLISH_PACK = "OpenUtau.Core/G2p/Data/g2p-arpabet.zip"
+ARPA_PLUS_PACK = "g2p-arpabet-plus.zip"
 MODEL_MEMBER = "g2p.onnx"
 
 
@@ -73,12 +75,20 @@ def model_fingerprints(checkout: Path) -> list[bytes]:
         return fingerprints_of(archive.read(MODEL_MEMBER))
 
 
-def scan(folder: Path, checkout: Path, *, without_g2p_model: bool = False) -> list[str]:
+def scan(
+    folder: Path,
+    checkout: Path,
+    *,
+    without_g2p_model: bool = False,
+    allow_arpa_plus: bool = False,
+) -> list[str]:
     """One line per (file in folder, removed source file) pair whose bytes were found."""
     prints: dict[Path, list[bytes]] = {}
     if without_g2p_model:
         prints[checkout / ENGLISH_PACK / MODEL_MEMBER] = model_fingerprints(checkout)
     for source in removed_files(checkout):
+        if allow_arpa_plus and source.name == ARPA_PLUS_PACK:
+            continue  # the internal DiffSinger edition carries it on purpose (docs/diffsinger.md)
         if not source.is_file():
             raise SystemExit(f"{source} is missing: is --openutau-src the pinned OpenUtau 0.1.565?")
         found = fingerprints(source)
@@ -106,8 +116,18 @@ def main() -> int:
     parser.add_argument("folder", type=Path)
     parser.add_argument("--openutau-src", type=Path, required=True)
     parser.add_argument("--without-g2p-model", action="store_true")
+    parser.add_argument(
+        "--allow-arpa-plus",
+        action="store_true",
+        help="the internal DiffSinger edition: the English plus pack is expected, the rest is not",
+    )
     args = parser.parse_args()
-    hits = scan(args.folder, args.openutau_src, without_g2p_model=args.without_g2p_model)
+    hits = scan(
+        args.folder,
+        args.openutau_src,
+        without_g2p_model=args.without_g2p_model,
+        allow_arpa_plus=args.allow_arpa_plus,
+    )
     if hits:
         for hit in hits:
             print("FOUND:", hit)

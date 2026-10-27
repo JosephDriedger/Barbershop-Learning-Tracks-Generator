@@ -102,3 +102,20 @@ def test_a_package_without_the_g2p_model_passes_the_stricter_scan(tmp_path: Path
     package.mkdir()
     (package / "app.dll").write_bytes(os.urandom(10000))
     assert vad.scan(package, tmp_path / "src", without_g2p_model=True) == []
+
+
+def test_the_diffsinger_edition_may_carry_the_plus_pack_and_nothing_else_removed(
+    tmp_path: Path,
+) -> None:
+    contents = _checkout(tmp_path / "src")
+    package = tmp_path / "pkg"
+    package.mkdir()
+    plus = contents["OpenUtau.Core/G2p/Data/g2p-arpabet-plus.zip"]
+    template = contents["OpenUtau.Plugin.Builtin/Data/en_cPv.template.yaml"]
+    (package / "OpenUtau.Core.dll").write_bytes(os.urandom(3000) + plus)
+    assert vad.scan(package, tmp_path / "src") != []  # a normal build refuses it
+    assert vad.scan(package, tmp_path / "src", allow_arpa_plus=True) == []
+    (package / "OpenUtau.Plugin.Builtin.dll").write_bytes(template)  # the C+V template is still out
+    hits = vad.scan(package, tmp_path / "src", allow_arpa_plus=True)
+    assert len(hits) == 1
+    assert "en_cPv.template.yaml" in hits[0]
