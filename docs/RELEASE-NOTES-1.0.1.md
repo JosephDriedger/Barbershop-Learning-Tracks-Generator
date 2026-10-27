@@ -1,7 +1,8 @@
 # BLT Music Generator 1.0.1 (DiffSinger edition)
 
-**Internal research build: Windows 10/11 x64, unsigned, NOT for distribution.** The installer is named
-`BLT-Music-Generator-1.0.1-DIFFSINGER-RESEARCH-ONLY-Setup.exe`. It contains the English "ARPAbet plus" dictionary and the English g2p model, both of
+**Internal research build: Windows 10/11 x64, unsigned, NOT for distribution.** The installer, `BLT-Music-Generator-1.0.1-Setup.exe`, has the
+ordinary file name and title (it is built with `packaginguild.ps1 -IncludeDiffSinger`), so the file name no longer says what it is: this page
+and `release-info.json` do. It contains the English "ARPAbet plus" dictionary and the English g2p model, both of
 unknown origin ([g2p-plus-provenance.md](g2p-plus-provenance.md), [g2p-model-provenance.md](g2p-model-provenance.md)), so that DiffSinger
 voices can be sung. It is refused by `packaging\build.ps1 -ForRelease`, no tester kit is made for it, and every release-gate item of
 [release-gate.md](release-gate.md) is still open. The ordinary 1.0.1 installer (no DiffSinger, no plus dictionary, no g2p model) is the one that
@@ -62,5 +63,5 @@ the native ONNX Runtime they and DiffSinger run on. DiffSinger itself is part of
 
 ## Checksums
 
-`BLT-Music-Generator-1.0.1-DIFFSINGER-RESEARCH-ONLY-Setup.exe`: SHA-256 `626a33767663b43fe69b1c244b0adf4f056404312de6445f21b920367e1cb259`
-(built from commit `5bcb323`; `research-output\release-diffsinger\artifacts\SHA256SUMS.txt`). Nothing is published.
+`BLT-Music-Generator-1.0.1-Setup.exe` (DiffSinger edition): SHA-256 `95e90bf927799cdf42e321b24f8a71f0f67bd70d1d1d8f654e34087556d1f2db`
+(built from commit `e2764d7`; `research-output\release-diffsinger\artifacts\SHA256SUMS.txt`). Nothing is published.
