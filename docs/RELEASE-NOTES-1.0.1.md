@@ -32,6 +32,9 @@ It replaces an installed BLT in place (same application id). It does not include
 * Tiger (`TIGER_DS_v106`) and Bennett (ENG) with the 8-bar kit score `english-quartet-known-words`, by the developer, on CPU: Tiger on all four
   parts, Tiger as Lead with Bennett on the others, and Bennett alone each made the 13 tracks (about 40 s, 20 s and 10 s). The developer listened
   to the Tiger tracks and said they sound good. That is an informal listen, not the acceptance checklist.
+* A real score: "Ebb Tide" (a MuseScore file, 36 bars, 111.5 s, 21 tempo changes with a ritardando and fermatas) with Tiger on all four parts,
+  through the installed app, made the 13 tracks in 166 s on CPU. Its first run was refused (`MIX_STEM_TOO_LONG`, 115.0 ms past the score
+  against a 115 ms limit taken from the short score); the DiffSinger limit is now 130 ms, 100 ms of release plus the frame size.
 * The unit tests (3,333), ruff, mypy, the package smoke tests and the package's compliance checks pass.
 
 ## Not done, and limits
@@ -59,5 +62,5 @@ the native ONNX Runtime they and DiffSinger run on. DiffSinger itself is part of
 
 ## Checksums
 
-`BLT-Music-Generator-1.0.1-DIFFSINGER-RESEARCH-ONLY-Setup.exe`: SHA-256 `65929354067b0bc65d336abd9fce968f6125e70e5a48004746ed79db84a366b3`
-(built from commit `1a6ae79`; `research-output\release-diffsinger\artifacts\SHA256SUMS.txt`). Nothing is published.
+`BLT-Music-Generator-1.0.1-DIFFSINGER-RESEARCH-ONLY-Setup.exe`: SHA-256 `626a33767663b43fe69b1c244b0adf4f056404312de6445f21b920367e1cb259`
+(built from commit `5bcb323`; `research-output\release-diffsinger\artifacts\SHA256SUMS.txt`). Nothing is published.
