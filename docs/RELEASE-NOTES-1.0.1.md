@@ -1,7 +1,7 @@
 # BLT Music Generator 1.0.1 (DiffSinger edition)
 
 **Internal research build: Windows 10/11 x64, unsigned, NOT for distribution.** The installer, `BLT-Music-Generator-1.0.1-Setup.exe`, has the
-ordinary file name and title (it is built with `packaginguild.ps1 -IncludeDiffSinger`), so the file name no longer says what it is: this page
+ordinary file name and title (it is built with `packaging\build.ps1 -IncludeDiffSinger`), so the file name no longer says what it is: this page
 and `release-info.json` do. It contains the English "ARPAbet plus" dictionary and the English g2p model, both of
 unknown origin ([g2p-plus-provenance.md](g2p-plus-provenance.md), [g2p-model-provenance.md](g2p-model-provenance.md)), so that DiffSinger
 voices can be sung. It is refused by `packaging\build.ps1 -ForRelease`, no tester kit is made for it, and every release-gate item of
