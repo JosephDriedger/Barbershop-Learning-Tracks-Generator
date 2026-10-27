@@ -129,6 +129,8 @@ class PackageSettings:
     formats: frozenset[AudioFormat] = frozenset({AudioFormat.WAV})
     profile: GainProfile = DEFAULT_PROFILE
     tail: TailPolicy = field(default_factory=TailPolicy)
+    # voices whose stems may end later than the default allows (DiffSinger's release): by voice
+    tails: Mapping[VoiceRole, TailPolicy] = field(default_factory=dict)
     mp3: Mp3Encoder | None = None
     prelude: PreludeOptions = field(default_factory=PreludeOptions)  # tune-up note, count-in
     follow_melody: bool = True  # the Full Quartet makes the voice with the melody louder
@@ -240,7 +242,8 @@ def build_learning_tracks(
     _check_cancel(token)
 
     placed: dict[VoiceRole, PlacedStem] = {
-        role: place_stem(role, stems[role], frames, settings.tail) for role in VOICE_ORDER
+        role: place_stem(role, stems[role], frames, settings.tails.get(role, settings.tail))
+        for role in VOICE_ORDER
     }
     stem_hashes = {role: _sha256(stems[role]) for role in VOICE_ORDER}
 
@@ -487,6 +490,21 @@ def _manifest(
                 **(
                     {"fade_seconds": settings.tail.fade_seconds}
                     if settings.tail.fade_seconds
+                    else {}
+                ),
+                # the voices whose tail is allowed to be longer (DiffSinger), each with its policy
+                **(
+                    {
+                        "per_voice": {
+                            role.value: {
+                                "max_trim_seconds": policy.max_trim_seconds,
+                                "max_trim_peak": policy.max_trim_peak,
+                                "fade_seconds": policy.fade_seconds,
+                            }
+                            for role, policy in settings.tails.items()
+                        }
+                    }
+                    if settings.tails
                     else {}
                 ),
             },

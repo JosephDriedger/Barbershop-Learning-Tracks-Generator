@@ -204,8 +204,8 @@ def install_voicebank(
             if kind is not None:
                 if kind == "DiffSinger":
                     notes.append(
-                        "it is a DiffSinger voice: BLT sings it only with --renderer DIFFSINGER "
-                        "on the DiffSinger host (docs/diffsinger.md)"
+                        "it is a DiffSinger voice: only the DiffSinger edition of BLT can sing it "
+                        "(docs/diffsinger.md); there it is picked up by itself"
                     )
                 else:
                     notes.append(

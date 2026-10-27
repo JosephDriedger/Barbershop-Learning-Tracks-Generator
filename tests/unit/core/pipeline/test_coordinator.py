@@ -463,20 +463,93 @@ def test_the_diffsinger_renderer_sings_a_diffsinger_voicebank_with_its_own_phone
         assert ref.phonemizer == "OpenUtau.Core.DiffSinger.DiffSingerARPAPlusEnglishPhonemizer"
 
 
-def test_the_diffsinger_renderer_refuses_a_utau_voicebank(rig: Rig) -> None:
+def make_diffsinger_edition(rig: Rig) -> None:
+    host = rig.root / "host"
+    host.mkdir(exist_ok=True)
+    (host / "blt-host-build.json").write_text('{"arpa_plus": "included"}', encoding="utf-8")
+
+
+def add_voicebank(rig: Rig, name: str, *, diffsinger: bool) -> None:
+    bank = rig.root / "singers" / name
+    bank.mkdir()
+    (bank / "character.txt").write_text("name=x", encoding="utf-8")
+    if diffsinger:
+        (bank / "character.yaml").write_text("singer_type: diffsinger\n", encoding="utf-8")
+
+
+def test_a_utau_voicebank_given_the_diffsinger_renderer_is_sung_by_the_default_one(
+    rig: Rig,
+) -> None:
     engine = EngineChoice("my-singer", "OpenUtau.Core.DefaultPhonemizer", "DIFFSINGER")
-    error = error_of(rig, rig.request(engine=engine))
-    assert error.code == "SINGER_KIND_UNSUPPORTED"
-    assert "UTAU-style" in error.message
-    assert rig.renderer.calls == []
+    rig.run(rig.request(engine=engine))
+    (plan,) = rig.renderer.calls
+    for role in VOICE_ORDER:
+        ref = plan.engine_ref(role)
+        assert ref.renderer == "WORLDLINE-R"
+        assert ref.phonemizer == "OpenUtau.Core.DefaultPhonemizer"
 
 
-def test_a_diffsinger_voicebank_with_the_default_renderer_says_how_to_sing_it(rig: Rig) -> None:
+def test_a_diffsinger_voicebank_is_sung_by_the_diffsinger_renderer_without_being_asked(
+    rig: Rig,
+) -> None:
+    make_diffsinger_edition(rig)
     (rig.root / "singers" / "my-singer" / "character.yaml").write_text(
         "singer_type: diffsinger\n", encoding="utf-8"
     )
-    error = error_of(rig, rig.request())
-    assert "--renderer DIFFSINGER" in error.message
+    rig.run(rig.request())  # the usual engine: default phonemizer, WORLDLINE-R
+    (plan,) = rig.renderer.calls
+    for role in VOICE_ORDER:
+        ref = plan.engine_ref(role)
+        assert ref.renderer == "DIFFSINGER"
+        assert ref.phonemizer == "OpenUtau.Core.DiffSinger.DiffSingerARPAPlusEnglishPhonemizer"
+    assert any(e.get("code") == "ENGINE_BY_VOICEBANK" for e in rig.events)
+
+
+def test_a_quartet_may_mix_diffsinger_and_utau_voices(rig: Rig) -> None:
+    make_diffsinger_edition(rig)
+    add_voicebank(rig, "tiger", diffsinger=True)
+    engine = EngineChoice(
+        "my-singer",
+        "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
+        "WORLDLINE-R",
+        per_voice={VoiceRole.LEAD: "tiger"},
+    )
+    result = rig.run(rig.request(engine=engine))
+    (plan,) = rig.renderer.calls
+    lead = plan.engine_ref(VoiceRole.LEAD)
+    assert (lead.singer, lead.renderer) == ("tiger", "DIFFSINGER")
+    assert lead.phonemizer.endswith("DiffSingerARPAPlusEnglishPhonemizer")
+    for role in (VoiceRole.TENOR, VoiceRole.BARITONE, VoiceRole.BASS):
+        ref = plan.engine_ref(role)
+        assert (ref.singer, ref.renderer) == ("my-singer", "WORLDLINE-R")
+        assert ref.phonemizer == "OpenUtau.Plugin.Builtin.ArpasingPhonemizer"  # the choice is kept
+    assert result.destination.is_dir()
+
+
+def test_only_the_diffsinger_voices_may_drop_a_long_tail(rig: Rig) -> None:
+    from barbershop_tracks.core.mixing import DIFFSINGER_TAIL
+    from barbershop_tracks.core.pipeline.coordinator import _tails
+
+    make_diffsinger_edition(rig)
+    add_voicebank(rig, "tiger", diffsinger=True)
+    engine = EngineChoice(
+        "my-singer",
+        "OpenUtau.Core.DefaultPhonemizer",
+        "WORLDLINE-R",
+        per_voice={VoiceRole.BASS: "tiger"},
+    )
+    rig.run(rig.request(engine=engine))
+    assert _tails(rig.renderer.calls[0]) == {VoiceRole.BASS: DIFFSINGER_TAIL}
+
+
+def test_a_diffsinger_voicebank_is_refused_where_the_host_cannot_sing_it(rig: Rig) -> None:
+    (rig.root / "singers" / "my-singer" / "character.yaml").write_text(
+        "singer_type: diffsinger\n", encoding="utf-8"
+    )
+    error = error_of(rig, rig.request())  # the host here has no DiffSinger build record
+    assert error.code == "SINGER_KIND_UNSUPPORTED"
+    assert "DiffSinger edition" in error.message
+    assert rig.renderer.calls == []
 
 
 def test_a_per_voice_singer_overrides_the_default(rig: Rig) -> None:
@@ -733,15 +806,9 @@ def test_the_supported_pronunciation_engines_are_not_refused(rig: Rig, name: str
     assert result.destination.is_dir()
 
 
-def test_the_diffsinger_renderer_may_drop_its_100_ms_tail_and_the_others_may_not(rig: Rig) -> None:
+def test_the_diffsinger_tail_policy_allows_its_100_ms_tail_and_the_default_does_not() -> None:
     from barbershop_tracks.core.mixing import DIFFSINGER_TAIL, TailPolicy
-    from barbershop_tracks.core.pipeline.coordinator import _tail_policy
 
-    (rig.root / "singers" / "my-singer" / "character.yaml").write_text(
-        "singer_type: diffsinger\n", encoding="utf-8"
-    )
-    rig.run(rig.request(engine=EngineChoice("my-singer", "p.P", "DIFFSINGER")))
-    assert _tail_policy(rig.renderer.calls[0]) is DIFFSINGER_TAIL
     assert DIFFSINGER_TAIL.allows(round(0.1008 * 44100), 0.0015, 44100)
     assert not TailPolicy().allows(round(0.1008 * 44100), 0.0015, 44100)
     assert not DIFFSINGER_TAIL.allows(round(0.2 * 44100), 0.0015, 44100)

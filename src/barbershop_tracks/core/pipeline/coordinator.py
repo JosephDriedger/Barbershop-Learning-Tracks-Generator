@@ -46,6 +46,7 @@ from barbershop_tracks.core.musicxml import ParseResult, opened_score, parse_mus
 from barbershop_tracks.core.musicxml.opened import parse_opened
 from barbershop_tracks.core.pipeline.config import (
     DEFAULT_PHONEMIZER,
+    DEFAULT_RENDERER,
     DIFFSINGER_PHONEMIZER,
     DIFFSINGER_RENDERER,
     ENGLISH_PHONEMIZERS,
@@ -53,6 +54,7 @@ from barbershop_tracks.core.pipeline.config import (
     default_voices_dir,
     discover_singers,
     ensure_default_voices_dir,
+    host_sings_diffsinger,
     removed_phonemizer,
     voicebanks_without_character_file,
 )
@@ -150,24 +152,32 @@ class EngineChoice:
     per_voice: Mapping[VoiceRole, str] = field(default_factory=dict)
     # nobody chose the pronunciation engine: use the one the voices' own sound names point to
     automatic: bool = False
+    # (phonemizer, renderer) of the voices that need other than the above: a DiffSinger voice among
+    # UTAU-style ones (see ``_engines_by_voicebank``)
+    per_engine: Mapping[VoiceRole, tuple[str, str]] = field(default_factory=dict)
+
+    def engine_of(self, role: VoiceRole) -> tuple[str, str]:
+        """The (phonemizer, renderer) of ``role``'s voice."""
+        phonemizer, renderer = self.per_engine.get(role, (self.phonemizer, self.renderer))
+        if renderer == DIFFSINGER_RENDERER and phonemizer == DEFAULT_PHONEMIZER:
+            phonemizer = DIFFSINGER_PHONEMIZER  # a DiffSinger voice needs its own phonemizer
+        return phonemizer, renderer
 
     def refs(self) -> dict[VoiceRole, VoiceEngineRef]:
-        phonemizer = self.phonemizer
-        if self.renderer == DIFFSINGER_RENDERER and phonemizer == DEFAULT_PHONEMIZER:
-            phonemizer = DIFFSINGER_PHONEMIZER  # a DiffSinger voice needs its own phonemizer
-        removed = removed_phonemizer(phonemizer)
-        if removed and not (
-            self.renderer == DIFFSINGER_RENDERER and phonemizer == DIFFSINGER_PHONEMIZER
-        ):
-            raise PipelineError(
-                ErrorCategory.CONFIGURATION,
-                "PHONEMIZER_REMOVED",
-                f"the pronunciation engine {self.phonemizer} ({removed}) is not part of this "
-                "version "
-                "of BLT (it needs a dictionary whose origin could not be verified); use the "
-                "default, "
-                f"or one of: {', '.join(ENGLISH_PHONEMIZERS)}",
-            )
+        for phonemizer, renderer in dict.fromkeys(self.engine_of(role) for role in VOICE_ORDER):
+            removed = removed_phonemizer(phonemizer)
+            if removed and not (
+                renderer == DIFFSINGER_RENDERER and phonemizer == DIFFSINGER_PHONEMIZER
+            ):
+                raise PipelineError(
+                    ErrorCategory.CONFIGURATION,
+                    "PHONEMIZER_REMOVED",
+                    f"the pronunciation engine {phonemizer} ({removed}) is not part of this "
+                    "version "
+                    "of BLT (it needs a dictionary whose origin could not be verified); use the "
+                    "default, "
+                    f"or one of: {', '.join(ENGLISH_PHONEMIZERS)}",
+                )
         refs = {}
         for role in VOICE_ORDER:
             singer = self.per_voice.get(role, self.singer)
@@ -178,9 +188,8 @@ class EngineChoice:
                     f"no singer was chosen for {role.display_name}; pass --singer ID "
                     "(the voicebank is never picked for you)",
                 )
-            refs[role] = VoiceEngineRef(
-                singer=singer, phonemizer=phonemizer, renderer=self.renderer
-            )
+            phonemizer, renderer = self.engine_of(role)
+            refs[role] = VoiceEngineRef(singer=singer, phonemizer=phonemizer, renderer=renderer)
         return refs
 
 
@@ -458,12 +467,12 @@ def _require_environment(
             f"{sorted(available)[:20] or 'none'}" + _singer_hints(singers_dir, absent, available),
             {"installed": sorted(available)},
         )
-    renderers = {ref.renderer for ref in refs.values()}
     for name in wanted:
         kind = neural_kind(singers_dir / name)
-        if kind == "DiffSinger" and DIFFSINGER_RENDERER in renderers:
-            continue  # the DiffSinger renderer of the internal DiffSinger host (docs/diffsinger.md)
-        if kind is None and DIFFSINGER_RENDERER in renderers:
+        sung_by = {ref.renderer for ref in refs.values() if ref.singer == name}
+        if kind == "DiffSinger" and sung_by == {DIFFSINGER_RENDERER}:
+            continue  # the DiffSinger renderer of the DiffSinger edition (docs/diffsinger.md)
+        if kind is None and DIFFSINGER_RENDERER in sung_by:
             raise PipelineError(
                 ErrorCategory.CONFIGURATION,
                 "SINGER_KIND_UNSUPPORTED",
@@ -472,8 +481,8 @@ def _require_environment(
             )
         if kind is not None:
             hint = (
-                f"; to sing it choose the {DIFFSINGER_RENDERER} renderer (--renderer "
-                f"{DIFFSINGER_RENDERER}) with the DiffSinger host (docs/diffsinger.md)"
+                "; DiffSinger voices are sung only by the DiffSinger edition of BLT "
+                "(docs/diffsinger.md), and this is not that edition"
                 if kind == "DiffSinger"
                 else ""
             )
@@ -494,11 +503,59 @@ def _require_environment(
         )
 
 
-def _tail_policy(plan: SynthesisPlan) -> TailPolicy:
-    """The tail the mix may drop: DiffSinger's phrases carry a 100 ms tail past the last note."""
-    if any(plan.engine_ref(role).renderer == DIFFSINGER_RENDERER for role in VOICE_ORDER):
-        return DIFFSINGER_TAIL
-    return TailPolicy()
+def _tails(plan: SynthesisPlan) -> dict[VoiceRole, TailPolicy]:
+    """The tail the mix may drop, for the voices that need more: DiffSinger's phrases carry a
+    100 ms tail past the last note; a UTAU-style voice keeps the strict default."""
+    return {
+        role: DIFFSINGER_TAIL
+        for role in VOICE_ORDER
+        if plan.engine_ref(role).renderer == DIFFSINGER_RENDERER
+    }
+
+
+def _engines_by_voicebank(
+    request: GenerateRequest, config: ResolvedConfig
+) -> tuple[GenerateRequest, str | None]:
+    """The request with each voice sung by the renderer its voicebank is made for.
+
+    A DiffSinger voicebank is sung by the DIFFSINGER renderer with its own phonemizer, a UTAU-style
+    one by the renderer and phonemizer that were chosen (a quartet may mix the two). This is done
+    only where the render host is the DiffSinger edition (``host_sings_diffsinger``); elsewhere a
+    DiffSinger voice stays as it was and is refused with the reason (``_require_environment``).
+    A UTAU-style voice that the choice gave the DIFFSINGER renderer is sung by the default one.
+    """
+    choice = request.engine
+    if config.singers_dir is None:
+        return request, None
+    can = host_sings_diffsinger(config.host_binaries)
+    changed: dict[VoiceRole, tuple[str, str]] = {}
+    named: list[str] = []
+    for role in VOICE_ORDER:
+        singer = choice.per_voice.get(role, choice.singer)
+        if not singer:
+            continue
+        diffsinger = neural_kind(config.singers_dir / singer) == "DiffSinger"
+        phonemizer, renderer = choice.engine_of(role)
+        if diffsinger and can and renderer != DIFFSINGER_RENDERER:
+            changed[role] = (DIFFSINGER_PHONEMIZER, DIFFSINGER_RENDERER)
+            named.append(singer)
+        elif diffsinger and can and phonemizer != DIFFSINGER_PHONEMIZER:
+            changed[role] = (DIFFSINGER_PHONEMIZER, DIFFSINGER_RENDERER)
+        elif not diffsinger and renderer == DIFFSINGER_RENDERER:
+            changed[role] = (
+                DEFAULT_PHONEMIZER if phonemizer == DIFFSINGER_PHONEMIZER else phonemizer,
+                DEFAULT_RENDERER,
+            )
+    if not changed:
+        return request, None
+    engine = dataclasses.replace(choice, per_engine={**choice.per_engine, **changed})
+    notice = (
+        f"{', '.join(sorted(set(named)))} is a DiffSinger voice, so it is sung with the "
+        f"{DIFFSINGER_RENDERER} renderer and its own pronunciation engine"
+        if named
+        else None
+    )
+    return dataclasses.replace(request, engine=engine), notice
 
 
 def _singer_hints(singers_dir: Path, absent: list[str], available: set[str]) -> str:
@@ -586,6 +643,9 @@ def _check(
     request, notice = _matching_engine(request, config)
     if notice is not None:
         emit({"event": "warning", "code": "ENGINE_AUTO", "message": notice})
+    request, by_bank = _engines_by_voicebank(request, config)
+    if by_bank is not None:
+        emit({"event": "warning", "code": "ENGINE_BY_VOICEBANK", "message": by_bank})
     refs = request.engine.refs()
     plan, sha = _load_plan(request, services, run, refs, config.layout.cache / "converted")
     resolved = resolve_overrides(plan, request.pronunciations, source_sha256=sha)
@@ -619,6 +679,10 @@ def _generate(
     if notice is not None:
         warnings.append(f"ENGINE_AUTO: {notice}")
         run.emit({"event": "warning", "code": "ENGINE_AUTO", "message": notice})
+    request, by_bank = _engines_by_voicebank(request, config)
+    if by_bank is not None:
+        warnings.append(f"ENGINE_BY_VOICEBANK: {by_bank}")
+        run.emit({"event": "warning", "code": "ENGINE_BY_VOICEBANK", "message": by_bank})
     refs = request.engine.refs()  # an unchosen singer is reported before any work
 
     # --- the output location, checked up front (publication re-checks it atomically) ---
@@ -820,7 +884,7 @@ def _render_and_mix(
             layout=config.layout,
             formats=request.formats,
             profile=config.gain_profile,
-            tail=_tail_policy(plan),
+            tails=_tails(plan),
             mp3=mp3,
             prelude=PreludeOptions(request.tune_up, request.count_in, request.tune_up_minor),
             follow_melody=request.follow_melody,

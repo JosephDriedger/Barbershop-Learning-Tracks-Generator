@@ -30,16 +30,19 @@ Arpasing+ and English C+V stay omitted. `verify-host`, `verify_absent_data.py` a
 ## Using it
 
 1. Put the `TIGER_DS_v106` folder in the voices folder (*Add voicebank* accepts it; it notes that it is a DiffSinger voice).
-2. Point BLT at the variant host (`--host-dir` or *Singing engine folder*).
-3. Generate with the DIFFSINGER renderer:
+2. Use the DiffSinger edition of BLT (the installer built with `packaging\build.ps1 -IncludeDiffSinger`, or point `--host-dir` / *Singing engine
+   folder* at the variant host). Its host build record says `arpa_plus: included`, which is how BLT knows it can sing DiffSinger voices.
+3. Generate as usual; nothing has to be chosen for the voice type:
 
 ```
-python -m barbershop_tracks generate score.musicxml ... --singer TIGER_DS_v106 --renderer DIFFSINGER
+python -m barbershop_tracks generate score.musicxml ... --singer TIGER_DS_v106
 ```
 
-With `--renderer DIFFSINGER` and no pronunciation engine chosen, BLT uses `OpenUtau.Core.DiffSinger.DiffSingerARPAPlusEnglishPhonemizer`. The
-Advanced dialog accepts the same pair (type `DIFFSINGER` in *Voice engine*). A DiffSinger bank with the default renderer, or a UTAU bank with
-`DIFFSINGER`, is refused before anything is rendered, and says why.
+**Each voice is sung by what its voicebank is.** A DiffSinger voicebank gets the DIFFSINGER renderer and
+`OpenUtau.Core.DiffSinger.DiffSingerARPAPlusEnglishPhonemizer`; a UTAU-style one keeps the renderer and the pronunciation engine that were chosen
+(or detected from its sounds). A quartet may mix them (`--singer LEAD=TIGER_DS_v106 --singer TENOR=Bennett ...`), and the mix drops DiffSinger's
+tail only on the DiffSinger voices. BLT says so in a warning (`ENGINE_BY_VOICEBANK`). `--renderer DIFFSINGER` still works and is not needed. On a
+host that is not the DiffSinger edition a DiffSinger voicebank is refused before anything is rendered, and says why.
 
 ## What differs from the UTAU path
 

@@ -72,6 +72,17 @@ ENGLISH_PHONEMIZERS = (
 )
 
 
+def host_sings_diffsinger(host: Path | None) -> bool:
+    """Whether the render host in ``host`` is the DiffSinger edition (its build record says so)."""
+    if host is None:
+        return False
+    try:
+        record = json.loads((host / "blt-host-build.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(record, dict) and record.get("arpa_plus") == "included"
+
+
 def removed_phonemizer(name: str) -> str | None:
     """What the user calls ``name`` if it is a phonemizer this version of BLT does not contain."""
     return REMOVED_PHONEMIZERS.get(name.strip().rsplit(".", 1)[-1])
