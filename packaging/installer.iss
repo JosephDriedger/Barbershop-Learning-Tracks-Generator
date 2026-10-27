@@ -73,7 +73,8 @@ UninstallDisplayName={#AppName}
 LicenseFile={#SourceDir}\LICENSE.txt
 OutputDir={#OutputDir}
 #ifdef DiffSingerBuild
-OutputBaseFilename=BLT-Music-Generator-{#AppVersion}-DIFFSINGER-RESEARCH-ONLY-Setup
+; the DiffSinger edition has the ordinary file name; the title line above and release-info.json say what it is
+OutputBaseFilename=BLT-Music-Generator-{#AppVersion}-Setup
 #elif defined(ResearchBuild)
 OutputBaseFilename=BLT-Music-Generator-{#AppVersion}-RESEARCH-ONLY-Setup
 #else

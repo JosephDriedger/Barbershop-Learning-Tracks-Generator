@@ -27,7 +27,7 @@
 #                      Use another -OutDir (research-output\release-research) so that the two builds are never mixed up
 #   -IncludeDiffSinger INTERNAL RESEARCH ONLY: the DiffSinger edition (docs/diffsinger.md). It also contains the English
 #                      "plus" dictionary and the g2p model, both of unknown provenance, so that DiffSinger voices such as
-#                      Tiger can be sung. The installer is named ...-DIFFSINGER-RESEARCH-ONLY-Setup.exe, release-info says
+#                      Tiger can be sung. The installer has the ordinary file name, its title line and release-info say
 #                      so, no tester kit is made and -ForRelease refuses it. verify-host, verify_absent_data and the host
 #                      inventory accept the plus pack and DIFFS EN+ and nothing else that was removed. Use another -OutDir
 #                      (research-output\release-diffsinger)
@@ -187,7 +187,7 @@ if (-not $NoInstaller) {
     if ($IncludeDiffSinger) { $isccArgs += "/DDiffSingerBuild=1" }
     if ($hashedCopies.Count -eq 1) { $isccArgs += "/DNumpyMsvcp=$($hashedCopies[0])" } elseif ($hashedCopies.Count -gt 1) { throw "the installer handles one renamed runtime copy, found $($hashedCopies.Count)" }
     Run $iscc ($isccArgs + (Join-Path $root "packaging\installer.iss"))
-    $installer = Join-Path $artifacts ("BLT-Music-Generator-$version-" + $(if ($IncludeDiffSinger) { "DIFFSINGER-RESEARCH-ONLY-" } elseif ($IncludeG2pModel) { "RESEARCH-ONLY-" } else { "" }) + "Setup.exe")
+    $installer = Join-Path $artifacts ("BLT-Music-Generator-$version-" + $(if ($IncludeG2pModel -and -not $IncludeDiffSinger) { "RESEARCH-ONLY-" } else { "" }) + "Setup.exe")
     if (-not (Test-Path $installer)) { throw "installer was not produced" }
 }
 
