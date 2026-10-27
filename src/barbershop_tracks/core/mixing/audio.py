@@ -73,12 +73,14 @@ class TailPolicy:
 
 
 # DiffSinger renders every phrase with 100 ms of tail after its last note (tailMs in OpenUtau
-# 0.1.565's DiffSingerUtils), the release of the last note. A stem therefore ends 100 ms plus the
-# usual few milliseconds past the score. Measured on the first Tiger render (8 bars): 100.8 to
-# 108.2 ms, the excess peaking at 0.0015, 0.0077, 0.0119 and 0.0449 of full scale (-27 dBFS for the
-# Bass) and fading to below -60 dBFS by the end. So up to 115 ms and -20 dBFS may go, with a 30 ms
-# fade before the cut so that it does not click. Only the DIFFSINGER renderer uses it.
-DIFFSINGER_TAIL = TailPolicy(max_trim_seconds=0.115, max_trim_peak=0.1, fade_seconds=0.030)
+# 0.1.565's DiffSingerUtils), the release of the last note, and works in frames of 512 samples
+# (11.6 ms), so a stem ends 100 ms plus up to a couple of frames past the score. Measured with
+# Tiger:
+# 100.8 to 108.2 ms on the 8-bar kit score (the excess peaking at 0.0015 to 0.0449 of full scale,
+# -27 dBFS for the Bass) and 115.0 ms on all four stems of the 36-bar "Ebb Tide" (peaks 0.0017 to
+# 0.0128). So up to 130 ms and -20 dBFS may go, with a 30 ms fade before the cut so that it does not
+# click; a stem longer than that is still refused. Only the DIFFSINGER renderer uses it.
+DIFFSINGER_TAIL = TailPolicy(max_trim_seconds=0.130, max_trim_peak=0.1, fade_seconds=0.030)
 
 
 @dataclass(frozen=True, slots=True)

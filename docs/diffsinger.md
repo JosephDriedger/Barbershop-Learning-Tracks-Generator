@@ -59,7 +59,7 @@ host that is not the DiffSinger edition a DiffSinger voicebank is refused before
 * All four parts rendered, the 13 tracks were published, all of one length (962,182 frames), about 38 s for the whole run. Every part is audible
   in every second of its Solo.
 * **Every stem ends about 100 ms past the score** (100.8 to 108.2 ms; the release that DiffSinger adds after the last note, `tailMs`), so the
-  mix refused it (`MIX_STEM_TOO_LONG`) as it does for CLASSIC. For the DIFFSINGER renderer only, the mix drops a tail of up to 115 ms and
+  mix refused it (`MIX_STEM_TOO_LONG`) as it does for CLASSIC. For the DIFFSINGER renderer only, the mix drops a tail of up to 130 ms and
   -20 dBFS and fades the last 30 ms before the cut (`DIFFSINGER_TAIL`, recorded in the manifest's `tail_policy`).
 * **Two renders of the same score are not the same bytes** (the diffusion noise lives inside the ONNX model; OpenUtau has no seed). The UTAU path
   is bit-for-bit. Listen to each render you rely on.

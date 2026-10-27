@@ -810,5 +810,7 @@ def test_the_diffsinger_tail_policy_allows_its_100_ms_tail_and_the_default_does_
     from barbershop_tracks.core.mixing import DIFFSINGER_TAIL, TailPolicy
 
     assert DIFFSINGER_TAIL.allows(round(0.1008 * 44100), 0.0015, 44100)
+    assert DIFFSINGER_TAIL.allows(5073, 0.0128, 44100)  # the 36-bar Ebb Tide: 115.0 ms
+    assert not DIFFSINGER_TAIL.allows(round(0.15 * 44100), 0.0015, 44100)
     assert not TailPolicy().allows(round(0.1008 * 44100), 0.0015, 44100)
     assert not DIFFSINGER_TAIL.allows(round(0.2 * 44100), 0.0015, 44100)

@@ -16,7 +16,7 @@ It replaces an installed BLT in place (same application id). It does not include
   typed, and one quartet may mix the two (for example a DiffSinger Lead with UTAU-style Tenor, Baritone and Bass). BLT shows an
   `ENGINE_BY_VOICEBANK` warning when it changes a voice. `--renderer DIFFSINGER` still works.
 * **The mix handles DiffSinger's release.** DiffSinger ends every stem about 100 ms after the score. For DiffSinger voices only, the mix drops that
-  tail (up to 115 ms and -20 dBFS) with a 30 ms fade before the cut; UTAU-style stems keep the strict check. The manifest records the per-voice
+  tail (up to 130 ms and -20 dBFS) with a 30 ms fade before the cut; UTAU-style stems keep the strict check. The manifest records the per-voice
   policy (`tail_policy.per_voice`).
 * **On any other host a DiffSinger voicebank is refused up front,** with the reason, instead of rendering silence.
 * **The package checks know about the edition.** `-IncludeDiffSinger` relaxes exactly one thing in `verify-host`, the host inventory and the
