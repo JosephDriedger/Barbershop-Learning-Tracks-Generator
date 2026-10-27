@@ -1,4 +1,4 @@
-# Known limitations (1.0.0)
+# Known limitations (1.0.1)
 
 Things that are not done, not verified, or deliberately restricted. Nothing here is hidden elsewhere.
 
