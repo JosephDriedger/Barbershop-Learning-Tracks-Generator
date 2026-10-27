@@ -27,7 +27,7 @@
 #                      Use another -OutDir (research-output\release-research) so that the two builds are never mixed up
 #   -IncludeDiffSinger INTERNAL RESEARCH ONLY: the DiffSinger edition (docs/diffsinger.md). It also contains the English
 #                      "plus" dictionary and the g2p model, both of unknown provenance, so that DiffSinger voices such as
-#                      Tiger can be sung. The installer has the ordinary file name, its title line and release-info say
+#                      Tiger can be sung. The installer has the ordinary file name and title; release-info says
 #                      so, no tester kit is made and -ForRelease refuses it. verify-host, verify_absent_data and the host
 #                      inventory accept the plus pack and DIFFS EN+ and nothing else that was removed. Use another -OutDir
 #                      (research-output\release-diffsinger)

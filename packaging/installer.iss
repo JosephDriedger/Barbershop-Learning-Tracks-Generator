@@ -50,7 +50,7 @@ AppId={{7A3B1E52-4C8D-4F6A-9B21-5D0E8C6F3A17}
 AppName={#AppName}
 AppVersion={#AppVersion}
 #ifdef DiffSingerBuild
-AppVerName={#AppName} {#AppVersion} (INTERNAL DIFFSINGER BUILD, not for distribution)
+AppVerName={#AppName} {#AppVersion}
 #elif defined(ResearchBuild)
 AppVerName={#AppName} {#AppVersion} (INTERNAL RESEARCH BUILD, not for distribution)
 #else
@@ -73,7 +73,7 @@ UninstallDisplayName={#AppName}
 LicenseFile={#SourceDir}\LICENSE.txt
 OutputDir={#OutputDir}
 #ifdef DiffSingerBuild
-; the DiffSinger edition has the ordinary file name; the title line above and release-info.json say what it is
+; the DiffSinger edition has the ordinary file name and title; release-info.json and the release notes say what it contains
 OutputBaseFilename=BLT-Music-Generator-{#AppVersion}-Setup
 #elif defined(ResearchBuild)
 OutputBaseFilename=BLT-Music-Generator-{#AppVersion}-RESEARCH-ONLY-Setup
