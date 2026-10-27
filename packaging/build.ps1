@@ -30,7 +30,7 @@
 #                      Tiger can be sung. The installer is named ...-DIFFSINGER-RESEARCH-ONLY-Setup.exe, release-info says
 #                      so, no tester kit is made and -ForRelease refuses it. verify-host, verify_absent_data and the host
 #                      inventory accept the plus pack and DIFFS EN+ and nothing else that was removed. Use another -OutDir
-#                      (research-outputelease-diffsinger)
+#                      (research-output\release-diffsinger)
 #   -ForRelease        refuse to build unless the release gate is open (docs/release-gate.md), and check the finished
 #                      build against it. Without it the artifacts are always marked NOT FOR RELEASE
 param(

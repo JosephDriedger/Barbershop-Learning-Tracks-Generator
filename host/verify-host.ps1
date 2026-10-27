@@ -10,7 +10,7 @@
 #     or, in the model-free build (the default; the research build is made with -IncludeG2pModel), absent (blt-host-build.json says which); the English "plus" dictionary (unverified origin) and everything that only serves it
 #     (Arpasing+, English C+V and their template) are absent, and every other g2p pack and every Vogen
 #     data file is empty;
-#   * the internal DiffSinger edition (hostuild.ps1 -IncludeDiffSinger, blt-host-build.json says arpa_plus: included) is the one
+#   * the internal DiffSinger edition (host\build.ps1 -IncludeDiffSinger, blt-host-build.json says arpa_plus: included) is the one
 #     exception: it must contain the plus pack of the pinned source byte for byte, and still no Arpasing+ or English C+V;
 #   (packaging/verify_absent_data.py is the byte-level companion: it searches for the removed data itself)
 #   * the CREPE model is still there (MIT);
