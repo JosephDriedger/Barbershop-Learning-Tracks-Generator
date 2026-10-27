@@ -47,6 +47,7 @@ class PlacedStem:
     target_frames: int
     padded_frames: int
     trimmed_frames: int
+    fade_frames: int = 0  # the stem fades out over this many frames before the target when trimmed
 
     def block(self, start: int, stop: int) -> Float:
         """Float64 samples ``start:stop`` of the timeline: zeros before/after the file's audio."""
@@ -57,6 +58,11 @@ class PlacedStem:
                 handle.seek(self.offset + 2 * start)
                 raw = handle.read(2 * (end - start))
             out[: end - start] = np.frombuffer(raw, dtype="<i2").astype(np.float64) / SCALE
+        fade_from = self.target_frames - self.fade_frames
+        if self.trimmed_frames and self.fade_frames and stop > fade_from:
+            first = max(start, fade_from)
+            ramp = 1.0 - np.arange(first - fade_from, stop - fade_from) / self.fade_frames
+            out[first - start :] *= ramp
         return out
 
 
@@ -105,7 +111,8 @@ def place_stem(role: VoiceRole, path: Path, target_frames: int, tail: TailPolicy
                 f"{target_frames} frames; the excess peaks at {peak:.4f} of full scale",
                 {"excess_frames": excess, "excess_peak": peak},
             )
-        return PlacedStem(role, path, offset, info.frames, target_frames, 0, excess)
+        fade = min(round(tail.fade_seconds * SAMPLE_RATE), target_frames)
+        return PlacedStem(role, path, offset, info.frames, target_frames, 0, excess, fade)
     return PlacedStem(role, path, offset, info.frames, target_frames, -excess, 0)
 
 

@@ -25,6 +25,7 @@ from barbershop_tracks.core.errors import ScoreConversionError, ScoreLoadError
 from barbershop_tracks.core.handoff import HandoffError, sanitize_name
 from barbershop_tracks.core.melody import MelodyError, MelodyMark, MelodySection, melody_of
 from barbershop_tracks.core.mixing import (
+    DIFFSINGER_TAIL,
     AudioFormat,
     FfmpegMp3Encoder,
     MixCancelledError,
@@ -35,6 +36,7 @@ from barbershop_tracks.core.mixing import (
     PackageSettings,
     PackageSource,
     PreludeOptions,
+    TailPolicy,
     build_learning_tracks,
     is_our_package,
     prelude_for,
@@ -43,6 +45,9 @@ from barbershop_tracks.core.mixing import (
 from barbershop_tracks.core.musicxml import ParseResult, opened_score, parse_musicxml
 from barbershop_tracks.core.musicxml.opened import parse_opened
 from barbershop_tracks.core.pipeline.config import (
+    DEFAULT_PHONEMIZER,
+    DIFFSINGER_PHONEMIZER,
+    DIFFSINGER_RENDERER,
     ENGLISH_PHONEMIZERS,
     ResolvedConfig,
     default_voices_dir,
@@ -147,8 +152,13 @@ class EngineChoice:
     automatic: bool = False
 
     def refs(self) -> dict[VoiceRole, VoiceEngineRef]:
-        removed = removed_phonemizer(self.phonemizer)
-        if removed:
+        phonemizer = self.phonemizer
+        if self.renderer == DIFFSINGER_RENDERER and phonemizer == DEFAULT_PHONEMIZER:
+            phonemizer = DIFFSINGER_PHONEMIZER  # a DiffSinger voice needs its own phonemizer
+        removed = removed_phonemizer(phonemizer)
+        if removed and not (
+            self.renderer == DIFFSINGER_RENDERER and phonemizer == DIFFSINGER_PHONEMIZER
+        ):
             raise PipelineError(
                 ErrorCategory.CONFIGURATION,
                 "PHONEMIZER_REMOVED",
@@ -169,7 +179,7 @@ class EngineChoice:
                     "(the voicebank is never picked for you)",
                 )
             refs[role] = VoiceEngineRef(
-                singer=singer, phonemizer=self.phonemizer, renderer=self.renderer
+                singer=singer, phonemizer=phonemizer, renderer=self.renderer
             )
         return refs
 
@@ -448,14 +458,31 @@ def _require_environment(
             f"{sorted(available)[:20] or 'none'}" + _singer_hints(singers_dir, absent, available),
             {"installed": sorted(available)},
         )
+    renderers = {ref.renderer for ref in refs.values()}
     for name in wanted:
         kind = neural_kind(singers_dir / name)
+        if kind == "DiffSinger" and DIFFSINGER_RENDERER in renderers:
+            continue  # the DiffSinger renderer of the internal DiffSinger host (docs/diffsinger.md)
+        if kind is None and DIFFSINGER_RENDERER in renderers:
+            raise PipelineError(
+                ErrorCategory.CONFIGURATION,
+                "SINGER_KIND_UNSUPPORTED",
+                f"'{name}' is a UTAU-style voicebank; the {DIFFSINGER_RENDERER} renderer sings "
+                "DiffSinger voicebanks only. Use the default renderer for this voice",
+            )
         if kind is not None:
+            hint = (
+                f"; to sing it choose the {DIFFSINGER_RENDERER} renderer (--renderer "
+                f"{DIFFSINGER_RENDERER}) with the DiffSinger host (docs/diffsinger.md)"
+                if kind == "DiffSinger"
+                else ""
+            )
             raise PipelineError(
                 ErrorCategory.CONFIGURATION,
                 "SINGER_KIND_UNSUPPORTED",
                 f"'{name}' is a {kind} voicebank; BLT renders UTAU-style voicebanks (recordings "
-                "named in an oto.ini) only, so every note would be silent. Choose another voice",
+                f"named in an oto.ini) only, so every note would be silent{hint}. "
+                "Choose another voice",
             )
     run.stage(Stage.VOICEBANK_DISCOVERY, "finished", installed=len(available))
     run.check()
@@ -465,6 +492,13 @@ def _require_environment(
             "HOST_NOT_FOUND",
             "the render host was not found; pass --host-dir or set BLT_HOST_DIR",
         )
+
+
+def _tail_policy(plan: SynthesisPlan) -> TailPolicy:
+    """The tail the mix may drop: DiffSinger's phrases carry a 100 ms tail past the last note."""
+    if any(plan.engine_ref(role).renderer == DIFFSINGER_RENDERER for role in VOICE_ORDER):
+        return DIFFSINGER_TAIL
+    return TailPolicy()
 
 
 def _singer_hints(singers_dir: Path, absent: list[str], available: set[str]) -> str:
@@ -786,6 +820,7 @@ def _render_and_mix(
             layout=config.layout,
             formats=request.formats,
             profile=config.gain_profile,
+            tail=_tail_policy(plan),
             mp3=mp3,
             prelude=PreludeOptions(request.tune_up, request.count_in, request.tune_up_minor),
             follow_melody=request.follow_melody,

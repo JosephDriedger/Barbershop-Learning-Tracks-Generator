@@ -35,6 +35,8 @@ from PySide6.QtWidgets import (
 from barbershop_tracks.core.pipeline import (
     DEFAULT_PHONEMIZER,
     DEFAULT_RENDERER,
+    DIFFSINGER_PHONEMIZER,
+    DIFFSINGER_RENDERER,
     SHIPPED_RENDERERS,
     PipelineError,
     approvals_document,
@@ -518,7 +520,10 @@ class AdvancedDialog(QDialog):
     def accept(self) -> None:
         prefs = self.prefs
         removed = removed_phonemizer(self.pronunciation.text())
-        if removed:
+        if removed and not (
+            self.engine.currentText().strip() == DIFFSINGER_RENDERER
+            and self.pronunciation.text().strip() == DIFFSINGER_PHONEMIZER
+        ):
             QMessageBox.warning(
                 self,
                 "Pronunciation engine",

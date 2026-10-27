@@ -202,7 +202,15 @@ def install_voicebank(
                 notes.append("it had no character.txt, so a one-line one was added to the copy")
             kind = neural_kind(root)
             if kind is not None:
-                notes.append(f"it is a {kind} voice, which BLT cannot sing with (UTAU-style only)")
+                if kind == "DiffSinger":
+                    notes.append(
+                        "it is a DiffSinger voice: BLT sings it only with --renderer DIFFSINGER "
+                        "on the DiffSinger host (docs/diffsinger.md)"
+                    )
+                else:
+                    notes.append(
+                        f"it is a {kind} voice, which BLT cannot sing with (UTAU-style only)"
+                    )
             target = voices_dir.joinpath(*relative)
             target.parent.mkdir(parents=True, exist_ok=True)
             name = join_singer_name(relative)

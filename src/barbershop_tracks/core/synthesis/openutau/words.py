@@ -59,6 +59,9 @@ DICTIONARY_PHONEMIZERS = (
     "OpenUtau.Plugin.Builtin.ArpasingPhonemizer",
     "OpenUtau.Plugin.Builtin.EnglishVCCVPhonemizer",
     "OpenUtau.Plugin.Builtin.EnXSampaPhonemizer",
+    # DiffSinger's G2P phonemizers group notes into words the same way (``+`` starts the next
+    # syllable, ``+~`` holds the vowel); it takes no pronunciations (ALPHABETS) and has no tail logic
+    "OpenUtau.Core.DiffSinger.DiffSingerARPAPlusEnglishPhonemizer",
 )
 
 _TEXT_STATES = (LyricState.SCORE_LYRIC, LyricState.USER_APPROVED, LyricState.LEAD_SYLLABLE)

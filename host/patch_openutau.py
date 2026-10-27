@@ -1,7 +1,7 @@
 """A copy of the pinned OpenUtau source without the LGPL-derived Voicevox classes and without the
 embedded data whose licence is unknown (see docs/m13-compliance.md). ``host/build.ps1`` runs this.
 
-    python host/patch_openutau.py <pinned OpenUtau checkout> <output folder> [--exclude-g2p-model]
+    python host/patch_openutau.py <pinned OpenUtau checkout> <output folder> [--exclude-g2p-model] [--include-arpa-plus]
 
 Changes to the copy (the pinned checkout itself is never touched):
 * delete ``OpenUtau.Core/Voicevox`` (code "partially based on" the LGPL-3.0 VOICEVOX engine) and
@@ -14,6 +14,9 @@ Changes to the copy (the pinned checkout itself is never touched):
   and English C+V phonemizers, the DiffSinger English+ phonemizer, ``ArpabetPlusG2p`` and its lyrics
   helper, and the 1.2 MB English C+V template. The data is removed from the sources and from the
   resource tables, so it is not in the built assemblies at all (host/verify-host.ps1 checks that).
+With ``--include-arpa-plus`` (INTERNAL, DiffSinger voices such as Tiger, docs/diffsinger.md) the plus
+dictionary, ``ArpabetPlusG2p``, the lyrics helper and the DiffSinger English+ phonemizer are kept; Arpasing+
+and English C+V stay omitted. That build contains the data of unknown provenance and is never released.
 Always (M18): the two dictionary-based phonemizer bases (``PhonemeBasedPhonemizer``, which Arpasing uses, and
 ``SyllableBasedPhonemizer``, which English VCCV and X-SAMPA use) record the words their dictionary could not look up
 (``OpenUtau.Api.IMissingWordReporter``, a new file). Upstream silently turns such a word into a voicebank alias (Arpasing)
@@ -51,6 +54,15 @@ PLUS_RESOURCES = (
     ("OpenUtau.Core/G2p/Data", "g2p_arpabet_plus"),
     ("OpenUtau.Plugin.Builtin/Data", "en_cPv_template"),
 )
+# With --include-arpa-plus (the internal DiffSinger variant, docs/diffsinger.md) these are kept: the plus
+# dictionary and the one phonemizer that needs it for DiffSinger voices such as Tiger ("DIFFS EN+").
+ARPA_PLUS_PACK = "g2p-arpabet-plus.zip"
+ARPA_PLUS_FILES = (
+    "OpenUtau.Core/G2p/ArpabetPlusG2p.cs",
+    "OpenUtau.Core/G2p/Data/g2p-arpabet-plus.zip",
+    "OpenUtau.Core/DiffSinger/Phonemizers/DiffSingerARPAPlusEnglishPhonemizer.cs",
+)
+ARPA_PLUS_RESOURCES = ("g2p_arpabet_plus",)
 
 
 def remove_resource(folder: Path, name: str) -> None:
@@ -224,10 +236,13 @@ def exclude_g2p_model(target: Path) -> None:
 
 
 def main() -> int:
-    arguments = [a for a in sys.argv[1:] if a != "--exclude-g2p-model"]
-    if len(arguments) != 2 or len(sys.argv) - 1 - len(arguments) > 1:
+    flags = {"--exclude-g2p-model", "--include-arpa-plus"}
+    arguments = [a for a in sys.argv[1:] if a not in flags]
+    if len(arguments) != 2 or len(sys.argv) - 1 - len(arguments) > len(flags):
         print(__doc__)
         return 2
+    arpa_plus = "--include-arpa-plus" in sys.argv[1:]
+    keep_packs = KEEP_G2P | ({ARPA_PLUS_PACK} if arpa_plus else set())
     source, target = Path(arguments[0]), Path(arguments[1])
     shutil.copytree(source, target, ignore=shutil.ignore_patterns(".git", "bin", "obj", ".vs"))
     shutil.rmtree(target / "OpenUtau.Core" / "Voicevox")
@@ -244,27 +259,35 @@ def main() -> int:
         "                return new Voicevox.VoicevoxRenderer();\n",
         "",
     )
-    for relative in PLUS_FILES:
+    plus_files = PLUS_FILES
+    if arpa_plus:
+        # DiffSinger variant: keep what DIFFS EN+ needs (the plus dictionary, its g2p, the phonemizer);
+        # Arpasing+ and English C+V (and the C+V template) stay omitted
+        plus_files = tuple(f for f in PLUS_FILES if f not in ARPA_PLUS_FILES)
+    for relative in plus_files:
         (target / relative).unlink()
     for folder, name in PLUS_RESOURCES:
+        if arpa_plus and name in ARPA_PLUS_RESOURCES:
+            continue
         remove_resource(target / folder, name)
-    replace_once(
-        target / "OpenUtau.Core" / "Util" / "LyricsHelper.cs",
-        "            typeof(ArpabetPlusG2pLyricsHelper),\n",
-        "",
-    )
-    replace_once(
-        target / "OpenUtau.Core" / "Util" / "LyricsHelper.cs",
-        "    public class ArpabetPlusG2pLyricsHelper : G2pLyricsHelper {\n"
-        "        public ArpabetPlusG2pLyricsHelper() : base(new ArpabetPlusG2p()) { }\n"
-        "    }\n",
-        "",
-    )
+    if not arpa_plus:
+        replace_once(
+            target / "OpenUtau.Core" / "Util" / "LyricsHelper.cs",
+            "            typeof(ArpabetPlusG2pLyricsHelper),\n",
+            "",
+        )
+        replace_once(
+            target / "OpenUtau.Core" / "Util" / "LyricsHelper.cs",
+            "    public class ArpabetPlusG2pLyricsHelper : G2pLyricsHelper {\n"
+            "        public ArpabetPlusG2pLyricsHelper() : base(new ArpabetPlusG2p()) { }\n"
+            "    }\n",
+            "",
+        )
     report_missing_words(target)
     empty = io.BytesIO()
     zipfile.ZipFile(empty, "w").close()
     for pack in (target / "OpenUtau.Core" / "G2p" / "Data").glob("*.zip"):
-        if pack.name not in KEEP_G2P:
+        if pack.name not in keep_packs:
             pack.write_bytes(empty.getvalue())
     for data in (target / "OpenUtau.Core" / "Vogen" / "Data").iterdir():
         if data.suffix in (".onnx", ".csv"):
@@ -274,6 +297,7 @@ def main() -> int:
     print(
         f"wrote {target}"
         + (" (without the g2p model)" if "--exclude-g2p-model" in sys.argv[1:] else "")
+        + (" (WITH the ARPA+ dictionary: internal DiffSinger variant)" if arpa_plus else "")
     )
     return 0
 

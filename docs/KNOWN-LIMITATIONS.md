@@ -31,7 +31,8 @@ Things that are not done, not verified, or deliberately restricted. Nothing here
 * **Tension is not supported.** OpenUtau's per-note/curve "tension" voice effect is not in BLT's native library. BLT never writes it; a project that asks for it
   is refused by the host ("unsupported_tension") instead of being rendered without it.
 * **Two English phonemizers are missing.** Because the "plus" dictionary is excluded, upstream OpenUtau's *Arpasing+* and *English
-  C+V* phonemizers (and the DiffSinger English+ one) are not in BLT's host. The CMUdict-based ones (Arpasing, English VCCV, X-SAMPA)
+  C+V* phonemizers (and the DiffSinger English+ one) are not in BLT's host. (The DiffSinger English+ one exists only in the internal
+  `-IncludeDiffSinger` host variant, which is never released: [diffsinger.md](diffsinger.md).) The CMUdict-based ones (Arpasing, English VCCV, X-SAMPA)
   and the default phonemizer are. A voicebank that only works with C+V cannot be used.
 * **Visual C++ Redistributable is a prerequisite.** BLT does not ship Microsoft's runtime; Setup checks for it, offers Microsoft's
   download or a file you bring, and refuses a silent install without it. Tested with the real Setup window on the developer's PC

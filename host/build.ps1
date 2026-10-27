@@ -1,6 +1,6 @@
 # Build the BLT render host against the PINNED OpenUtau source.
 #
-#   powershell -NoProfile -ExecutionPolicy Bypass -File host\build.ps1 [-OpenUtauSrc DIR] [-Out DIR] [-Publish] [-SkipNative] [-IncludeG2pModel]
+#   powershell -NoProfile -ExecutionPolicy Bypass -File host\build.ps1 [-OpenUtauSrc DIR] [-Out DIR] [-Publish] [-SkipNative] [-IncludeG2pModel] [-IncludeDiffSinger]
 #
 # Pin: OpenUtau release 0.1.565, commit a60ca5830b9064556157245d4bf8f5920d93e5f8. If the source
 # directory is missing it is cloned at that tag; either way HEAD must equal the pinned commit or the
@@ -23,7 +23,10 @@ param(
     [switch]$Publish,
     [switch]$SkipNative,
     # INTERNAL RESEARCH ONLY: keep the g2p model of unknown provenance (never distributed, never released)
-    [switch]$IncludeG2pModel
+    [switch]$IncludeG2pModel,
+    # INTERNAL RESEARCH ONLY: DiffSinger voices (Tiger, "DIFFS EN+"). Keeps the English "plus" dictionary of unknown
+    # provenance and the native onnxruntime that DiffSinger runs on (docs/diffsinger.md); never distributed, never released
+    [switch]$IncludeDiffSinger
 )
 $ErrorActionPreference = "Stop"
 $Tag = "0.1.565"
@@ -36,7 +39,7 @@ $RuntimeVersion = "8.0.31"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 if (-not $OpenUtauSrc) { $OpenUtauSrc = Join-Path $root "research-output\openutau-src" }
 if (-not $Out) {
-    $Out = Join-Path $root ("research-output\host\" + $(if ($Publish) { "publish" } else { "build" }) + $(if ($IncludeG2pModel) { "-g2p-research" } else { "" }))
+    $Out = Join-Path $root ("research-output\host\" + $(if ($Publish) { "publish" } else { "build" }) + $(if ($IncludeG2pModel) { "-g2p-research" } elseif ($IncludeDiffSinger) { "-diffsinger-research" } else { "" }))
 }
 $python = if ($env:BLT_PYTHON) { $env:BLT_PYTHON } elseif (Test-Path (Join-Path $root ".venv\Scripts\python.exe")) { Join-Path $root ".venv\Scripts\python.exe" } else { "python" }
 
@@ -57,11 +60,12 @@ $nuget = Join-Path $root "research-output\spike\nuget"
 if (-not $env:NUGET_PACKAGES -and (Test-Path $nuget)) { $env:NUGET_PACKAGES = $nuget }
 
 # the patched copy of the pinned source (the pinned checkout itself is never modified)
-$patched = Join-Path $root ("research-output\host\openutau-patched" + $(if ($IncludeG2pModel) { "-g2p-research" } else { "" }))
+$patched = Join-Path $root ("research-output\host\openutau-patched" + $(if ($IncludeG2pModel) { "-g2p-research" } elseif ($IncludeDiffSinger) { "-diffsinger-research" } else { "" }))
 if (Test-Path $patched) { & $python -c "import shutil,sys; shutil.rmtree(sys.argv[1])" $patched }
 New-Item -ItemType Directory -Force (Split-Path $patched) | Out-Null
 $patchArgs = @($OpenUtauSrc, $patched)
-if (-not $IncludeG2pModel) { $patchArgs += "--exclude-g2p-model" }
+if (-not $IncludeG2pModel -and -not $IncludeDiffSinger) { $patchArgs += "--exclude-g2p-model" }
+if ($IncludeDiffSinger) { $patchArgs += "--include-arpa-plus" }
 & $python (Join-Path $PSScriptRoot "patch_openutau.py") @patchArgs
 if ($LASTEXITCODE -ne 0) { throw "patching the OpenUtau copy failed" }
 
@@ -77,7 +81,7 @@ if ($Publish) {
         $name = $line.Trim()
         if ($name -and -not $name.StartsWith("#")) { Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $Out $name) }
     }
-    if (-not $IncludeG2pModel) {
+    if (-not $IncludeG2pModel -and -not $IncludeDiffSinger) {
         # nothing runs a neural model any more: the native runtime (and its third-party notices) is not shipped
         foreach ($name in "onnxruntime.dll", "onnxruntime_providers_shared.dll", "DirectML.dll") {
             Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $Out $name)
@@ -106,8 +110,9 @@ $info = [ordered]@{
     worldline_spline_free = ($native -like "BLT build*")   # native\verify_dll.py passed: no spline in the link map or the DLL
     worldline_sha256 = (Get-FileHash (Join-Path $Out "worldline.dll") -Algorithm SHA256).Hash.ToLower()
     dotnet_runtime = $RuntimeVersion
-    g2p_model = $(if ($IncludeG2pModel) { "included" } else { "excluded" })   # the English pack's g2p.onnx (docs/g2p-model-provenance.md)
-    distribution = $(if ($IncludeG2pModel) { "INTERNAL RESEARCH ONLY: contains the g2p model of unknown provenance; never distribute" } else { "proposed release configuration (model-free); not for release until the release gate is open" })
+    g2p_model = $(if ($IncludeG2pModel -or $IncludeDiffSinger) { "included" } else { "excluded" })   # the English pack's g2p.onnx (docs/g2p-model-provenance.md)
+    arpa_plus = $(if ($IncludeDiffSinger) { "included" } else { "excluded" })   # the English plus dictionary (docs/g2p-plus-provenance.md)
+    distribution = $(if ($IncludeDiffSinger) { "INTERNAL RESEARCH ONLY: contains the ARPAbet-plus dictionary and g2p model of unknown provenance; never distribute" } elseif ($IncludeG2pModel) { "INTERNAL RESEARCH ONLY: contains the g2p model of unknown provenance; never distribute" } else { "proposed release configuration (model-free); not for release until the release gate is open" })
 }
 [System.IO.File]::WriteAllText((Join-Path $Out "blt-host-build.json"), ($info | ConvertTo-Json -Depth 4), (New-Object System.Text.UTF8Encoding($false)))
 Write-Output "host: $(Join-Path $Out 'blt-render-host.exe')"

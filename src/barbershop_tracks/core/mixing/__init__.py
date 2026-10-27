@@ -1,6 +1,6 @@
 """Engine-neutral mixing of four vocal stems into the 13 learning tracks."""
 
-from barbershop_tracks.core.mixing.audio import TailPolicy
+from barbershop_tracks.core.mixing.audio import DIFFSINGER_TAIL, TailPolicy
 from barbershop_tracks.core.mixing.errors import (
     MixCancelledError,
     MixClippingError,
@@ -38,6 +38,7 @@ from barbershop_tracks.core.mixing.specs import (
 
 __all__ = [
     "DEFAULT_PROFILE",
+    "DIFFSINGER_TAIL",
     "MANIFEST_NAME",
     "PRESETS",
     "AudioFormat",

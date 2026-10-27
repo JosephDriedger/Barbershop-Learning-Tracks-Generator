@@ -50,10 +50,14 @@ class TailPolicy:
     # than one below it, so a very short excess may be a little louder: at most 12 ms at -48 dBFS.
     short_trim_seconds: float = 0.012
     short_trim_peak: float = 4e-3
+    # A stem whose end is dropped fades out over this long before the cut (0: no fade). Only for a
+    # tail that is not nearly silent (DIFFSINGER_TAIL): cutting that abruptly would click.
+    fade_seconds: float = 0.0
 
     def __post_init__(self) -> None:
         if (
-            self.max_trim_seconds < 0
+            self.fade_seconds < 0
+            or self.max_trim_seconds < 0
             or not 0 <= self.max_trim_peak <= 1
             or self.short_trim_seconds < 0
             or not 0 <= self.short_trim_peak <= 1
@@ -66,6 +70,15 @@ class TailPolicy:
         return (seconds <= self.max_trim_seconds and peak <= self.max_trim_peak) or (
             seconds <= self.short_trim_seconds and peak <= self.short_trim_peak
         )
+
+
+# DiffSinger renders every phrase with 100 ms of tail after its last note (tailMs in OpenUtau
+# 0.1.565's DiffSingerUtils), the release of the last note. A stem therefore ends 100 ms plus the
+# usual few milliseconds past the score. Measured on the first Tiger render (8 bars): 100.8 to
+# 108.2 ms, the excess peaking at 0.0015, 0.0077, 0.0119 and 0.0449 of full scale (-27 dBFS for the
+# Bass) and fading to below -60 dBFS by the end. So up to 115 ms and -20 dBFS may go, with a 30 ms
+# fade before the cut so that it does not click. Only the DIFFSINGER renderer uses it.
+DIFFSINGER_TAIL = TailPolicy(max_trim_seconds=0.115, max_trim_peak=0.1, fade_seconds=0.030)
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,7 +140,11 @@ def fit_stem(stem: StemAudio, target_frames: int, tail: TailPolicy) -> FittedSte
                 f"{target_frames} frames; the excess peaks at {peak:.4f} of full scale",
                 {"excess_frames": excess, "excess_peak": peak},
             )
-        return FittedStem(stem.role, np.ascontiguousarray(decoded[:target_frames]), 0, excess)
+        kept = np.ascontiguousarray(decoded[:target_frames])
+        fade = min(round(tail.fade_seconds * stem.sample_rate), target_frames)
+        if fade > 0:
+            kept[target_frames - fade :] *= 1.0 - np.arange(fade) / fade
+        return FittedStem(stem.role, kept, 0, excess)
     out = np.zeros(target_frames, dtype=np.float64)
     out[: stem.frames] = decoded
     return FittedStem(stem.role, out, -excess, 0)

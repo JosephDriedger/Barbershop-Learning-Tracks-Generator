@@ -216,3 +216,37 @@ def test_the_streaming_mixer_still_refuses_a_loud_short_excess(tmp_path: Path) -
     )
     with pytest.raises(MixDurationError):
         place_stem(VoiceRole.BASS, paths[VoiceRole.BASS], 30000, TailPolicy())
+
+
+def test_a_trimmed_diffsinger_tail_fades_out_before_the_cut_the_same_in_both_paths(
+    tmp_path: Path,
+) -> None:
+    from barbershop_tracks.core.mixing.audio import DIFFSINGER_TAIL
+
+    target = 20000
+    excess = 4500  # a tail of 102 ms, as DiffSinger leaves it
+    path = tmp_path / "bass.wav"
+    samples = np.full(target + excess, 10000, dtype=np.int16)
+    samples[target:] = 1000  # the release past the end, about -30 dBFS
+    path.write_bytes(wav_bytes(samples))
+
+    placed = place_stem(VoiceRole.BASS, path, target, DIFFSINGER_TAIL)
+    whole = fit_stem(load_stem(VoiceRole.BASS, path), target, DIFFSINGER_TAIL)
+    streamed = placed.block(0, target)
+    fade = round(DIFFSINGER_TAIL.fade_seconds * RATE)
+
+    assert placed.trimmed_frames == excess
+    assert np.array_equal(streamed, whole.samples)
+    assert streamed[target - fade - 1] == streamed[0]  # before the fade: untouched
+    assert streamed[target - fade] == streamed[0]  # the ramp starts at full level
+    assert streamed[-1] < 0.01 * streamed[0]  # and reaches nearly nothing at the cut
+
+
+def test_a_stem_that_is_not_trimmed_is_not_faded(tmp_path: Path) -> None:
+    from barbershop_tracks.core.mixing.audio import DIFFSINGER_TAIL
+
+    path = tmp_path / "bass.wav"
+    path.write_bytes(wav_bytes(np.full(19000, 10000, dtype=np.int16)))
+    placed = place_stem(VoiceRole.BASS, path, 20000, DIFFSINGER_TAIL)
+    assert placed.trimmed_frames == 0
+    assert placed.block(0, 19000).min() == placed.block(0, 19000).max()

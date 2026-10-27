@@ -374,7 +374,8 @@ namespace Blt.RenderHost {
             try {
                 string cache = PathManager.Inst.CachePath;
                 if (!Directory.Exists(cache)) return 0;
-                foreach (var file in Directory.EnumerateFiles(cache, "wdl-*.wav")) {
+                // DiffSinger phrases (ds-*.wav) are discarded for the same reason; its tensor cache is switched off in Run
+                foreach (var file in Directory.EnumerateFiles(cache, "wdl-*.wav").Concat(Directory.EnumerateFiles(cache, "ds-*.wav"))) {
                     File.Delete(file);
                     removed++;
                 }
@@ -431,6 +432,8 @@ namespace Blt.RenderHost {
                 // OpenUtau's own supported preference for a second singers directory
                 Preferences.Default.AdditionalSingerPath = Path.GetFullPath(singersDir);
             }
+            // DiffSinger keeps the tensors of every phrase it has run and reuses them; BLT renders from scratch every time
+            Preferences.Default.DiffSingerTensorCache = false;
 
             // 2. headless initialisation (GUI order): tools, singers, document manager
             var collector = new Collector();

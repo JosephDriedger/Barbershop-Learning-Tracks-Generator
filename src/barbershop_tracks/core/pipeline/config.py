@@ -48,10 +48,17 @@ DEFAULT_RENDERER = "WORLDLINE-R"
 # CLASSIC runs but its stems end a few tens of milliseconds past the performed length, which the mix
 # validation rejects (MIX_STEM_TOO_LONG, seen with a real voicebank), so it is not offered.
 SHIPPED_RENDERERS = ("WORLDLINE-R",)
+# DiffSinger voices (docs/diffsinger.md) run only on the internal host built with
+# ``host\build.ps1 -IncludeDiffSinger``, which carries the English "plus" dictionary and the native
+# onnxruntime. It is chosen by name (--renderer DIFFSINGER), never offered in the list above.
+DIFFSINGER_RENDERER = "DIFFSINGER"
+DIFFSINGER_PHONEMIZER = "OpenUtau.Core.DiffSinger.DiffSingerARPAPlusEnglishPhonemizer"
 
 # OpenUtau phonemizers that BLT's host leaves out because they need the English "plus" dictionary,
 # whose origin is unknown (docs/g2p-plus-provenance.md). Naming one could only end in the host's
 # "did not resolve", so it is refused up front with an explanation (class name -> its usual name).
+# The DiffSinger one is the exception: it is allowed with the DIFFSINGER renderer (the internal
+# DiffSinger host has it; any other host answers "did not resolve").
 REMOVED_PHONEMIZERS = {
     "ArpasingPlusPhonemizer": "Arpasing+ (EN ARPA+)",
     "EnglishCpVPhonemizer": "English C+V (EN C+V)",

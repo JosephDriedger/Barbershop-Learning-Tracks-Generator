@@ -484,6 +484,11 @@ def _manifest(
                 "max_trim_peak": settings.tail.max_trim_peak,
                 "short_trim_seconds": settings.tail.short_trim_seconds,
                 "short_trim_peak": settings.tail.short_trim_peak,
+                **(
+                    {"fade_seconds": settings.tail.fade_seconds}
+                    if settings.tail.fade_seconds
+                    else {}
+                ),
             },
             "mp3": settings.mp3.settings()
             if AudioFormat.MP3 in settings.formats and settings.mp3

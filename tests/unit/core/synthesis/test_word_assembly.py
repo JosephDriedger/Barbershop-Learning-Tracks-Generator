@@ -52,9 +52,10 @@ def lead_lyrics(lead: list[Note], phonemizer: str = ARPASING) -> list[str]:
 
 
 def test_the_phonemizers_that_look_words_up_are_the_ones_named_in_the_config() -> None:
-    from barbershop_tracks.core.pipeline.config import ENGLISH_PHONEMIZERS
+    from barbershop_tracks.core.pipeline.config import DIFFSINGER_PHONEMIZER, ENGLISH_PHONEMIZERS
 
-    assert tuple(ENGLISH_PHONEMIZERS) == DICTIONARY_PHONEMIZERS
+    # the DiffSinger one is for the DIFFSINGER renderer only and is not offered as a general choice
+    assert (*ENGLISH_PHONEMIZERS, DIFFSINGER_PHONEMIZER) == DICTIONARY_PHONEMIZERS
 
 
 def test_a_word_on_three_notes_is_sent_whole_with_extenders() -> None:

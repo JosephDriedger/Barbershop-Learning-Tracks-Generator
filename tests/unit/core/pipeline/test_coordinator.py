@@ -448,6 +448,37 @@ def test_a_neural_voicebank_is_refused_before_it_renders_silence(rig: Rig) -> No
     assert rig.renderer.calls == []
 
 
+def test_the_diffsinger_renderer_sings_a_diffsinger_voicebank_with_its_own_phonemizer(
+    rig: Rig,
+) -> None:
+    (rig.root / "singers" / "my-singer" / "character.yaml").write_text(
+        "singer_type: diffsinger\n", encoding="utf-8"
+    )
+    engine = EngineChoice("my-singer", "OpenUtau.Core.DefaultPhonemizer", "DIFFSINGER")
+    rig.run(rig.request(engine=engine))
+    (plan,) = rig.renderer.calls
+    for role in VOICE_ORDER:
+        ref = plan.engine_ref(role)
+        assert ref.renderer == "DIFFSINGER"
+        assert ref.phonemizer == "OpenUtau.Core.DiffSinger.DiffSingerARPAPlusEnglishPhonemizer"
+
+
+def test_the_diffsinger_renderer_refuses_a_utau_voicebank(rig: Rig) -> None:
+    engine = EngineChoice("my-singer", "OpenUtau.Core.DefaultPhonemizer", "DIFFSINGER")
+    error = error_of(rig, rig.request(engine=engine))
+    assert error.code == "SINGER_KIND_UNSUPPORTED"
+    assert "UTAU-style" in error.message
+    assert rig.renderer.calls == []
+
+
+def test_a_diffsinger_voicebank_with_the_default_renderer_says_how_to_sing_it(rig: Rig) -> None:
+    (rig.root / "singers" / "my-singer" / "character.yaml").write_text(
+        "singer_type: diffsinger\n", encoding="utf-8"
+    )
+    error = error_of(rig, rig.request())
+    assert "--renderer DIFFSINGER" in error.message
+
+
 def test_a_per_voice_singer_overrides_the_default(rig: Rig) -> None:
     engine = EngineChoice(
         "my-singer",
@@ -700,3 +731,17 @@ def test_a_pronunciation_engine_this_version_does_not_contain_is_refused_before_
 def test_the_supported_pronunciation_engines_are_not_refused(rig: Rig, name: str) -> None:
     result = rig.run(rig.request(engine=EngineChoice("my-singer", name, "WORLDLINE-R")))
     assert result.destination.is_dir()
+
+
+def test_the_diffsinger_renderer_may_drop_its_100_ms_tail_and_the_others_may_not(rig: Rig) -> None:
+    from barbershop_tracks.core.mixing import DIFFSINGER_TAIL, TailPolicy
+    from barbershop_tracks.core.pipeline.coordinator import _tail_policy
+
+    (rig.root / "singers" / "my-singer" / "character.yaml").write_text(
+        "singer_type: diffsinger\n", encoding="utf-8"
+    )
+    rig.run(rig.request(engine=EngineChoice("my-singer", "p.P", "DIFFSINGER")))
+    assert _tail_policy(rig.renderer.calls[0]) is DIFFSINGER_TAIL
+    assert DIFFSINGER_TAIL.allows(round(0.1008 * 44100), 0.0015, 44100)
+    assert not TailPolicy().allows(round(0.1008 * 44100), 0.0015, 44100)
+    assert not DIFFSINGER_TAIL.allows(round(0.2 * 44100), 0.0015, 44100)
