@@ -26,7 +26,12 @@ from barbershop_tracks.core.mixing import (
     MixConfigurationError,
 )
 from barbershop_tracks.core.musicxml import ParseResult, opened_score, parse_musicxml
-from barbershop_tracks.core.musicxml.fixing import editable_copy
+from barbershop_tracks.core.musicxml.fixing import (
+    COPY_LABELS,
+    editable_copy,
+    musescore_score_folders,
+    saved_correction,
+)
 from barbershop_tracks.core.musicxml.opened import parse_opened
 from barbershop_tracks.core.pipeline import (
     DEFAULT_PHONEMIZER,
@@ -92,7 +97,8 @@ class FixTarget:
     """What to put in front of a person who wants to correct the score."""
 
     path: Path  # the file to open: an editable score, or the picture itself if nothing was read
-    compare_with: Path | None  # the original picture of a recognised score, to check it against
+    # the PDF or picture the editable score was read from, to check it against
+    compare_with: Path | None
     recognised: bool  # the file is music recognised from a picture
 
 
@@ -344,9 +350,9 @@ class AppController(QObject):
     def fix_target(self) -> FixTarget | None:
         """The file to open so the person can correct the score; None before any score was chosen.
 
-        A score that could not be read is opened as it is. A recognised one is opened as the
-        MusicXML BLT read (under the name of the PDF, beside it), together with the picture to check
-        it against. Anything else is the person's own file.
+        A score that could not be read is opened as it is. One read from a PDF (or recognised from
+        a picture) is opened as the MusicXML BLT read, under the name of the PDF and beside it,
+        together with the PDF to check it against. Anything else is the person's own file.
         """
         if self.failed is not None:
             return FixTarget(self.failed, None, False)
@@ -354,10 +360,17 @@ class AppController(QObject):
         if score is None:
             return None
         recognised = bool(score.conversion and score.conversion.get("recognised"))
-        if recognised and score.converted_path is not None and score.converted_path.is_file():
-            copy = editable_copy(score.converted_path, score.path, self.converted_cache())
-            return FixTarget(copy, score.path, True)
+        label = COPY_LABELS.get(str(score.conversion.get("kind"))) if score.conversion else None
+        if label and score.converted_path is not None and score.converted_path.is_file():
+            copy = editable_copy(score.converted_path, score.path, self.converted_cache(), label)
+            return FixTarget(copy, score.path, recognised)
         return FixTarget(score.path, None, False)
+
+    @staticmethod
+    def corrected_score(opened: Path, since: float) -> Path | None:
+        """The score the person saved after opening ``opened`` to correct it (beside it, or in
+        MuseScore's own Scores folder); None while there is none."""
+        return saved_correction(opened, since, musescore_score_folders())
 
     # --- assignments -----------------------------------------------------------------------
 

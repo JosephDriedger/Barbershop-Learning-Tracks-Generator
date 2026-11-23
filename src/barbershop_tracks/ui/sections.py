@@ -46,7 +46,7 @@ from barbershop_tracks.models import VoiceRole
 from barbershop_tracks.ui.assignments import Choice, Ignore
 from barbershop_tracks.ui.controller import AppController
 from barbershop_tracks.ui.explain import Explanation
-from barbershop_tracks.ui.formatting import clock
+from barbershop_tracks.ui.formatting import clock, title_case
 
 NOTICE_LIMIT = 8  # notices shown under a finished run; the rest are in the technical log
 
@@ -82,8 +82,9 @@ def _button(text: str, tip: str = "") -> QPushButton:
 
 FIX_TEXT = "Open Score to &Fix…"
 FIX_TIP = (
-    "Open the score in MuseScore (or your usual program) to correct it. Save it there, then "
-    "open the corrected file here. A score read from a PDF opens beside the PDF."
+    "Open the score in MuseScore (or your usual program) to correct it before the learning "
+    "tracks are made. A score read from a PDF opens as an editable copy beside the PDF. Save it "
+    "there: BLT notices the saved score and offers to use it."
 )
 
 
@@ -151,7 +152,7 @@ class AssignmentSection(QGroupBox):
         self._signature: object = None
         self.table = QTableWidget(0, 3)
         self.table.setAccessibleName("Parts of the score and the voice each one sings")
-        self.table.setHorizontalHeaderLabels(["Part in the score", "What it contains", "Sings as"])
+        self.table.setHorizontalHeaderLabels(["Part in the Score", "What It Contains", "Sings as"])
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -232,7 +233,7 @@ class AssignmentSection(QGroupBox):
             self.table.setItem(row, 1, detail)
             combo = QComboBox()
             combo.setAccessibleName(f"Voice for {info.display_name}")
-            combo.addItem("— choose —", None)
+            combo.addItem("— Choose —", None)
             for role in VOICE_ORDER:
                 combo.addItem(ROLE_TEXT[role], role)
             combo.addItem("Ignore This Part", Ignore.IGNORE)
@@ -578,7 +579,7 @@ class OutputSection(QGroupBox):
         ffmpeg_row = QHBoxLayout()
         ffmpeg_row.addWidget(self.ffmpeg, 1)
         ffmpeg_row.addWidget(self.ffmpeg_button)
-        form.addRow("FFmpeg (for MP3):", ffmpeg_row)
+        form.addRow("FFmpeg (For MP3):", ffmpeg_row)
         form.addRow("Mix &Balance:", self.preset)
         gains = QHBoxLayout()
         gains.addWidget(QLabel("Featured Voice"))
@@ -905,7 +906,7 @@ class ProgressSection(QGroupBox):
                 self.states[key] = "stopped" if explanation.cancelled else "failed"
         self._draw_steps()
         self.stage.setText("Cancelled" if explanation.cancelled else "Stopped")
-        self.result_title.setText(explanation.title)
+        self.result_title.setText(title_case(explanation.title))
         self.result_title.setObjectName("hint" if explanation.cancelled else "error")
         steps = "".join(f"\n• {s}" for s in explanation.steps)
         self.result_text.setText(explanation.summary + steps)

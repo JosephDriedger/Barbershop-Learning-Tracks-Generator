@@ -190,7 +190,7 @@ def test_approvals_can_be_saved_and_loaded_again(dlg: Dialog, tmp_path: Path) ->
     other.dialog = LyricReviewDialog(other.state, other.plan, other.prompts)
     other.dialog.load_file()
     assert other.state.approved_count == 2
-    assert other.prompts.informed == ["Approvals loaded", "2 approvals applied."] or any(
+    assert other.prompts.informed == ["Approvals Loaded", "2 approvals applied."] or any(
         "2 approvals applied." in text for text in other.prompts.informed
     )
 
@@ -226,7 +226,7 @@ class Review:
         rig.load(all_lyrics=False)
         rig.assign()
         rig.choose_voices()
-        rig.prompts.answers["Where should the tracks be saved?"] = str(rig.tmp / "out")
+        rig.prompts.answers["Where Should the Tracks Be Saved?"] = str(rig.tmp / "out")
         rig.window.choose_output_folder()
 
 

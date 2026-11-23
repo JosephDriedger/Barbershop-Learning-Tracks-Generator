@@ -132,7 +132,7 @@ class Rig:
         self.load()
         self.assign()
         self.choose_voices()
-        self.prompts.answers["Where should the tracks be saved?"] = str(self.tmp / "out")
+        self.prompts.answers["Where Should the Tracks Be Saved?"] = str(self.tmp / "out")
         self.window.choose_output_folder()
 
 
@@ -370,7 +370,7 @@ def test_the_voices_folder_can_be_changed_and_refreshed(rig: Rig) -> None:
     other = rig.tmp / "more-voices"
     (other / "new-voice").mkdir(parents=True)
     (other / "new-voice" / "character.txt").write_text("name=n", encoding="utf-8")
-    rig.prompts.answers["Folder with your singing voices"] = str(other)
+    rig.prompts.answers["Folder with Your Singing Voices"] = str(other)
     with rig.qtbot.waitSignal(rig.controller.voices_changed, timeout=10000):
         rig.window.choose_voices_folder()
     combo = rig.window.voices_section.combos[VoiceRole.LEAD]
@@ -383,7 +383,7 @@ def test_the_voices_folder_can_be_changed_and_refreshed(rig: Rig) -> None:
 
 def test_the_exact_output_location_is_shown(rig: Rig) -> None:
     rig.load()
-    rig.prompts.answers["Where should the tracks be saved?"] = str(rig.tmp / "out")
+    rig.prompts.answers["Where Should the Tracks Be Saved?"] = str(rig.tmp / "out")
     rig.window.choose_output_folder()
     section = rig.window.output_section
     assert section.location.text() == str(rig.tmp / "out" / "quartet_learning_tracks")
@@ -527,7 +527,7 @@ def test_generate_stays_disabled_until_everything_is_decided(rig: Rig) -> None:
         "Choose an output folder." in rig.window.why.text()
         or "output" in rig.window.generate.toolTip()
     )
-    rig.prompts.answers["Where should the tracks be saved?"] = str(rig.tmp / "out")
+    rig.prompts.answers["Where Should the Tracks Be Saved?"] = str(rig.tmp / "out")
     rig.window.choose_output_folder()
     assert rig.window.generate.isEnabled()
     assert rig.window.why.text() == "Everything is ready."
@@ -685,7 +685,7 @@ def test_replacing_an_existing_package_asks_first(rig: Rig) -> None:
     assert rig.window.generate.isEnabled()
     rig.prompts.confirm_answer = False
     rig.window.generate.click()
-    assert rig.prompts.confirmations == ["Replace the existing tracks?"]
+    assert rig.prompts.confirmations == ["Replace the Existing Tracks?"]
     assert rig.pipeline.requests == []
     rig.prompts.confirm_answer = True
     with rig.qtbot.waitSignal(rig.controller.generation_finished, timeout=10000):
@@ -773,7 +773,7 @@ def test_a_voice_can_be_added_from_a_folder_or_a_zip_and_is_listed(rig: Rig) -> 
     source = rig.tmp / "mine" / "fresh-voice"
     source.mkdir(parents=True)
     (source / "character.txt").write_text("name=f", encoding="utf-8")
-    rig.prompts.answers["The folder of the voicebank to add"] = str(source)
+    rig.prompts.answers["The Folder of the Voicebank to Add"] = str(source)
     with rig.qtbot.waitSignal(rig.controller.voices_changed, timeout=10000):
         rig.window.add_voice_from_folder()
     assert "Added: fresh-voice" in rig.prompts.informed[-1]

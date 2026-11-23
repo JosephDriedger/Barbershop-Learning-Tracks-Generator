@@ -79,7 +79,7 @@ class Gui:
             assert box.findData(SINGER_ID) > 0  # the generated voice was found by scanning
             box.setCurrentIndex(box.findData(SINGER_ID))
             box.activated.emit(box.currentIndex())
-        self.prompts.answers["Where should the tracks be saved?"] = str(self.root / "out")
+        self.prompts.answers["Where Should the Tracks Be Saved?"] = str(self.root / "out")
         self.window.choose_output_folder()
 
     @property

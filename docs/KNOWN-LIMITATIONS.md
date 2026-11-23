@@ -121,8 +121,13 @@ What is **not** verified:
   both voices of a staff could sing (MuseScore draws it the same either way), voices whose stems were turned by hand, a repeat's
   play count ("x3", not printed), a tempo MuseScore keeps hidden, a transposing instrument, and a `rit.` whose line was dragged
   to another length (the fifth arrangement, *When She Loved Me*, has several of these and reads with 869 of its 873 notes right).
-  Fonts that are not SMuFL (Finale's Maestro, Sibelius's Opus) and staves hidden where they are empty are not read; such a PDF is
-  refused with a message.
+  Finale's older Maestro font (and the fonts laid out like it) is read too, also when the PDF was printed through Microsoft
+  Print to PDF, which renames every font: thin barlines, duplets and triplets in a renamed italic font, and words the printer
+  joined into one text are read from their positions. Tried on one real arrangement (90 bars, Finale, printed to PDF): every
+  bar adds up; it had no tempo mark, and five notes of the Lead had no word printed under them. Sibelius's Opus and staves
+  hidden where they are empty are not read; such a PDF is refused with a message. What a PDF does not settle is fixed in
+  MuseScore before generating: *Open Score to Fix* (or `barbershop-tracks fix`) opens what BLT read and offers to use the
+  corrected score once it is saved.
 * a **scanned PDF or an image of the music** (`.pdf`, `.png`, `.jpg`) has no notes in it; they are *recognised* by Audiveris (free; `BLT_AUDIVERIS` or its usual folder) when you accept that recognition makes mistakes (a dialog in the app, `--accept-recognition` on the command line). The result is flagged everywhere (a warning in the window, `recognised: true` in the package), and BLT does not check the recognised music: a wrong note or a word under the wrong note will be sung. Several recognised pieces in one PDF are refused (BLT will not choose). **Real Audiveris was tried once (21 Oct 2026) on a clean PDF that MuseScore exported from a four-part test score**: it found all four parts and every note, but recognised none of the lyrics and no tempo, so readiness blocked generation. Recognition quality is Audiveris's, not BLT's, and it is known to be weak on barbershop layouts (shared staves, two voices per staff, lyrics); treat a PDF as a last resort and prefer MusicXML or a MuseScore project. Scanned PDFs have not been tried.
   * A missing program, a failure, a time-out (3 minutes for MuseScore, 20 for recognition) or an empty result is reported with what to do; nothing is guessed. MIDI is not read (no lyrics, no voice names).
 * **No playback or preview** inside the app yet (tracked separately). You open the output folder and play the files elsewhere.

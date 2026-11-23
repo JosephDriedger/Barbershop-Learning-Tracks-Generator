@@ -61,7 +61,7 @@ COLUMNS = (
     "Status",
 )
 LYRIC_COLUMN = COLUMNS.index("Lyric")
-JSON_FILTER = "Lyric approvals (*.json);;All files (*)"
+JSON_FILTER = "Lyric Approvals (*.json);;All Files (*)"
 
 _STATE_COLORS = {
     RowState.UNDECIDED: "#b26a00",
@@ -273,7 +273,7 @@ class LyricReviewDialog(QDialog):
         top.addWidget(self.voice_filter)
         top.addWidget(self.open_only)
         top.addStretch(1)
-        top.addWidget(QLabel("Approved by:"))
+        top.addWidget(QLabel("Approved By:"))
         top.addWidget(self.approver)
         row1, row2 = QHBoxLayout(), QHBoxLayout()
         for b in batch:
@@ -385,7 +385,7 @@ class LyricReviewDialog(QDialog):
             return
         if not self._prompts.confirm(
             self,
-            "Copy the Lead's words?",
+            "Copy the Lead's Words?",
             f"Copy what the Lead sings into {counted(len(usable), 'selected note')}? You still "
             f"have to approve {agree(len(usable), 'it', 'them')}, and harmony parts do not "
             "always sing the Lead's words.",
@@ -401,13 +401,13 @@ class LyricReviewDialog(QDialog):
         self._touched(rows)
 
     def load_file(self) -> None:
-        path = self._prompts.choose_file(self, "Load approvals", "", JSON_FILTER)
+        path = self._prompts.choose_file(self, "Load Approvals", "", JSON_FILTER)
         if not path:
             return
         try:
             applied, skipped = self.state.load_file(Path(path))
         except PipelineError as error:
-            self._prompts.warn(self, "These approvals cannot be used", error.message)
+            self._prompts.warn(self, "These Approvals Cannot Be Used", error.message)
             return
         self.model.changed_all()
         self._update_summary()
@@ -417,10 +417,10 @@ class LyricReviewDialog(QDialog):
                 f" {skipped} did not match any note that needs a lyric and "
                 f"{agree(skipped, 'was', 'were')} ignored."
             )
-        self._prompts.inform(self, "Approvals loaded", note)
+        self._prompts.inform(self, "Approvals Loaded", note)
 
     def save_file(self) -> None:
-        path = self._prompts.save_file(self, "Save approvals", "lyric-approvals.json", JSON_FILTER)
+        path = self._prompts.save_file(self, "Save Approvals", "lyric-approvals.json", JSON_FILTER)
         if not path:
             return
         document = approvals_document(self.state.approvals(), self.state.source_sha256)
@@ -428,7 +428,7 @@ class LyricReviewDialog(QDialog):
 
     def export_report(self) -> None:
         path = self._prompts.save_file(
-            self, "Export review report", "lyric-review.json", JSON_FILTER
+            self, "Export Review Report", "lyric-review.json", JSON_FILTER
         )
         if path:
             Path(path).write_text(
@@ -449,7 +449,7 @@ class AdvancedDialog(QDialog):
         self.setWindowTitle("Advanced Settings")
         self.pronunciation = QLineEdit(prefs.phonemizer)
         self.pronunciation.setPlaceholderText(DEFAULT_PHONEMIZER)
-        self.pronunciation.setAccessibleName("Pronunciation engine")
+        self.pronunciation.setAccessibleName("Pronunciation Engine")
         self.engine = QComboBox()
         self.engine.setEditable(True)
         self.engine.addItem("")
@@ -526,7 +526,7 @@ class AdvancedDialog(QDialog):
         ):
             QMessageBox.warning(
                 self,
-                "Pronunciation engine",
+                "Pronunciation Engine",
                 f"{removed} is not part of this version of BLT: it needs an English dictionary "
                 "whose origin could not be verified."
                 "\n\nLeave the box empty for the default, or use "

@@ -11,14 +11,14 @@ from barbershop_tracks.core.musicxml.fixing import open_in_musescore
 
 SCORE_FILTER = (
     "Scores (*.musicxml *.xml *.mxl *.mscz *.mscx *.pdf);;"
-    "MusicXML (*.musicxml *.xml *.mxl);;MuseScore projects (*.mscz *.mscx);;"
-    "PDF or image of music (*.pdf *.png *.jpg *.jpeg);;All files (*)"
+    "MusicXML (*.musicxml *.xml *.mxl);;MuseScore Projects (*.mscz *.mscx);;"
+    "PDF or Image of Music (*.pdf *.png *.jpg *.jpeg);;All Files (*)"
 )
 
 
 class Prompts:
     def open_score(self, parent: QWidget, start: str) -> str:
-        path, _ = QFileDialog.getOpenFileName(parent, "Choose a score", start, SCORE_FILTER)
+        path, _ = QFileDialog.getOpenFileName(parent, "Choose a Score", start, SCORE_FILTER)
         return path
 
     def choose_folder(self, parent: QWidget, title: str, start: str) -> str:

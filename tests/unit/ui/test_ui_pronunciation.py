@@ -446,7 +446,7 @@ def test_a_stopped_run_lists_the_words_and_offers_the_pronunciations(rig: Rig) -
     section = rig.window.progress_section
     assert section.open_pronunciation.isEnabled()
     assert not section.open_pronunciation.isHidden()
-    assert "does not know how to pronounce" in section.result_title.text()
+    assert "does not know how to pronounce" in section.result_title.text().lower()
     assert "Pronunciations" in section.result_text.text()
     state = rig.controller.pronunciation_state()
     assert state is not None
@@ -534,7 +534,7 @@ def test_a_refusal_by_the_engine_marks_the_place_and_blocks_generating(rig: Rig)
     rig.controller.state_changed.emit()
     rig.window.on_generate_clicked()
     rig.qtbot.waitUntil(lambda: not rig.controller.running, timeout=20000)
-    assert "cannot be used" in rig.window.progress_section.result_title.text()
+    assert "cannot be used" in rig.window.progress_section.result_title.text().lower()
     assert not rig.window.progress_section.open_pronunciation.isHidden()
     lead = next(r for r in state.rows if r.role is VoiceRole.LEAD)
     assert status(lead) == RowState.INVALID.value
@@ -579,5 +579,5 @@ def test_a_stale_decision_is_explained_and_leads_to_the_review(rig: Rig) -> None
     rig.window.on_generate_clicked()
     rig.qtbot.waitUntil(lambda: not rig.controller.running, timeout=20000)
     section = rig.window.progress_section
-    assert "no longer fits this score" in section.result_title.text()
+    assert "no longer fits this score" in section.result_title.text().lower()
     assert not section.open_pronunciation.isHidden()

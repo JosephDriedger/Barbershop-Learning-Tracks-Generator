@@ -77,7 +77,7 @@ class MelodyDialog(QDialog):
         intro = QLabel(INTRO)
         intro.setWordWrap(True)
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Where", "Has the melody", "How BLT knows"])
+        self.table.setHorizontalHeaderLabels(["Where", "Has the Melody", "How BLT Knows"])
         self.table.setAccessibleName("Who has the melody in each stretch of the song")
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)

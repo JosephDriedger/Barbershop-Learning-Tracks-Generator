@@ -77,5 +77,29 @@ stems were turned by hand.
 A PDF shows the music as drawn. These are not drawn, so they are not read, and nothing is invented
 for them: who owns a word that two voices could sing at that note; voice numbers swapped by hand;
 the play count of a repeat ("x3"); a hidden tempo; an instrument's transposition; a `rit.` line made
-longer or shorter by hand; a fermata's or a ritardando's non-default strength. A non-SMuFL music font
-(Finale's Maestro, Sibelius's Opus) and staves hidden where empty are refused with a message.
+longer or shorter by hand; a fermata's or a ritardando's non-default strength. Sibelius's Opus and
+staves hidden where empty are refused with a message.
+
+## Finale's Maestro, and PDFs printed through Microsoft Print to PDF
+
+Finale's Maestro (and Petrucci, Engraver, Jazz, Broadway Copyist) is older than SMuFL: its symbols sit
+on ordinary character codes (the black notehead is 0xCF, the sharp `#`). `legacy_fonts.py` turns each
+into its SMuFL character, so the rest of the reader is unchanged. A PDF printed through Microsoft
+Print to PDF renames every font (`CIDFont+F1`) and moves the codes to U+F020-U+F0FF; the font is then
+known by what it draws (nearly all of it in that range, with noteheads). Such a printer also hides what
+the font names said and joins texts, so for a renamed font: a small digit (under two staff spaces) is
+read as an italic tuplet number, standing over its bracket or, with no bracket or beam, over the middle
+of its notes; the words are split into syllables by their spacing, not by the texts that wrote them; a
+row of capitals (`INTRO`, `VERSE 1`) is a section's name, not words. Finale draws barlines as thin as
+stems: a line from the bottom to the top line of a staff with no notehead at either end is one. A duplet
+of quarters is two in the time of three eighths in Finale, so a `2` is read that way when only that fills
+the bar (MusicXML `normal-type`).
+
+## Fixing what was read
+
+What the PDF does not settle (a word two voices could sing, a note with no word under it, a missing
+tempo) is corrected in MuseScore, never guessed. *Open Score to Fix* in the window (or
+`barbershop-tracks fix SCORE`) writes what BLT read as `Name (from PDF).musicxml` beside the PDF, opens
+it in MuseScore with the PDF to compare, and watches for the corrected score being saved (beside the
+copy, or in MuseScore's Scores folder; a `.mscz` first). The window then offers to use it, and the
+learning tracks are made from the corrected music (`core/musicxml/fixing.py`).

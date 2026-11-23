@@ -9,6 +9,7 @@ from barbershop_tracks.ui.formatting import (
     note_name,
     position_label,
     sentence,
+    title_case,
 )
 
 FOUR_FOUR = [MeterPoint(position=Fraction(0), beats=4, beat_type=4)]
@@ -80,3 +81,21 @@ def test_durations_and_clock() -> None:
 )
 def test_a_message_starts_with_a_capital_letter(text: str, expected: str) -> None:
     assert sentence(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("sentence_text", "heading"),
+    [
+        ("A pronunciation you gave cannot be used", "A Pronunciation You Gave Cannot Be Used"),
+        ("MuseScore is needed to open this file", "MuseScore Is Needed to Open This File"),
+        (
+            "This file could not be turned into a score",
+            "This File Could Not Be Turned into a Score",
+        ),
+        ("The singing engine is up to date", "The Singing Engine Is Up to Date"),
+        ("A tune-up note for ffmpeg.exe in 4/4", "A Tune-Up Note for ffmpeg.exe in 4/4"),
+        ("What it is for", "What It Is For"),
+    ],
+)
+def test_a_heading_made_from_a_sentence_is_in_title_case(sentence_text: str, heading: str) -> None:
+    assert title_case(sentence_text) == heading

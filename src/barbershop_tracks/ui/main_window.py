@@ -182,6 +182,11 @@ class MainWindow(QMainWindow):
         self.elapsed_timer = QTimer(self)
         self.elapsed_timer.setInterval(1000)
         self.elapsed_timer.timeout.connect(self._tick)
+        # after Open Score to Fix: the file opened, and when, until the corrected score is saved
+        self.fix_watch: tuple[Path, float] | None = None
+        self.fix_timer = QTimer(self)
+        self.fix_timer.setInterval(2000)
+        self.fix_timer.timeout.connect(self.check_for_fixed_score)
 
         # wiring
         self.score_section.browse_requested.connect(self.choose_score)
@@ -291,13 +296,14 @@ class MainWindow(QMainWindow):
         if self.controller.running:
             self.prompts.inform(self, TITLE, "Wait for the current generation to finish first.")
             return
+        self.stop_fix_watch()  # another score (or the corrected one) is the one now
         accept = False
         if needs_recognition(path):
             # a picture of music has no notes in it: a program would recognise them, and recognition
             # makes mistakes. Never silently: the person says so first (and then checks the result).
             if not self.prompts.confirm(
                 self,
-                "Recognise the music in this file?",
+                "Recognise the Music in This File?",
                 f"{path.name} is a picture of music, not a score. BLT can read it only by having "
                 "a program recognise the notes, rhythms and words (it uses Audiveris, which must "
                 "be installed). Recognition makes mistakes: a wrong note, a missed tie, a word "
@@ -348,22 +354,65 @@ class MainWindow(QMainWindow):
             )
             return
         if target.compare_with is not None:
-            self.opener(target.compare_with)  # the PDF, to check the recognised score against
+            self.opener(target.compare_with)  # the PDF, to check the score BLT read against
+        if not is_picture:
+            # the corrected score, once saved, is what the learning tracks are made from
+            self.fix_watch = (target.path, time.time())
+            self.fix_timer.start()
         if target.recognised:
             self.prompts.inform(
                 self,
-                TITLE,
+                "Fix the Score",
                 f"Opened the recognised score ({target.path.name}) and the original PDF.\n\n"
                 "Go through the music bar by bar against the PDF and correct what recognition got "
-                "wrong. Then save it (File > Save, or File > Export > MusicXML) and open the "
-                "saved file here: BLT reads it as an ordinary score.\n\n"
+                "wrong. Then save it in MuseScore (File > Save). BLT notices the saved score and "
+                "offers to use it for the learning tracks.\n\n"
                 f"The recognised score is kept at:\n{target.path}",
             )
+        elif target.compare_with is not None:
+            self.prompts.inform(
+                self,
+                "Fix the Score",
+                f"Opened the score BLT read from {target.compare_with.name} ({target.path.name}) "
+                "and the PDF itself.\n\n"
+                "Check the music and the words against the PDF and correct what BLT could not "
+                "settle (the list of things to fix says where). Add a tempo mark if the score has "
+                "none. Then save it in MuseScore (File > Save). BLT notices the saved score and "
+                "offers to use it for the learning tracks.\n\n"
+                f"The score BLT read is kept at:\n{target.path}",
+            )
+
+    def stop_fix_watch(self) -> None:
+        self.fix_timer.stop()
+        self.fix_watch = None
+
+    def check_for_fixed_score(self) -> None:
+        """Offer the corrected score once the person has saved it, so that the learning tracks
+        are made from the fixed music and not from what was read before."""
+        if self.fix_watch is None:
+            self.fix_timer.stop()
+            return
+        if self.controller.running or self.controller.loading:
+            return  # asked when the current work is done
+        opened, since = self.fix_watch
+        found = self.controller.corrected_score(opened, since)
+        if found is None:
+            return
+        self.stop_fix_watch()
+        if self.prompts.confirm(
+            self,
+            "Use the Corrected Score?",
+            f"The corrected score was saved:\n{found}\n\n"
+            "Open it now? The learning tracks are then made from the corrected music, and BLT "
+            "checks it again.",
+            "Use Corrected Score",
+        ):
+            self.open_score(found)
 
     def choose_voices_folder(self) -> None:
         current = self.controller.singers_folder()
         folder = self.prompts.choose_folder(
-            self, "Folder with your singing voices", str(current or "")
+            self, "Folder with Your Singing Voices", str(current or "")
         )
         if folder:
             self.prefs.singers_dir = folder
@@ -371,13 +420,13 @@ class MainWindow(QMainWindow):
 
     def add_voice_from_zip(self) -> None:
         path = self.prompts.choose_file(
-            self, "Add a voice from a zip", "", "Voicebank zip (*.zip);;All files (*)"
+            self, "Add a Voice from a Zip File", "", "Voicebank Zip (*.zip);;All Files (*)"
         )
         if path:
             self.controller.add_voice(Path(path))
 
     def add_voice_from_folder(self) -> None:
-        folder = self.prompts.choose_folder(self, "The folder of the voicebank to add", "")
+        folder = self.prompts.choose_folder(self, "The Folder of the Voicebank to Add", "")
         if folder:
             self.controller.add_voice(Path(folder))
 
@@ -402,7 +451,7 @@ class MainWindow(QMainWindow):
     def choose_output_folder(self) -> None:
         folder = self.prompts.choose_folder(
             self,
-            "Where should the tracks be saved?",
+            "Where Should the Tracks Be Saved?",
             self.controller.output_dir or str(Path.home()),
         )
         if folder:
@@ -412,9 +461,9 @@ class MainWindow(QMainWindow):
         windows = sys.platform == "win32"
         path = self.prompts.choose_file(
             self,
-            "Find ffmpeg.exe" if windows else "Find ffmpeg",
+            "Find ffmpeg.exe" if windows else "Find FFmpeg",
             self.prefs.ffmpeg_path,
-            "Programs (*.exe);;All files (*)" if windows else "All files (*)",
+            "Programs (*.exe);;All Files (*)" if windows else "All Files (*)",
         )
         if path:
             self.prefs.ffmpeg_path = path
@@ -634,7 +683,7 @@ class MainWindow(QMainWindow):
                 return
             if not self.prompts.confirm(
                 self,
-                "Replace the existing tracks?",
+                "Replace the Existing Tracks?",
                 f"The folder\n{location}\nalready holds learning tracks made by BLT. They will be "
                 "replaced only if the new ones are completed successfully.",
                 "Replace",
@@ -726,7 +775,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:
         stop_anyway = self.controller.running and self.prompts.confirm(
             self,
-            "Stop generating?",
+            "Stop Generating?",
             "Tracks are still being made. Closing now cancels the work; nothing is saved.",
             "Cancel Generation and Close",
         )

@@ -21,9 +21,11 @@ nothing musical is decided for the user.
    file, which a recognised PDF often gets wrong; a stray fragment of a few notes is labelled "extra voice"
    and gets no suggestion.
    **Open Score to Fix** (beside *Choose score* and under the list of problems) opens the score in MuseScore
-   (or the program your system uses for it) so errors can be corrected there, then you open the corrected
-   file here. A score read from a PDF opens as `NAME (recognised).musicxml` beside the PDF, with the PDF
-   itself opened next to it to check the music against. It also works when a file could not be read at all.
+   (or the program your system uses for it) so errors can be corrected there. A score read from a PDF
+   opens as `NAME (from PDF).musicxml` beside the PDF (`NAME (recognised).musicxml` for a scan), with the
+   PDF itself opened next to it to check the music against. Once the corrected score is saved (beside it,
+   or in MuseScore's Scores folder), BLT offers to use it, so the tracks are made from the corrected
+   music. It also works when a file could not be read at all.
 3. **Singing Voices**: a voices folder (found automatically in OpenUtau's default location if it
    exists, or chosen with *Browse*) is scanned in the background; each part has its own voice selector.
    Nothing is pre-selected, even when only one voice is installed. *Same voice for all parts* copies the

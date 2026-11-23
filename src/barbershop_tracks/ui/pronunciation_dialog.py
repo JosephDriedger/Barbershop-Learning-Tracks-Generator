@@ -38,6 +38,7 @@ from barbershop_tracks.core.pipeline import PipelineError
 from barbershop_tracks.core.wording import agree, counted
 from barbershop_tracks.ui.controller import AppController
 from barbershop_tracks.ui.explain import explain
+from barbershop_tracks.ui.formatting import title_case
 from barbershop_tracks.ui.prompts import Prompts
 from barbershop_tracks.ui.pronunciation_review import PronunciationState, RowState
 
@@ -51,7 +52,7 @@ COLUMNS = (
     "Status",
 )
 TEXT_COLUMN = COLUMNS.index("Pronunciation")
-JSON_FILTER = "Pronunciations (*.json);;All files (*)"
+JSON_FILTER = "Pronunciations (*.json);;All Files (*)"
 
 _COLORS = {
     RowState.UNDECIDED: "#b26a00",
@@ -229,7 +230,7 @@ class PronunciationDialog(QDialog):
         ]
         top = QHBoxLayout()
         top.addStretch(1)
-        top.addWidget(QLabel("Decided by:"))
+        top.addWidget(QLabel("Decided By:"))
         top.addWidget(self.approver)
         row1, row2 = QHBoxLayout(), QHBoxLayout()
         for b in actions:
@@ -318,7 +319,7 @@ class PronunciationDialog(QDialog):
             reasons = self._controller.blockers_for_check()
             self._prompts.warn(
                 self,
-                "Cannot check yet",
+                "Cannot Check Yet",
                 "\n".join(reasons) if reasons else "A check is already running.",
             )
         else:
@@ -332,22 +333,22 @@ class PronunciationDialog(QDialog):
         self._update_summary()
         if isinstance(outcome, PipelineError):
             explanation = explain(outcome)
-            self._prompts.warn(self, explanation.title, explanation.summary)
+            self._prompts.warn(self, title_case(explanation.title), explanation.summary)
         else:
             self._prompts.inform(
                 self,
-                "The engine accepts these pronunciations",
+                "The Engine Accepts These Pronunciations",
                 "Nothing was rendered. Press Done, then Generate.",
             )
 
     def load_file(self) -> None:
-        path = self._prompts.choose_file(self, "Load pronunciations", "", JSON_FILTER)
+        path = self._prompts.choose_file(self, "Load Pronunciations", "", JSON_FILTER)
         if not path:
             return
         try:
             applied, ignored = self.state.load_file(Path(path))
         except PipelineError as error:
-            self._prompts.warn(self, "These pronunciations cannot be used", error.message)
+            self._prompts.warn(self, "These Pronunciations Cannot Be Used", error.message)
             return
         self.model.changed_all()
         self._update_summary()
@@ -357,11 +358,11 @@ class PronunciationDialog(QDialog):
                 f" {ignored} did not match any place listed here (another voice, place, word or "
                 f"pronunciation engine) and {agree(ignored, 'was', 'were')} ignored."
             )
-        self._prompts.inform(self, "Pronunciations loaded", note)
+        self._prompts.inform(self, "Pronunciations Loaded", note)
 
     def save_file(self) -> None:
         path = self._prompts.save_file(
-            self, "Save pronunciations", "pronunciations.json", JSON_FILTER
+            self, "Save Pronunciations", "pronunciations.json", JSON_FILTER
         )
         if not path:
             return

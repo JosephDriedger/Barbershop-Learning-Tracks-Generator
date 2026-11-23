@@ -1,11 +1,17 @@
 """Giving a recognised score a name a person knows, and starting MuseScore on a file."""
 
+import os
 import time
 from pathlib import Path
 
 import pytest
 
-from barbershop_tracks.core.musicxml.fixing import editable_copy, open_in_musescore
+from barbershop_tracks.core.musicxml.fixing import (
+    editable_copy,
+    musescore_score_folders,
+    open_in_musescore,
+    saved_correction,
+)
 from shims import write_shim
 
 FAKE = Path(__file__).resolve().parents[3] / "fake_converter.py"
@@ -72,3 +78,61 @@ def test_no_musescore_means_none(tmp_path: Path) -> None:
     empty = str(tmp_path / "nowhere")
     environ = {"PATH": "", "ProgramFiles": empty, "LOCALAPPDATA": empty}
     assert open_in_musescore(tmp_path / "x.musicxml", environ) is None
+
+
+# --- a score read from a PDF, and finding the corrected score once it is saved ---------------
+
+
+def test_a_score_read_from_a_pdf_is_named_for_how_it_was_read(tmp_path: Path) -> None:
+    pdf = tmp_path / "Hymn.pdf"
+    copy = editable_copy(_converted(tmp_path), pdf, label="from PDF")
+    assert copy == tmp_path / "Hymn (from PDF).musicxml"
+
+
+def _saved(path: Path, when: float) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"corrected")
+    os.utime(path, (when, when))
+    return path
+
+
+def test_nothing_is_found_until_the_corrected_score_is_saved(tmp_path: Path) -> None:
+    opened = _saved(tmp_path / "Hymn (from PDF).musicxml", 1000.0)
+    assert saved_correction(opened, since=1000.0, now=2000.0) is None
+
+
+def test_a_musescore_project_saved_beside_the_copy_is_the_correction(tmp_path: Path) -> None:
+    opened = _saved(tmp_path / "Hymn (from PDF).musicxml", 1000.0)
+    project = _saved(tmp_path / "Hymn (from PDF).mscz", 1500.0)
+    assert saved_correction(opened, since=1100.0, now=2000.0) == project
+
+
+def test_the_copy_saved_again_is_the_correction(tmp_path: Path) -> None:
+    opened = _saved(tmp_path / "Hymn (from PDF).musicxml", 1500.0)
+    assert saved_correction(opened, since=1100.0, now=2000.0) == opened
+
+
+def test_the_project_comes_before_a_newer_musicxml(tmp_path: Path) -> None:
+    opened = _saved(tmp_path / "Hymn (from PDF).musicxml", 1600.0)
+    project = _saved(tmp_path / "Hymn (from PDF).mscz", 1500.0)
+    assert saved_correction(opened, since=1100.0, now=2000.0) == project
+
+
+def test_a_file_still_being_written_is_not_taken_yet(tmp_path: Path) -> None:
+    opened = _saved(tmp_path / "Hymn (from PDF).musicxml", 1000.0)
+    _saved(tmp_path / "Hymn (from PDF).mscz", 1999.5)
+    assert saved_correction(opened, since=1100.0, now=2000.0) is None
+
+
+def test_a_score_saved_in_musescores_own_folder_is_found(tmp_path: Path) -> None:
+    opened = _saved(tmp_path / "pdfs" / "Hymn (from PDF).musicxml", 1000.0)
+    scores = tmp_path / "MuseScore4" / "Scores"
+    project = _saved(scores / "Hymn (from PDF).mscz", 1500.0)
+    _saved(scores / "Other.mscz", 1500.0)
+    assert saved_correction(opened, since=1100.0, folders=[scores], now=2000.0) == project
+
+
+def test_musescores_folder_is_looked_for_in_documents_and_onedrive(tmp_path: Path) -> None:
+    folders = musescore_score_folders({"OneDrive": str(tmp_path / "OneDrive")})
+    assert Path.home() / "Documents" / "MuseScore4" / "Scores" in folders
+    assert tmp_path / "OneDrive" / "Documents" / "MuseScore4" / "Scores" in folders

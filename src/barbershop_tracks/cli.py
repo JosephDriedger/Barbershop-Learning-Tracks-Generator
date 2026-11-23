@@ -171,6 +171,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--strict", action="store_true", help="refuse, before writing, if advisory findings exist"
     )
     export.add_argument("--format", choices=("text", "json"), default="text")
+    fix = commands.add_parser(
+        "fix",
+        help="open a score in MuseScore to correct it before generating",
+        description=(
+            "Open the score in MuseScore so that what BLT read can be corrected before the "
+            "learning tracks are made. A score read from a PDF (or recognised from a picture) "
+            "opens as an editable MusicXML copy beside the PDF; any other score opens as it is. "
+            "BLT then waits until the corrected score is saved and says how to generate from it. "
+            "Exit 0 saved (or opened, with --no-wait), 2 the score could not be read or opened."
+        ),
+    )
+    fix.add_argument("score", help=SCORE_HELP)
+    fix.add_argument("--accept-recognition", action="store_true", help=RECOGNITION_HELP)
+    fix.add_argument(
+        "--no-wait",
+        action="store_true",
+        help="only open the score; do not wait for the corrected score to be saved",
+    )
     add_generate_parsers(commands)
     selftest = commands.add_parser(
         "selftest",
@@ -361,6 +379,72 @@ def _run_voices(args: argparse.Namespace) -> int:
     return EXIT_READY
 
 
+def _editable_score(path: str, *, accept_recognition: bool) -> Path | None:
+    """The file to correct: an editable copy of what BLT read from a PDF or a picture, beside it,
+    or the person's own score."""
+    from barbershop_tracks.core.musicxml.fixing import COPY_LABELS, editable_copy
+
+    try:
+        with opened_score(path, accept_recognition=accept_recognition) as opened:
+            conversion = opened.conversion
+            label = COPY_LABELS.get(conversion.kind) if conversion is not None else None
+            if label is None:
+                return opened.original
+            copy = editable_copy(opened.parse_path, opened.original, label=label)
+            if copy == opened.parse_path:
+                print(f"error: cannot write a copy beside {opened.original}", file=sys.stderr)
+                return None
+            return copy
+    except ScoreLoadError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+    except OSError as exc:
+        print(f"error: cannot read {path}: {exc.strerror or exc}", file=sys.stderr)
+    return None
+
+
+def _run_fix(args: argparse.Namespace) -> int:
+    import time
+
+    from barbershop_tracks.core.musicxml.fixing import (
+        musescore_score_folders,
+        open_in_musescore,
+        saved_correction,
+    )
+
+    target = _editable_score(args.score, accept_recognition=args.accept_recognition)
+    if target is None:
+        return EXIT_USAGE
+    since = time.time()
+    if open_in_musescore(target) is None:
+        print(
+            f"error: MuseScore was not found. Open this file in MuseScore (musescore.org) or "
+            f"another notation program to correct it:\n  {target}",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    print(f"Opened in MuseScore: {target}")
+    if target.name != Path(args.score).name:
+        print(f"Check it against the original: {args.score}")
+    print("Correct the music and the words, add a tempo mark if there is none, and save it.")
+    if args.no_wait:
+        return EXIT_READY
+    print("Waiting for the corrected score to be saved (Ctrl+C to stop)...", flush=True)
+    folders = musescore_score_folders()
+    try:
+        while True:
+            found = saved_correction(target, since, folders)
+            if found is not None:
+                break
+            time.sleep(2)
+    except KeyboardInterrupt:
+        print("Stopped waiting. Generate from the corrected score once it is saved.")
+        return EXIT_READY
+    print(f"Corrected score saved: {found}")
+    print(f'Check it with:  barbershop-tracks check "{found}"')
+    print(f'Generate with:  barbershop-tracks generate "{found}" --assign ...')
+    return EXIT_READY
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     _tolerate_unencodable_output()
     parser = build_parser()
@@ -373,6 +457,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_export(args)
     if args.command == "voices":
         return _run_voices(args)
+    if args.command == "fix":
+        return _run_fix(args)
     if args.command == "diagnostics":
         from barbershop_tracks.diagnostics import report
 

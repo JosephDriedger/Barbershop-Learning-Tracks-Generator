@@ -1,6 +1,8 @@
 """A MuseScore project or a PDF in the window: converted, flagged, never recognised silently."""
 
 import hashlib
+import os
+import time
 from pathlib import Path
 
 import pytest
@@ -62,7 +64,7 @@ def test_a_musescore_project_opens_like_a_score_and_says_how_it_was_read(rig: Ri
 def test_a_pdf_is_not_recognised_when_the_person_says_no(rig: Rig) -> None:
     rig.prompts.confirm_answer = False
     rig.window.open_score(project(rig, "Hymn.pdf"))
-    assert rig.prompts.confirmations == ["Recognise the music in this file?"]
+    assert rig.prompts.confirmations == ["Recognise the Music in This File?"]
     assert rig.controller.score is None
     assert not (rig.tmp / "converter.log").exists()  # the recognising program was never started
 
@@ -96,7 +98,7 @@ def test_a_musicxml_score_never_asks_and_is_not_flagged(rig: Rig) -> None:
 def test_dropping_a_musescore_project_or_a_pdf_opens_it(rig: Rig) -> None:
     rig.prompts.confirm_answer = False
     rig.window.handle_drop([QUrl.fromLocalFile(str(project(rig, "Hymn.pdf")))])
-    assert rig.prompts.confirmations == ["Recognise the music in this file?"]
+    assert rig.prompts.confirmations == ["Recognise the Music in This File?"]
     with rig.qtbot.waitSignal(rig.controller.score_loaded, timeout=30000):
         rig.window.handle_drop([QUrl.fromLocalFile(str(project(rig, "Hymn.mscz")))])
     assert rig.controller.score is not None
@@ -119,7 +121,7 @@ def test_a_missing_converter_is_explained_with_the_way_out(
     with rig.qtbot.waitSignal(rig.controller.score_failed, timeout=30000):
         rig.window.open_score(project(rig, "Hymn.mscz"))
     shown = rig.window.progress_section.result_title.text()
-    assert "MuseScore is needed to open this file" in shown
+    assert "MuseScore Is Needed to Open This File" in shown
     assert rig.controller.score is None
 
 
@@ -248,3 +250,81 @@ def test_the_window_says_nothing_about_tempo_when_there_is_no_playback(rig: Rig)
         rig.window.open_score(project(rig, "Hymn.mscz"))
     rig.qtbot.waitUntil(lambda: not rig.controller.validating, timeout=20000)
     assert not any("playback" in m for m in shown_messages(rig)), shown_messages(rig)
+
+
+# --- a score read from a PDF is fixed in MuseScore, and the corrected score is used ----------
+
+PDF_FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "pdf"
+
+
+def _read_pdf(rig: Rig) -> Path:
+    pdf = rig.tmp / "Quartet.pdf"
+    pdf.write_bytes((PDF_FIXTURES / "e3b_four_parts.pdf").read_bytes())
+    with rig.qtbot.waitSignal(rig.controller.score_loaded, timeout=30000):
+        rig.window.open_score(pdf)
+    return pdf
+
+
+def test_a_pdf_read_directly_opens_as_an_editable_copy_with_the_pdf_beside_it(rig: Rig) -> None:
+    pdf = _read_pdf(rig)
+    assert rig.prompts.confirmations == []  # read, not recognised: no question
+    rig.window.score_section.fix.click()
+    (copy,) = rig.notated
+    assert copy == rig.tmp / "Quartet (from PDF).musicxml"
+    assert "<score-partwise" in copy.read_text(encoding="utf-8")
+    assert rig.opened == [pdf]
+    assert "Add a tempo mark" in rig.prompts.informed[-1]
+    assert rig.window.fix_watch is not None
+    assert rig.window.fix_watch[0] == copy
+    assert rig.window.fix_timer.isActive()
+
+
+def test_nothing_is_offered_before_the_corrected_score_is_saved(rig: Rig) -> None:
+    _read_pdf(rig)
+    rig.window.score_section.fix.click()
+    rig.window.check_for_fixed_score()
+    assert rig.prompts.confirmations == []
+    assert rig.window.fix_timer.isActive()
+
+
+def _save_correction(rig: Rig) -> Path:
+    copy, _since = rig.window.fix_watch or (Path(), 0.0)
+    rig.window.fix_watch = (copy, time.time() - 60)
+    saved = copy.with_suffix(".mscz")
+    saved.write_bytes(b"the corrected project")
+    when = time.time() - 30
+    os.utime(saved, (when, when))
+    return saved
+
+
+def test_the_saved_corrected_score_is_offered_and_opened(rig: Rig) -> None:
+    _read_pdf(rig)
+    rig.window.score_section.fix.click()
+    saved = _save_correction(rig)
+    with rig.qtbot.waitSignal(rig.controller.score_loaded, timeout=30000):
+        rig.window.check_for_fixed_score()
+    assert rig.prompts.confirmations == ["Use the Corrected Score?"]
+    assert rig.controller.score is not None
+    assert rig.controller.score.path == saved
+    assert rig.window.fix_watch is None
+    assert not rig.window.fix_timer.isActive()
+
+
+def test_declining_the_corrected_score_keeps_the_score_and_stops_asking(rig: Rig) -> None:
+    pdf = _read_pdf(rig)
+    rig.window.score_section.fix.click()
+    _save_correction(rig)
+    rig.prompts.confirm_answer = False
+    rig.window.check_for_fixed_score()
+    assert rig.prompts.confirmations == ["Use the Corrected Score?"]
+    assert rig.controller.score is not None
+    assert rig.controller.score.path == pdf
+    assert not rig.window.fix_timer.isActive()
+
+
+def test_opening_another_score_stops_waiting_for_the_correction(rig: Rig) -> None:
+    _read_pdf(rig)
+    rig.window.score_section.fix.click()
+    rig.load()
+    assert rig.window.fix_watch is None
+    assert not rig.window.fix_timer.isActive()

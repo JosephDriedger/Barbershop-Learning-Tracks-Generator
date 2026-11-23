@@ -60,6 +60,10 @@ Installing a newer version over the old one upgrades it and keeps everything of 
 4. **Parts.** Tell BLT which line of the score is Tenor, Lead, Baritone and Bass (*Suggest voices* fills in
    likely ones from the part names, or from the usual layout of the staves: upper voice Tenor/Baritone, lower voice
    Lead/Bass; you confirm them). If the score has errors, *Open Score to Fix* opens it in MuseScore to correct.
+   A score read from a PDF opens as an editable copy beside the PDF (`Name (from PDF).musicxml`), with the PDF
+   itself to check it against. Save it in MuseScore: BLT notices the saved score (beside the copy, or in
+   MuseScore's own Scores folder) and offers to use it, so the tracks are made from the corrected music. On the
+   command line: `barbershop-tracks fix SCORE` opens it and waits for the corrected score.
 5. **Singer.** Choose the voicebank for the parts (the same one for all, or one per part).
 6. **Lyrics.** As is usual in barbershop scores, a part with no lyrics of its own sings what the Lead sings (it
    holds the vowel when it moves under a held word). *Review lyrics…* lists those notes as "Follows the Lead" and
