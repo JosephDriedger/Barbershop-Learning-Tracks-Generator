@@ -23,6 +23,7 @@ It replaces an installed BLT in place (same application id). It does not include
 * **The package checks know about the edition.** `-IncludeDiffSinger` relaxes exactly one thing in `verify-host`, the host inventory and the
   absent-data scan: the English plus pack (matched by size and SHA-256 to the pinned source) and DIFFS EN+. Arpasing+, English C+V and
   Voicevox are still refused. The normal build is unchanged.
+* **A PDF that a notation program wrote is read directly,** without Audiveris (`docs/pdf-reading.md`); a scanned PDF still needs Audiveris.
 * **Score handling since 1.0.0** (all in the commit history, `git log v1.0.0..HEAD`): playback tempo follows a fermata on the note of a tempo
   mark; a fermata note ends at the full tempo and gets a 300-tick tail so the end of a word keeps its usual length; the count-in clicks at the
   tempo the score is written at; a MuseScore pickup keeps its own length and the playback is checked to be as long as the score; the mix accepts a
@@ -63,5 +64,6 @@ the native ONNX Runtime they and DiffSinger run on. DiffSinger itself is part of
 
 ## Checksums
 
-`BLT-Music-Generator-1.0.1-Setup.exe` (DiffSinger edition): SHA-256 `95e90bf927799cdf42e321b24f8a71f0f67bd70d1d1d8f654e34087556d1f2db`
-(built from commit `e2764d7`; `research-output\release-diffsinger\artifacts\SHA256SUMS.txt`). Nothing is published.
+`BLT-Music-Generator-1.0.1-Setup.exe` (DiffSinger edition): SHA-256 `7f8b87948145babeecb9c40723aae7fff97ef5c8214d9a187d527bcbe42b8874`
+(built from the working copy just before commit `4e4d56c`, which contains exactly those changes, so release-info says
+`uncommitted_changes: true`; `research-output\release-diffsinger\artifacts\SHA256SUMS.txt`). Nothing is published.
