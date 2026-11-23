@@ -24,6 +24,10 @@ It replaces an installed BLT in place (same application id). It does not include
   absent-data scan: the English plus pack (matched by size and SHA-256 to the pinned source) and DIFFS EN+. Arpasing+, English C+V and
   Voicevox are still refused. The normal build is unchanged.
 * **A PDF that a notation program wrote is read directly,** without Audiveris (`docs/pdf-reading.md`); a scanned PDF still needs Audiveris.
+  Finale scores in its Maestro font are read too, also when printed through Microsoft Print to PDF.
+* **Fixing a score before generating.** *Open Score to Fix* opens a score read from a PDF as an editable copy beside it
+  (`Name (from PDF).musicxml`), with the PDF to compare, and offers to use the corrected score once it is saved in MuseScore;
+  `barbershop-tracks fix SCORE` on the command line. Titles, buttons, column headers and short labels are in title case.
 * **Score handling since 1.0.0** (all in the commit history, `git log v1.0.0..HEAD`): playback tempo follows a fermata on the note of a tempo
   mark; a fermata note ends at the full tempo and gets a 300-tick tail so the end of a word keeps its usual length; the count-in clicks at the
   tempo the score is written at; a MuseScore pickup keeps its own length and the playback is checked to be as long as the score; the mix accepts a
@@ -64,6 +68,7 @@ the native ONNX Runtime they and DiffSinger run on. DiffSinger itself is part of
 
 ## Checksums
 
-`BLT-Music-Generator-1.0.1-Setup.exe` (DiffSinger edition): SHA-256 `7f8b87948145babeecb9c40723aae7fff97ef5c8214d9a187d527bcbe42b8874`
-(built from the working copy just before commit `4e4d56c`, which contains exactly those changes, so release-info says
-`uncommitted_changes: true`; `research-output\release-diffsinger\artifacts\SHA256SUMS.txt`). Nothing is published.
+`BLT-Music-Generator-1.0.1-Setup.exe` (DiffSinger edition): SHA-256 `bd21d04ec4ce16954c67e640f519ca91bcd74e49d554f142786718efb246432a`
+(built from the working copy just before commits `3dbd686` and `8273a5a`, which contain exactly those changes, so release-info
+says `uncommitted_changes: true`; `research-output\release-diffsinger\artifacts\SHA256SUMS.txt`, and a copy in `installer\`).
+Nothing is published.
