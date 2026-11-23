@@ -20,10 +20,18 @@ def _reach(e: Event) -> tuple[float, float]:
     return min(ys), max(ys)
 
 
-def _end_cost(e: Event, point: tuple[float, float], sp: float, above: bool) -> float | None:
-    cx = e.x + e.heads[0].w / 2
+def _end_cost(
+    e: Event, point: tuple[float, float], sp: float, above: bool, *, right: bool = False
+) -> float | None:
+    w = e.heads[0].w
+    cx = e.x + w / 2
     dx = abs(cx - point[0])
     if dx > 2.2 * sp:
+        return None
+    # the right end of a slur lies at its last note (its middle, or its left as Finale draws
+    # it), or at its stem end on the right of an up-stem note: never past the note otherwise
+    reach = e.x + w + (0.5 if above and e.stem == 1 else 0.1) * sp
+    if right and point[0] > reach:
         return None
     lo, hi = _reach(e)
     # how far outside the band of the note (its noteheads and stem, and a space and a half
@@ -56,7 +64,7 @@ def read_slurs(system: System, curves: list[Shape], events: list[Event]) -> None
         for voice_staff in {(e.staff.index, e.voice) for e in notes}:
             pool = [e for e in notes if (e.staff.index, e.voice) == voice_staff]
             a = None if starts else _best(pool, left, sp, above)
-            b = None if ends else _best(pool, right, sp, above)
+            b = None if ends else _best(pool, right, sp, above, right=True)
             if (a is None and not starts) or (b is None and not ends):
                 continue
             if a is not None and b is not None and (a[1] is b[1] or a[1].x >= b[1].x):
@@ -74,11 +82,11 @@ def read_slurs(system: System, curves: list[Shape], events: list[Event]) -> None
 
 
 def _best(
-    pool: list[Event], point: tuple[float, float], sp: float, above: bool
+    pool: list[Event], point: tuple[float, float], sp: float, above: bool, *, right: bool = False
 ) -> tuple[float, Event] | None:
     found: tuple[float, Event] | None = None
     for e in pool:
-        cost = _end_cost(e, point, sp, above)
+        cost = _end_cost(e, point, sp, above, right=right)
         if cost is not None and (found is None or cost < found[0]):
             found = (cost, e)
     return found

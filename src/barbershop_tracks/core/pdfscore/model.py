@@ -89,6 +89,7 @@ class Event:
     dots: int = 0
     tuplet: Fraction = Fraction(1)  # actual over written (2/3 in a triplet)
     tuplet_shown: tuple[int, int] | None = None  # (actual notes, normal notes)
+    tuplet_group: int = 0  # the notes under one tuplet number share it (0: none)
     measure_rest: bool = False
     voice_hint: int = 0  # 1 or 2 when the drawing says which voice; 0 when it does not
     voice: int = 1

@@ -54,7 +54,7 @@ if TYPE_CHECKING:  # imported lazily: the rendering package imports the score mo
 MUSESCORE_SUFFIXES = (".mscz", ".mscx")
 RECOGNITION_SUFFIXES = (".pdf", ".png", ".jpg", ".jpeg")  # a PDF only when it is a scan
 PDF_READER = "BLT PDF reader"
-PDF_READER_VERSION = "6"  # part of the cache key: a better reader reads a PDF again
+PDF_READER_VERSION = "8"  # part of the cache key: a better reader reads a PDF again
 CONVERTED_SUFFIXES = (*MUSESCORE_SUFFIXES, *RECOGNITION_SUFFIXES)
 
 MUSESCORE_TIMEOUT_SECONDS = 180.0

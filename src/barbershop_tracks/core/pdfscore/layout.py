@@ -10,7 +10,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from barbershop_tracks.core.pdfscore.pdf import Glyph, Page, Segment
-from barbershop_tracks.core.pdfscore.symbols import BRACE, REPEAT_DOT, REPEAT_DOTS
+from barbershop_tracks.core.pdfscore.symbols import BRACE, NOTEHEADS, REPEAT_DOT, REPEAT_DOTS
 
 
 @dataclass(slots=True)
@@ -227,6 +227,7 @@ def _boundaries(
     page: Page, system: System, verticals: list[Segment], thin: float
 ) -> list[Boundary]:
     xs: list[tuple[float, str]] = []
+    heads = [g for g in page.glyphs if g.text in NOTEHEADS]
     for staff in system.staves:
         sp = staff.space
         for v in verticals:
@@ -234,7 +235,11 @@ def _boundaries(
             if not (system.x0 - 1 <= v.x0 <= system.x1 + 1):
                 continue
             spans_staff = lo <= staff.bottom + 0.35 * sp and hi >= staff.top - 0.35 * sp
-            if spans_staff and (v.width >= thin * 1.3 or (hi - lo) > 6 * sp):
+            if spans_staff and (
+                v.width >= thin * 1.3
+                or (hi - lo) > 6 * sp
+                or _staff_high_line(v, lo, hi, staff, heads)
+            ):
                 xs.append((v.x0, "thin"))
         for shape in page.shapes:
             if not shape.filled or shape.curved:
@@ -272,6 +277,18 @@ def _boundaries(
         result.append(Boundary(system.x1, "regular"))
     _repeat_dots(page.glyphs, system, result)
     return result
+
+
+def _staff_high_line(v: Segment, lo: float, hi: float, staff: Staff, heads: list[Glyph]) -> bool:
+    """A barline as thin as a stem (Finale draws them so): it runs from the bottom line of the
+    staff to its top line, and no notehead sits at either end (every stem has one at an end)."""
+    sp = staff.space
+    if abs(lo - staff.bottom) > 0.3 * sp or abs(hi - staff.top) > 0.3 * sp:
+        return False
+    for h in heads:
+        if -2 * sp <= h.x - v.x0 <= 0.5 * sp and min(abs(h.y - lo), abs(h.y - hi)) <= 1.0 * sp:
+            return False
+    return True
 
 
 def _repeat_dots(glyphs: list[Glyph], system: System, boundaries: list[Boundary]) -> None:

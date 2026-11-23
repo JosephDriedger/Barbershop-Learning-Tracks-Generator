@@ -13,6 +13,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from barbershop_tracks.core.pdfscore.layout import Staff, System
+from barbershop_tracks.core.pdfscore.legacy_fonts import is_renamed_font
 from barbershop_tracks.core.pdfscore.model import Event, LineGoesOn, LyricOut
 from barbershop_tracks.core.pdfscore.pdf import Glyph, Page, Segment
 from barbershop_tracks.core.pdfscore.symbols import is_music_symbol
@@ -84,6 +85,9 @@ def text_rows(page: Page, system: System, systems: list[System] | None = None) -
     for g in page.glyphs:
         if not is_plain_text(g):
             continue
+        # a small digit of a renamed font is a tuplet number in italics (recognise.py)
+        if g.text.isdigit() and is_renamed_font(g.font) and g.size <= 2 * sp:
+            continue
         if not (system.x0 - 2 <= g.x <= system.x1 + 2):
             continue
         if not (system.bottom - 16 * sp <= g.y <= system.top + 12 * sp):
@@ -125,8 +129,10 @@ def _tokens(row: Row) -> list[_Group]:
     groups: list[_Group] = []
     # a notation program writes each syllable as a text of its own; when the row is made of
     # several, they are the syllables (the spacing is only a fallback for a PDF that writes a
-    # whole line as one text)
-    by_run = len({g.run for g in row.glyphs if g.text not in ELISIONS}) > 1
+    # whole line as one text). A PDF printer that renamed the fonts also joined the texts.
+    by_run = len({g.run for g in row.glyphs if g.text not in ELISIONS}) > 1 and not (
+        is_renamed_font(row.font)
+    )
     marks = sorted(
         [(min(h.x0, h.x1), max(h.x0, h.x1), "-") for h in row.hyphens]
         + [(min(s.x0, s.x1), max(s.x0, s.x1), "_") for s in row.lines]
@@ -316,6 +322,17 @@ def _align(
     return total, result
 
 
+def _section_label(groups: list[_Group]) -> bool:
+    """A section's name over the staff ("INTRO", "VERSE 1", "TAG"): capitals, numbers, no
+    hyphens. Words in capitals are sung too, but not a row of only capital words of two or more
+    letters (a lone "I" or "A" is a word)."""
+    words = [g.text for g in groups]
+    if any(g.hyphen_after or g.hyphen_before for g in groups):
+        return False
+    letters = [w for w in words if not w.isdigit()]
+    return bool(letters) and all(w.isalpha() and w.isupper() and len(w) >= 2 for w in letters)
+
+
 @dataclass(slots=True)
 class RowReading:
     """The ways a row of words can be read: under which staff, and on which side of it."""
@@ -348,10 +365,15 @@ def lyric_rows(
     rows = text_rows(page, system, systems)
     # a program that writes each syllable as a text of its own writes a title or a credit as one
     # text of several words
-    per_syllable = any(len({g.run for g in r.glyphs}) > 1 for r in rows)
+    # (a PDF printer that renamed the fonts joined the texts: its runs say nothing)
+    per_syllable = any(
+        len({g.run for g in r.glyphs}) > 1 for r in rows if not is_renamed_font(r.font)
+    )
     for row in rows:
         groups = _tokens(row)
         if not groups:
+            continue
+        if is_renamed_font(row.font) and _section_label(groups):
             continue
         if per_syllable and len(groups) > 1 and len({g.run for g in row.glyphs}) == 1:
             continue

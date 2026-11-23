@@ -122,7 +122,8 @@ def write_musicxml(score: ReadScore, target: Path) -> None:
                         if (k == 0 and v == min(voices))
                         else []
                     )
-                    for e in sorted(voices[v], key=lambda e: e.onset):
+                    ordered = sorted(voices[v], key=lambda e: e.onset)
+                    for j, e in enumerate(ordered):
                         for d in [d for d in pending if d.onset <= e.onset]:
                             _direction(measure, d, d.onset - t, divisions)
                             pending.remove(d)
@@ -133,7 +134,13 @@ def write_musicxml(score: ReadScore, target: Path) -> None:
                                 str(int((e.onset - t) * divisions)),
                             )
                             t = e.onset
-                        _note(measure, e, number, k + 1, len(part.staves) > 1, divisions)
+                        group = e.tuplet_group
+                        bounds = (
+                            group != 0 and (j == 0 or ordered[j - 1].tuplet_group != group),
+                            group != 0
+                            and (j + 1 == len(ordered) or ordered[j + 1].tuplet_group != group),
+                        )
+                        _note(measure, e, number, k + 1, len(part.staves) > 1, divisions, bounds)
                         t += e.duration
                     for d in pending:
                         _direction(measure, d, d.onset - t, divisions)
@@ -255,8 +262,17 @@ def _direction(measure: ET.Element, d: Direction, offset: Fraction, divisions: i
 
 
 def _note(
-    measure: ET.Element, e: Event, voice: int, staff: int, many: bool, divisions: int
+    measure: ET.Element,
+    e: Event,
+    voice: int,
+    staff: int,
+    many: bool,
+    divisions: int,
+    tuplet_bounds: tuple[bool, bool] = (False, False),
 ) -> None:
+    """One note (or a chord, or a rest). ``tuplet_bounds``: whether it starts and whether it
+    ends its tuplet group (a program reading the MusicXML makes one tuplet of the notes between,
+    not one of each note)."""
     duration = str(int(e.duration * divisions))
     if e.is_rest:
         note = _sub(measure, "note")
@@ -267,8 +283,10 @@ def _note(
         _sub(note, "voice", str(voice))
         if not e.measure_rest:
             _type_and_dots(note, e)
+        _time_modification(note, e)
         if many:
             _sub(note, "staff", str(staff))
+        _tuplet_marks(note, ET.Element("notations"), tuplet_bounds, e)
         return
     heads = sorted(e.heads, key=lambda h: h.diatonic)
     for i, h in enumerate(heads):
@@ -295,10 +313,7 @@ def _note(
                     h.accidental
                 ],
             )
-        if e.tuplet_shown is not None:
-            tm = _sub(note, "time-modification")
-            _sub(tm, "actual-notes", str(e.tuplet_shown[0]))
-            _sub(tm, "normal-notes", str(e.tuplet_shown[1]))
+        _time_modification(note, e)
         if e.stem:
             _sub(note, "stem", "up" if e.stem == 1 else "down")
         if many:
@@ -315,8 +330,7 @@ def _note(
                 _sub(notations, "slur", type="start")
         if e.fermata and i == 0:
             _sub(notations, "fermata", type="upright" if e.voice % 2 == 1 else "inverted")
-        if len(notations):
-            note.append(notations)
+        _tuplet_marks(note, notations, tuplet_bounds if i == 0 else (False, False), e)
         if i == 0:
             for lyric in sorted(e.lyrics, key=lambda ly: ly.number):
                 el = _sub(note, "lyric", number=str(lyric.number))
@@ -330,6 +344,40 @@ def _note(
                     _sub(el, "text", piece)
                 if lyric.extend_to is not None or lyric.line is not None:
                     _sub(el, "extend")  # held: a line drawn, or set at its note (too short)
+
+
+def _time_modification(note: ET.Element, e: Event) -> None:
+    if e.tuplet_shown is None:
+        return
+    # the ratio in the notes' own value: a triplet of eighths is 3 in the time of 2; Finale's duplet
+    # of quarters in the time of three eighths is 4 quarters in the time of 3. MuseScore takes a
+    # tuplet's value from its notes and ignores <normal-type>, so it is said this way, which every
+    # program reads alike; the number printed over the notes is kept on the tuplet (_tuplet_marks)
+    tm = _sub(note, "time-modification")
+    _sub(tm, "actual-notes", str(e.tuplet.denominator))
+    _sub(tm, "normal-notes", str(e.tuplet.numerator))
+
+
+def _tuplet_marks(
+    note: ET.Element, notations: ET.Element, bounds: tuple[bool, bool], e: Event | None = None
+) -> None:
+    """Add the start and stop of a tuplet group, then the notations if there are any."""
+    starts, stops = bounds
+    if starts:
+        mark = _sub(notations, "tuplet", type="start", bracket="yes")
+        if e is not None and e.tuplet_shown is not None:
+            shown = e.tuplet_shown
+            if shown != (e.tuplet.denominator, e.tuplet.numerator):
+                # the number printed over the notes ("2"), not the ratio written above ("4")
+                mark.set("show-number", "actual")
+                actual = _sub(mark, "tuplet-actual")
+                _sub(actual, "tuplet-number", str(shown[0]))
+                normal = _sub(mark, "tuplet-normal")
+                _sub(normal, "tuplet-number", str(shown[1]))
+    if stops:
+        _sub(notations, "tuplet", type="stop")
+    if len(notations):
+        note.append(notations)
 
 
 def _type_and_dots(note: ET.Element, e: Event) -> None:

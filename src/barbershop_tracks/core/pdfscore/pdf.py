@@ -980,6 +980,10 @@ def read_pages(path: Path, *, max_pages: int = 200) -> list[Page]:
             raise PdfError("rotated pages are not supported")
         _Interpreter(doc, result).run(content, resources, state)
         pages.append(result)
+    # a music font older than SMuFL (Finale's Maestro and its kind) is read as its SMuFL characters
+    from barbershop_tracks.core.pdfscore.legacy_fonts import translate_legacy_music_fonts
+
+    translate_legacy_music_fonts(pages)
     return pages
 
 

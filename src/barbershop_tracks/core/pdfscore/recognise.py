@@ -15,6 +15,7 @@ from dataclasses import replace
 from fractions import Fraction
 
 from barbershop_tracks.core.pdfscore.layout import Staff, System, stem_width
+from barbershop_tracks.core.pdfscore.legacy_fonts import is_renamed_font
 from barbershop_tracks.core.pdfscore.model import Event, Head, MeasureInfo
 from barbershop_tracks.core.pdfscore.pdf import Glyph, Page, Segment, Shape
 from barbershop_tracks.core.pdfscore.symbols import (
@@ -50,7 +51,12 @@ class SystemSymbols:
         self.digits: dict[int, list[Glyph]] = defaultdict(list)
         staves = [s for sys_ in all_systems for s in sys_.staves]
         for g in page.glyphs:
-            italic_digit = g.text.isdigit() and "italic" in g.font.lower()
+            italic_digit = g.text.isdigit() and (
+                "italic" in g.font.lower()
+                # a PDF printer that renames the fonts ("CIDFont+F5") hides the italic: a small
+                # digit, under two staff spaces high, is read the same way
+                or (is_renamed_font(g.font) and g.size <= 2 * system.space)
+            )
             if not is_music_symbol(g.text) and not italic_digit:
                 continue
             staff = _nearest_staff(staves, g.x, g.y)
@@ -74,7 +80,8 @@ class SystemSymbols:
             and not sh.curved
             and system.x0 <= sh.bbox[0] <= system.x1
             and system.bottom - 12 * sp <= sh.bbox[1] <= system.top + 12 * sp
-            and (sh.bbox[2] - sh.bbox[0]) > 1.0 * sp
+            # a partial beam (a sixteenth after a dotted eighth) is under a space wide in Finale
+            and (sh.bbox[2] - sh.bbox[0]) > 0.75 * sp
         ]
         self.curves = [
             sh
@@ -418,6 +425,10 @@ def _dot_owners(
     return sorted(found, key=lambda f: f[0])[:4]
 
 
+# a number for each group of notes under one tuplet number (MusicXML marks its start and stop)
+_TUPLET_GROUPS = itertools.count(1)
+
+
 def _tuplets(symbols: SystemSymbols, events: list[Event]) -> None:
     sp = symbols.system.space
     for staff in symbols.system.staves:
@@ -427,29 +438,40 @@ def _tuplets(symbols: SystemSymbols, events: list[Event]) -> None:
             + [(g, True) for g in symbols.digits[staff.index]],
             key=lambda p: p[0].x,
         )
-        numbers: list[tuple[float, float, int, bool]] = []
+        numbers: list[tuple[float, float, int, bool, bool]] = []
         for g, text in digits:
             value = int(g.text) if text else TUPLET_DIGITS[g.text]
+            # a named italic digit may be a measure number: only a beamed group is its tuplet.
+            # A small digit of a renamed font (Finale printed to PDF) may also have a bracket
+            renamed = text and is_renamed_font(g.font)
+            beamed_only = text and not renamed
+            # a renamed font's digit is placed by its middle (its bracket can be above it)
+            y_at = g.y + 0.35 * g.size if renamed else g.y
             if (
                 numbers
-                and abs(numbers[-1][1] - g.y) < 0.2
+                and abs(numbers[-1][1] - y_at) < 0.2
                 and g.x - numbers[-1][0] < 1.5 * sp
-                and numbers[-1][3] == text
+                and numbers[-1][3] == beamed_only
+                and numbers[-1][4] == renamed
             ):
-                x, y, n, _t = numbers[-1]
-                numbers[-1] = (x, y, n * 10 + value, text)
+                x, y, n, _b, _r = numbers[-1]
+                numbers[-1] = (x, y, n * 10 + value, beamed_only, renamed)
             else:
-                numbers.append((g.x, g.y, value, text))
-        for x, y, n, text in numbers:
-            members = _tuplet_members(symbols, events, staff, x, y, beamed_only=text)
+                numbers.append((g.x, y_at, value, beamed_only, renamed))
+        for x, y, n, beamed_only, renamed in numbers:
+            members = _tuplet_members(
+                symbols, events, staff, x, y, beamed_only=beamed_only, count=n if renamed else 0
+            )
             if not members or n < 2:
                 continue
             normal = {2: 3, 3: 2, 4: 3, 5: 4, 6: 4, 7: 4, 9: 8, 10: 8, 11: 8, 12: 8}.get(n, 2)
             if n == 4 and len(members) != 4:
                 normal = 3
+            group = next(_TUPLET_GROUPS)
             for ev in members:
                 ev.tuplet = Fraction(normal, n)
                 ev.tuplet_shown = (n, normal)
+                ev.tuplet_group = group
 
 
 def _tuplet_members(
@@ -460,7 +482,10 @@ def _tuplet_members(
     y: float,
     *,
     beamed_only: bool = False,
+    count: int = 0,
 ) -> list[Event]:
+    """The events a tuplet number at (x, y) stands over. ``count`` (the number) is given for a
+    number that may also stand alone over its notes."""
     sp = staff.space
     near = [ev for ev in events if ev.staff is staff]
     above = [ev for ev in near if ev.stem == 1 and y >= ev.tip - sp]
@@ -481,7 +506,7 @@ def _tuplet_members(
     staff_lines = [ln for s in symbols.system.staves for ln in s.lines]
     left = right = x
     for s in symbols.page.segments:
-        if abs(s.y0 - y) > 1.5 * sp and abs(s.y1 - y) > 1.5 * sp:
+        if abs(s.y0 - y) > 2 * sp and abs(s.y1 - y) > 2 * sp:
             continue
         if abs(s.y0 - s.y1) < 0.01 and any(abs(s.y0 - ln) < 0.1 for ln in staff_lines):
             continue
@@ -496,9 +521,24 @@ def _tuplet_members(
         side = above if y > staff.middle else below
         pool = side or near
         return sorted(
-            (ev for ev in pool if left - 0.5 * sp <= ev.x <= right + 0.5 * sp),
+            # Finale starts the bracket a little inside the first notehead
+            (ev for ev in pool if left - 1.0 * sp <= ev.x <= right + 0.5 * sp),
             key=lambda e: e.x,
         )
+    if count % 2 == 1:
+        # no beam and no bracket (Finale hides them): the number stands over the middle note
+        # of its notes, on their stem side
+        side = sorted(above if y > staff.middle else below, key=lambda e: e.x)
+
+        def off(ev: Event) -> float:
+            centre = ev.x + (ev.heads[0].w / 2 if ev.heads else 0.0)
+            return abs(centre - x)
+
+        if side:
+            i = min(range(len(side)), key=lambda k: off(side[k]))
+            half = count // 2
+            if off(side[i]) <= 1.2 * sp and i - half >= 0 and i + half < len(side):
+                return side[i - half : i + half + 1]
     return []
 
 
@@ -519,7 +559,28 @@ def assign_voices(
 
     Returns (the length the voices fill, the cost of the best reading: 0 when everything fits,
     the events added for a notehead both voices sing).
+
+    A duplet's "2" does not say what it stands for: two notes in the time of three of their own
+    value (in 6/8, two eighths for three) or of half their value (in 4/4, two quarters for three
+    eighths, as Finale writes it). The first is read unless only the second fills the measure.
     """
+    result = _assign_voices(events, target, head_width)
+    duplets = [e for e in events if e.tuplet_shown == (2, 3)]
+    if result[1] == 0 or not duplets:
+        return result
+    for e in duplets:
+        e.tuplet = Fraction(3, 4)
+    halved = _assign_voices(events, target, head_width)
+    if halved[1] < result[1]:
+        return halved
+    for e in duplets:
+        e.tuplet = Fraction(3, 2)
+    return _assign_voices(events, target, head_width)
+
+
+def _assign_voices(
+    events: list[Event], target: Fraction, head_width: float
+) -> tuple[Fraction, float, list[Event]]:
     music = [e for e in events if not (bool(e.heads) and all(h.small for h in e.heads))]
     for e in events:
         if e not in music:
@@ -714,6 +775,19 @@ def _best_two_voice(
                 against += 0.6  # a stem against its voice: allowed where no other voice sounds
         if all(v == 2 for v in voices):
             against += 2  # a voice 2 alone is one voice
+        # notes without stems (whole notes) in one column: the higher is the upper voice
+        for i, j in itertools.combinations(unknown, 2):
+            a, b = events[i], events[j]
+            if (
+                a.heads
+                and b.heads
+                and abs(a.x - b.x) < 0.3 * hw
+                and {voices[i], voices[j]} == {1, 2}
+            ):
+                upper = i if voices[i] == 1 else j
+                lower = j if upper == i else i
+                if events[upper].y_mid < events[lower].y_mid:
+                    against += 0.3
         for length in _candidate_lengths(events, voices, target):
             cost = _two_voice_cost(events, voices, length, hw) + against
             if length != target:
