@@ -256,9 +256,15 @@ def _creator(root: ET.Element, kind: str) -> str | None:
 
 
 def _writes_every_rest(root: ET.Element) -> bool:
-    """Whether the file was written by MuseScore, which writes every rest of every measure."""
+    """Whether the file was written by a program that writes every rest of every measure:
+    MuseScore, or BLT's own reader of score PDFs (which writes them as MuseScore does)."""
     software = _software(root)
-    return software is not None and "musescore" in software.lower()
+    if software is None:
+        return False
+    return "musescore" in software.lower() or software == PDF_READER_SOFTWARE
+
+
+PDF_READER_SOFTWARE = "BLT Music Generator (read from a PDF)"
 
 
 def _software(root: ET.Element) -> str | None:

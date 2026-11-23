@@ -206,10 +206,13 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-SCORE_HELP = "a .musicxml, .xml, .mxl, .mscz (needs MuseScore) or .pdf (needs Audiveris) file"
+SCORE_HELP = (
+    "a .musicxml, .xml, .mxl, .mscz (needs MuseScore) or .pdf file (a notation program's PDF is "
+    "read directly; a scan needs Audiveris)"
+)
 RECOGNITION_HELP = (
-    "accept a score recognised from a PDF or image (it may contain mistakes; check it against the "
-    "original)"
+    "accept a score recognised from a scanned PDF or an image (it may contain mistakes; check it "
+    "against the original); not needed for a PDF a notation program wrote"
 )
 
 

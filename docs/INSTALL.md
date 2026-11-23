@@ -19,7 +19,8 @@ missing part).
   include or download any; you get one from its author and agree to its licence.
 * Your arrangement as a MuseScore project (`.mscz`, `.mscx`; best, since it also gives held syllables and tempo changes), a
   MusicXML export (`.musicxml`, `.xml` or `.mxl`) or a PDF, with the lyrics typed under every note of the four parts.
-  Projects need MuseScore and PDFs need Audiveris installed; BLT ships neither.
+  Projects need MuseScore installed. A PDF exported from a notation program (MuseScore, Dorico) is read by BLT itself
+  and needs nothing; only a scanned PDF or a photo needs Audiveris. BLT ships neither program.
 * Optional, for MP3 output: **FFmpeg** (a separate free program). WAV output needs nothing.
 
 ## Install

@@ -149,13 +149,15 @@ def add_parsers(commands: Any) -> None:
     )
     gen.add_argument(
         "score",
-        help="a .musicxml, .xml, .mxl, .mscz (needs MuseScore) or .pdf (needs Audiveris) file",
+        help="a .musicxml, .xml, .mxl, .mscz (needs MuseScore) or .pdf file (a notation program's "
+        "PDF is read directly; a scan needs Audiveris)",
     )
     gen.add_argument(
         "--accept-recognition",
         action="store_true",
-        help="accept a score recognised from a PDF or image: recognition makes mistakes, so it "
-        "only runs when you say so, and the result must be checked against the original",
+        help="accept a score recognised from a scanned PDF or an image: recognition makes "
+        "mistakes, so it only runs when you say so, and the result must be checked against the "
+        "original",
     )
     gen.add_argument(
         "--no-composed-pronunciations",

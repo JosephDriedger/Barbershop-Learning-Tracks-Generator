@@ -102,13 +102,28 @@ What is **not** verified:
   * a **MuseScore project** (`.mscz`, `.mscx`) is exported to MusicXML by MuseScore's command line (found in its usual folders, or set `BLT_MUSESCORE`). Tested with real MuseScore 4 files: the tracks are byte-for-byte those made from the MusicXML. The conversion is kept in BLT's cache, and everything bound to the score (lyric approvals, pronunciations, the package's record) is bound to the **project file's** SHA-256, not to the export (MuseScore dates every export); the package's `manifest.json` records the conversion (`source.conversion`).
   * **Ritardando, fermata, "a tempo".** For a MuseScore project BLT follows the tempo MuseScore plays (from its own MIDI export), so
   these are respected as in MuseScore; if that playback disagrees with the score's tempo marks it is left unused and a warning says
-  so. For MusicXML, compressed MusicXML and recognised PDFs only the tempo marks in the file count: a `rit.` written as words is
-  sung at the tempo before it. A gradual tempo change MuseScore itself exports as plain steps is followed as MuseScore plays it; BLT adds none of its own.
+  so. For MusicXML and for a PDF BLT works out the same tempo from the score's marks, by the rules MuseScore plays them by
+  (`core/musicxml/marked_playback.py`): a fermata halves the marked tempo until a tick before the next note, a `rit.`/`rall.`
+  line slows in eight steps to three quarters of it at the end of its dashed line (`accel.` speeds up to four thirds), and a
+  tempo mark or "a tempo" sets the tempo again. Tested on five real arrangements: the tempo is exactly what MuseScore's own MIDI
+  export plays. Only MuseScore's defaults are known this way: a fermata or a `rit.` given another length or strength in
+  MuseScore, or a score with repeats, is played from its tempo marks alone. A `rit.` written as words with no line is not followed.
   **Swing is not followed**: it is not a tempo, it moves the off-beat notes later in MuseScore's playback (a score with a swing
   style such as *San Francisco Bay Blues* plays its eighths 60/40), and BLT sings every note where the score writes it, so
   the eighths are straight. Measured on that score: 149 of its 316 note starts are a tenth of a quarter note earlier than in
   MuseScore's playback.
-* a **PDF or image of the music** (`.pdf`, `.png`, `.jpg`) has no notes in it; they are *recognised* by Audiveris (free; `BLT_AUDIVERIS` or its usual folder) when you accept that recognition makes mistakes (a dialog in the app, `--accept-recognition` on the command line). The result is flagged everywhere (a warning in the window, `recognised: true` in the package), and BLT does not check the recognised music: a wrong note or a word under the wrong note will be sung. Several recognised pieces in one PDF are refused (BLT will not choose). **Real Audiveris was tried once (21 Oct 2026) on a clean PDF that MuseScore exported from a four-part test score**: it found all four parts and every note, but recognised none of the lyrics and no tempo, so readiness blocked generation. Recognition quality is Audiveris's, not BLT's, and it is known to be weak on barbershop layouts (shared staves, two voices per staff, lyrics); treat a PDF as a last resort and prefer MusicXML or a MuseScore project. Scanned PDFs have not been tried.
+* a **PDF that a notation program wrote** (MuseScore, Dorico, any program that draws music with a SMuFL font such as Leland or
+  Bravura) is **read by BLT itself**, exactly, with no program and no recognition (`core/pdfscore`, see
+  [pdf-reading.md](pdf-reading.md)): every notehead, rest, flag and accidental is a character of the music font at an exact place
+  and every word is text. Tested on five real four-part arrangements exported from MuseScore 4.7: for four of them the notes, ties,
+  words, held-syllable lengths and tempo are exactly those of the MuseScore project, and the quartet MIDI BLT writes is
+  byte-for-byte the same from the PDF, the MusicXML and the project. What a PDF cannot show is not guessed: who sings a word that
+  both voices of a staff could sing (MuseScore draws it the same either way), voices whose stems were turned by hand, a repeat's
+  play count ("x3", not printed), a tempo MuseScore keeps hidden, a transposing instrument, and a `rit.` whose line was dragged
+  to another length (the fifth arrangement, *When She Loved Me*, has several of these and reads with 869 of its 873 notes right).
+  Fonts that are not SMuFL (Finale's Maestro, Sibelius's Opus) and staves hidden where they are empty are not read; such a PDF is
+  refused with a message.
+* a **scanned PDF or an image of the music** (`.pdf`, `.png`, `.jpg`) has no notes in it; they are *recognised* by Audiveris (free; `BLT_AUDIVERIS` or its usual folder) when you accept that recognition makes mistakes (a dialog in the app, `--accept-recognition` on the command line). The result is flagged everywhere (a warning in the window, `recognised: true` in the package), and BLT does not check the recognised music: a wrong note or a word under the wrong note will be sung. Several recognised pieces in one PDF are refused (BLT will not choose). **Real Audiveris was tried once (21 Oct 2026) on a clean PDF that MuseScore exported from a four-part test score**: it found all four parts and every note, but recognised none of the lyrics and no tempo, so readiness blocked generation. Recognition quality is Audiveris's, not BLT's, and it is known to be weak on barbershop layouts (shared staves, two voices per staff, lyrics); treat a PDF as a last resort and prefer MusicXML or a MuseScore project. Scanned PDFs have not been tried.
   * A missing program, a failure, a time-out (3 minutes for MuseScore, 20 for recognition) or an empty result is reported with what to do; nothing is guessed. MIDI is not read (no lyrics, no voice names).
 * **No playback or preview** inside the app yet (tracked separately). You open the output folder and play the files elsewhere.
 * One score at a time; no batch mode in the GUI (the command line scripts well).

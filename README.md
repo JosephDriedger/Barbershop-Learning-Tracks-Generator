@@ -2,7 +2,8 @@
 
 Desktop app that generates four-part barbershop learning tracks (Tenor, Lead, Baritone,
 Bass) from a score: a MuseScore project (`.mscz`, `.mscx`), a MusicXML file (`.musicxml`, `.xml`, `.mxl`) or a PDF
-(recognised with Audiveris). From it BLT makes 13 tracks, sung by OpenUtau's engine with a voicebank you provide: the
+(a PDF that a notation program wrote is read exactly by BLT itself; a scan is recognised with Audiveris). From it BLT
+makes 13 tracks, sung by OpenUtau's engine with a voicebank you provide: the
 Full Quartet, and for each part a predominant, a solo and a without track.
 
 Status: **version 1.0.0, tested by its developer and published** (unsigned installers are attached to the
@@ -110,7 +111,7 @@ BLT is a front end for work done by others. The full list of bundled components 
 * **Python**, **NumPy**, **mido**, **defusedxml**, **platformdirs**, **PyInstaller** and the **.NET** runtime,
   with the NAudio, Concentus, Newtonsoft.Json, YamlDotNet and other libraries listed in the notices.
 * **[Inno Setup](https://jrsoftware.org/isinfo.php)** builds the installer; it is not part of what is installed.
-* Scores can be prepared with **MuseScore**, and recognised from PDF with **Audiveris**; MP3 output uses
+* Scores can be prepared with **MuseScore**, and scanned PDFs recognised with **Audiveris**; MP3 output uses
   **FFmpeg**. These are programs you install yourself; BLT ships none of them.
 
 **Voices.** BLT includes no voicebank. The voice the developer tested with is **Bennett (ENG)** by

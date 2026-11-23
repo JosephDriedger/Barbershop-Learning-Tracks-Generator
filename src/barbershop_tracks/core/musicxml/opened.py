@@ -57,5 +57,7 @@ def parse_opened(
     lines = NOT_READ
     if opened.conversion is not None and opened.original.suffix.lower() in MUSESCORE_SUFFIXES:
         parsed, lines = apply_lyric_lines(parsed, read_project_lyrics(opened.original))
+    elif opened.lyric_lines is not None:  # a PDF draws its lines: the same lengths, read there
+        parsed, lines = apply_lyric_lines(parsed, opened.lyric_lines)
     parsed, tempo = follow_playback_tempo(opened, parsed)
     return parsed, OpenedReading(tempo, lines)

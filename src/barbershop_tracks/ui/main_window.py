@@ -518,6 +518,20 @@ class MainWindow(QMainWindow):
             lines = conversion.get("lyric_lines")
             if isinstance(lines, dict) and lines.get("note"):
                 items.append(("info", str(lines["note"])))
+            unsettled = conversion.get("unsettled")
+            if isinstance(unsettled, list) and unsettled:
+                # what reading the PDF could not settle: to be checked against the original
+                shown = [str(u) for u in unsettled[:5]]
+                more = len(unsettled) - len(shown)
+                items.append(
+                    (
+                        "warning",
+                        "Check against the PDF: "
+                        + "; ".join(shown)
+                        + (f"; and {more} more" if more > 0 else "")
+                        + ".",
+                    )
+                )
         if c.assignments is not None:
             items.extend(("info", p) for p in c.assignments.problems())
         view = c.validation

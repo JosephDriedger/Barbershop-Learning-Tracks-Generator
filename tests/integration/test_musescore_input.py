@@ -116,20 +116,43 @@ def test_the_same_project_gives_the_same_identity_and_tracks_on_a_second_run(rig
     assert full_quartet(first) == full_quartet(second)
 
 
-def test_a_pdf_that_musescore_wrote_is_still_a_picture_and_is_not_recognised_silently(
-    rig: Rig, capsys: pytest.CaptureFixture[str]
-) -> None:
+def _all_tracks(package: Path) -> dict[str, str]:
+    return {
+        wav.name: hashlib.sha256(wav.read_bytes()).hexdigest()
+        for wav in sorted(package.glob("*.wav"))
+    }
+
+
+def test_the_pdf_of_a_project_makes_the_same_tracks_as_the_project(rig: Rig) -> None:
+    """A PDF that MuseScore wrote is read by BLT itself (nothing recognised, no prompt) and gives
+    the very tracks the project gives: all 13, byte for byte."""
+    # a printed tempo mark, as an arrangement has (a tempo kept only for playback is not drawn)
+    shown = rig.musicxml.read_text(encoding="utf-8").replace(
+        '<sound tempo="100"',
+        "<direction-type><metronome><beat-unit>quarter</beat-unit>"
+        '<per-minute>100</per-minute></metronome></direction-type><sound tempo="100"',
+        1,
+    )
+    assert "<metronome>" in shown
+    rig.musicxml.write_text(shown, encoding="utf-8")
+    project = rig.make("Hymn.mscz")
     program = find_musescore()
     assert program is not None
     pdf = rig.root / "Hymn.pdf"
     done = subprocess.run(
-        [str(program), "-o", str(pdf), str(rig.musicxml)],
+        [str(program), "-o", str(pdf), str(project)],
         capture_output=True,
         timeout=180,
         check=False,
         env=clean_environment(),
     )
-    assert done.returncode == 0
-    code, _ = rig.generate(pdf, "out-pdf")
-    assert code != 0
-    assert "RECOGNITION_NOT_CONFIRMED" in capsys.readouterr().err
+    assert done.returncode == 0, done.stderr
+    project_code, from_project = rig.generate(project, "out-project")
+    pdf_code, from_pdf = rig.generate(pdf, "out-pdf")
+    assert (project_code, pdf_code) == (0, 0)
+    tracks = _all_tracks(from_pdf)
+    assert len(tracks) == 13
+    assert tracks == _all_tracks(from_project)  # every track, byte for byte the same audio
+    source = json.loads((from_pdf / "manifest.json").read_text(encoding="utf-8"))["source"]
+    assert source["conversion"]["tool"] == "BLT PDF reader"
+    assert source["conversion"]["recognised"] is False

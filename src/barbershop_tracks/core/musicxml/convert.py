@@ -6,12 +6,17 @@ code of BLT's own:
 * a **MuseScore project** (``.mscz``, ``.mscx``) is exported to MusicXML by MuseScore's own command line
   (``MuseScore4.exe -o score.musicxml project.mscz``). That is an export from the program that wrote the file,
   not a guess; the result is read like any MusicXML.
-* a **PDF or image of the printed music** has no notes in it. Its notes, rhythms and words are *recognised* by an
-  optical-music-recognition program (Audiveris: ``Audiveris -batch -export -output DIR file.pdf``). Recognition
-  makes mistakes, so BLT treats it differently: it runs only when the person has said, in so many words, that
-  they accept a recognised score (``accept_recognition``), the result is flagged ``recognised`` everywhere
-  (the package's record, the window's messages), and what the recognition missed is still refused by the
-  usual readiness checks (a missing tempo or time signature, a note without a lyric).
+* a **PDF that a notation program wrote** (MuseScore, Dorico, any program that draws music with a SMuFL
+  font) is *read* by BLT itself (``barbershop_tracks.core.pdfscore``): every notehead, rest, flag and
+  accidental is a character of the music font at an exact place, every word of the lyrics is text, so the
+  score is read exactly, not guessed. Nothing is recognised and no program is needed.
+* a **scanned PDF or an image of the printed music** has no notes in it, only a picture. Its notes, rhythms and
+  words are *recognised* by an optical-music-recognition program (Audiveris: ``Audiveris -batch -export
+  -output DIR file.pdf``). Recognition makes mistakes, so BLT treats it differently: it runs only when the
+  person has said, in so many words, that they accept a recognised score (``accept_recognition``), the result
+  is flagged ``recognised`` everywhere (the package's record, the window's messages), and what the recognition
+  missed is still refused by the usual readiness checks (a missing tempo or time signature, a note without a
+  lyric).
 
 Neither program is part of BLT (MuseScore is GPL-3, Audiveris AGPL-3: they are started as separate programs, the
 licences of BLT are unaffected, and BLT ships neither). A missing program is an error that says where to get it, or
@@ -25,6 +30,7 @@ conversion used is always the same bytes (recorded as ``converted_sha256``).
 """
 
 import contextlib
+import functools
 import hashlib
 import json
 import os
@@ -34,17 +40,21 @@ import tempfile
 import time
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from fractions import Fraction
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from barbershop_tracks.core.errors import ScoreConversionError
+from barbershop_tracks.core.musicxml.mscx_lyrics import ProjectLyric
 
 if TYPE_CHECKING:  # imported lazily: the rendering package imports the score model
     from barbershop_tracks.core.rendering.cancel import CancelToken
 
 MUSESCORE_SUFFIXES = (".mscz", ".mscx")
-RECOGNITION_SUFFIXES = (".pdf", ".png", ".jpg", ".jpeg")
+RECOGNITION_SUFFIXES = (".pdf", ".png", ".jpg", ".jpeg")  # a PDF only when it is a scan
+PDF_READER = "BLT PDF reader"
+PDF_READER_VERSION = "6"  # part of the cache key: a better reader reads a PDF again
 CONVERTED_SUFFIXES = (*MUSESCORE_SUFFIXES, *RECOGNITION_SUFFIXES)
 
 MUSESCORE_TIMEOUT_SECONDS = 180.0
@@ -75,9 +85,11 @@ class Conversion:
         bool  # True: notes were recognised from a picture and have not been checked by a person
     )
     note: str
+    # what reading the file could not settle (a word under no note), said to the person
+    unsettled: tuple[str, ...] = ()
 
     def as_record(self) -> dict[str, Any]:
-        return {
+        record: dict[str, Any] = {
             "tool": self.tool,
             "program": self.program,
             "kind": self.kind,
@@ -85,6 +97,9 @@ class Conversion:
             "recognised": self.recognised,
             "note": self.note,
         }
+        if self.unsettled:
+            record["unsettled"] = list(self.unsettled)
+        return record
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +113,11 @@ class OpenedScore:
     # MuseScore's own MIDI export of the project: what it plays, tempo changes included (a
     # ritardando, a fermata, "a tempo"); None for any other kind of score or if it could not be made
     playback_midi: Path | None = None
+    # how far each held syllable's line runs, per staff and voice, when the file shows it (a
+    # MuseScore project keeps it, a PDF draws it); None: not known
+    lyric_lines: Mapping[int, Sequence[Sequence[ProjectLyric]]] | None = None
+    # what the reading of the file could not settle, said to the person
+    notes: tuple[str, ...] = field(default_factory=tuple)
 
     @property
     def display_name(self) -> str:
@@ -117,8 +137,33 @@ def is_converted_kind(path: Path | str) -> bool:
 
 
 def needs_recognition(path: Path | str) -> bool:
-    """True for a picture of music (PDF, image): the notes would have to be recognised."""
-    return Path(path).suffix.lower() in RECOGNITION_SUFFIXES
+    """True for a picture of music (an image, a scanned PDF): the notes would have to be
+    recognised. A PDF that a notation program wrote is read exactly and needs none."""
+    suffix = Path(path).suffix.lower()
+    if suffix == ".pdf":
+        return not is_notation_pdf(path)
+    return suffix in RECOGNITION_SUFFIXES
+
+
+def is_notation_pdf(path: Path | str) -> bool:
+    """Whether ``path`` is a PDF whose music is drawn with a music font (not a scan)."""
+    try:
+        info = Path(path).stat()
+    except OSError:
+        return False
+    return _is_notation_pdf(str(Path(path).resolve()), info.st_size, info.st_mtime_ns)
+
+
+@functools.lru_cache(maxsize=16)
+def _is_notation_pdf(path: str, _size: int, _mtime: int) -> bool:
+    from barbershop_tracks.core.pdfscore.pdf import PdfError, read_pages
+    from barbershop_tracks.core.pdfscore.symbols import NOTEHEADS
+
+    try:
+        pages = read_pages(Path(path), max_pages=3)
+    except (PdfError, OSError, ValueError, RecursionError):
+        return False
+    return any(g.text in NOTEHEADS for page in pages for g in page.glyphs)
 
 
 # --- finding the programs ---------------------------------------------------------------------
@@ -326,6 +371,43 @@ def _convert_with_audiveris(
     return produced[0]
 
 
+def _read_notation_pdf(source: Path, work: Path) -> tuple[Path, dict[str, Any]]:
+    """The MusicXML of a notation PDF, and what else was read (line lengths, notes)."""
+    from barbershop_tracks.core.pdfscore import PdfError, line_lengths, pdf_to_musicxml
+
+    target = work / (source.stem + ".musicxml")
+    try:
+        score = pdf_to_musicxml(source, target)
+    except PdfError as error:
+        raise ScoreConversionError(
+            "CONVERSION_FAILED",
+            f"{source.name} could not be read: {error}. Open the score in the program that "
+            "wrote it and export MusicXML instead",
+            tool=PDF_READER,
+        ) from error
+    extra = {
+        "lyric_lines": {
+            str(staff): [
+                [[text, None if line is None else str(line)] for text, line in voice]
+                for voice in voices
+            ]
+            for staff, voices in line_lengths(score).items()
+        },
+        "notes": list(dict.fromkeys(score.notes)),
+    }
+    return target, extra
+
+
+def _lyric_lines_from(extra: Mapping[str, Any]) -> dict[int, list[list[ProjectLyric]]]:
+    found: dict[int, list[list[ProjectLyric]]] = {}
+    for staff, voices in (extra.get("lyric_lines") or {}).items():
+        found[int(staff)] = [
+            [ProjectLyric(text, None if line is None else Fraction(line)) for text, line in voice]
+            for voice in voices
+        ]
+    return found
+
+
 def _export_playback_midi(
     source: Path, program: Path, work: Path, cancel: "CancelToken | None", timeout: float
 ) -> Path | None:
@@ -433,6 +515,9 @@ def opened_score(
         return
     if not original.is_file():
         raise ScoreConversionError("CONVERSION_FAILED", f"cannot read {original.name}")
+    if suffix == ".pdf" and is_notation_pdf(original):
+        yield from _opened_notation_pdf(original, cache)
+        return
     env = os.environ if environ is None else environ
     recognition = suffix in RECOGNITION_SUFFIXES
     tool = "Audiveris" if recognition else "MuseScore"
@@ -506,6 +591,57 @@ def opened_score(
             shutil.rmtree(scratch, ignore_errors=True)
 
 
+def _opened_notation_pdf(original: Path, cache: Path | None) -> Iterator[OpenedScore]:
+    """A PDF a notation program wrote, read by BLT itself (cached like a conversion)."""
+    digest = file_sha256(original)
+    key = hashlib.sha256(f"{digest}|{PDF_READER}|{PDF_READER_VERSION}".encode()).hexdigest()[:24]
+    converted = _cached(cache, key)
+    extra: dict[str, Any] | None = None
+    if converted is not None and cache is not None:
+        try:
+            extra = json.loads((cache / f"{key}.read.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            converted = None
+    scratch: Path | None = None
+    if converted is None or extra is None:
+        scratch = Path(tempfile.mkdtemp(prefix="blt-convert-"))
+        try:
+            converted, extra = _read_notation_pdf(original, scratch)
+            if cache is not None:
+                converted = _store(cache, key, converted, digest, PDF_READER, Path(PDF_READER))
+                (cache / f"{key}.read.json").write_text(json.dumps(extra), encoding="utf-8")
+        except BaseException:
+            shutil.rmtree(scratch, ignore_errors=True)
+            raise
+    try:
+        notes = tuple(extra.get("notes") or ())
+        conversion = Conversion(
+            tool=PDF_READER,
+            program=PDF_READER,
+            kind="pdf-reading",
+            converted_sha256=file_sha256(converted),
+            recognised=False,
+            note=(
+                "read from the music and the words the PDF draws (a notation program's PDF: "
+                "nothing was recognised)"
+                + (f"; {len(notes)} thing(s) could not be settled" if notes else "")
+            ),
+            unsettled=notes,
+        )
+        yield OpenedScore(
+            converted,
+            original,
+            digest,
+            conversion,
+            None,
+            lyric_lines=_lyric_lines_from(extra),
+            notes=notes,
+        )
+    finally:
+        if scratch is not None:
+            shutil.rmtree(scratch, ignore_errors=True)
+
+
 __all__ = [
     "AUDIVERIS_HELP",
     "CONVERTED_SUFFIXES",
@@ -519,6 +655,7 @@ __all__ = [
     "find_audiveris",
     "find_musescore",
     "is_converted_kind",
+    "is_notation_pdf",
     "needs_recognition",
     "opened_score",
 ]

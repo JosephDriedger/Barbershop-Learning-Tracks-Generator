@@ -42,10 +42,13 @@ class PlaybackTempo:
     applied: bool  # the performance's tempo is MuseScore's playback tempo
     changes: int  # how many tempo changes it makes after the opening one
     note: str  # said to the person; empty when there is nothing to say
+    # where the playback tempo came from: MuseScore's own export, or the score's marks played
+    # by MuseScore's rules (``marked_playback.py``)
+    source: str = "MuseScore MIDI export"
 
     def as_record(self) -> dict[str, object]:
         return {
-            "source": "MuseScore MIDI export",
+            "source": self.source,
             "applied": self.applied,
             "changes": self.changes,
             "note": self.note,
@@ -133,6 +136,33 @@ def apply_playback_tempo(
     ), done
 
 
+def _follow_marks(opened: OpenedScore, parsed: ParseResult) -> tuple[ParseResult, PlaybackTempo]:
+    from barbershop_tracks.core.errors import ScoreLoadError
+    from barbershop_tracks.core.musicxml.marked_playback import marked_tempo_changes
+    from barbershop_tracks.core.musicxml.source import load_musicxml_source
+
+    try:
+        root = load_musicxml_source(opened.parse_path).root
+    except (ScoreLoadError, OSError, ValueError):
+        return parsed, NOT_USED
+    changes = marked_tempo_changes(root, parsed)
+    if not changes:
+        return parsed, NOT_USED
+    result, done = apply_playback_tempo(parsed, changes)
+    if not done.applied:
+        return parsed, NOT_USED
+    heard = done.changes
+    return result, replace(
+        done,
+        source="the score's fermatas and tempo lines, played as MuseScore plays them",
+        note=(
+            f"The tempo follows the score's fermatas and tempo lines as MuseScore plays them: "
+            f"{heard} tempo change{'' if heard == 1 else 's'} (a fermata, a ritardando or a "
+            "return to the first tempo)."
+        ),
+    )
+
+
 def parse_with_playback_tempo(
     opened: OpenedScore, parse: Callable[[Path], ParseResult]
 ) -> tuple[ParseResult, PlaybackTempo]:
@@ -143,9 +173,13 @@ def parse_with_playback_tempo(
 def follow_playback_tempo(
     opened: OpenedScore, parsed: ParseResult
 ) -> tuple[ParseResult, PlaybackTempo]:
-    """``parsed`` with MuseScore's playback tempo, if ``opened`` has it and it can be trusted."""
+    """``parsed`` with MuseScore's playback tempo, if ``opened`` has it and it can be trusted.
+
+    Without a playback (a MusicXML file, a PDF), the tempo MuseScore would play is worked out from
+    the score's fermatas and tempo lines, so the song sounds as it does from its project.
+    """
     if opened.playback_midi is None:
-        return parsed, NOT_USED
+        return _follow_marks(opened, parsed)
     try:
         data = opened.playback_midi.read_bytes()
         changes = read_tempo_changes(data)
